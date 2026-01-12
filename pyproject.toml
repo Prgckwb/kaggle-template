@@ -30,8 +30,8 @@ gpu = [
 ]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.9.23,<0.10"]
+build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 120
@@ -62,3 +62,7 @@ known-first-party = ["utils", "experiments", "tools"]
 quote-style = "double"
 indent-style = "space"
 docstring-code-format = true
+
+[tool.uv.build-backend]
+module-name = "utils"
+module-root = ""
