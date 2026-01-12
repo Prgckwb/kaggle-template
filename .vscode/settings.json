@@ -1,13 +1,30 @@
 {
   "editor.formatOnPaste": true,
+  "editor.formatOnSave": true,
   "[python]": {
-    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.codeActionsOnSave": {
-      "source.organizeImports": "explicit"
-    },
-    "editor.defaultFormatter": "charliermarsh.ruff"
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  "ruff.lint.args": ["--config=pyproject.toml"],
+  "ruff.format.args": ["--config=pyproject.toml"],
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "error",
+    "reportMissingTypeStubs": "none"
   },
   "cSpell.words": [
-    "kaggle"
+    "kaggle",
+    "hydra",
+    "wandb",
+    "omegaconf",
+    "gitmoji"
   ],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true
+  }
 }

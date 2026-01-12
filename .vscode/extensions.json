@@ -1,5 +1,9 @@
 {
     "recommendations": [
-        "charliermarsh.ruff"
+        "charliermarsh.ruff",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "GitHub.copilot",
+        "eamodio.gitlens"
     ]
 }
