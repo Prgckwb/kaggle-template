@@ -1,58 +1,107 @@
-# MLコンペ用実験テンプレート
+# Kaggle コンペティション用実験テンプレート
 
 ## 特徴
-- Docker によるポータブルなKaggleと同一の環境
+- uv によるパッケージ管理
 - Hydra による実験管理
-- 実験用スクリプトファイルを major バージョンごとにフォルダごとに管理 & 実験パラメータ設定を minor バージョンとしてファイルとして管理
-   - 実験用スクリプトと実験パラメータ設定を同一フォルダで局所的に管理して把握しやすくする
-- dataclass を用いた config 定義を用いることで、エディタの補完機能を利用できるように
+- Ruff + pre-commit によるコード品質管理
+- dataclass を用いた config 定義によるエディタ補完
+- 実験スクリプトとパラメータを同一フォルダで管理
 
 ### Hydra による Config 管理
-- Config は yamlとdictで定義するのではなく、dataclass を用いて定義することで、エディタの補完などの機能を使いつつタイポを防止できるようにする
-- 各スクリプトに共通する環境依存となる設定は utils/env.py の EnvConfig で定義される
-- 各スクリプトによって変わる設定は、実行スクリプトのあるフォルダ(`{major_exp_name}`)の中に `exp/{minor_exp_name}.yaml` として配置することで管理。
-    - 実行時に `exp={minor_exp_name}` で上書きする
-    - `{major_exp_name}` と `{minor_exp_name}` の組み合わせで実験が再現できるようにする
+- Config は yamlとdictではなく、dataclass を用いて定義
+- エディタの補完機能を活用してタイポを防止
+- 共通設定は utils/env.py の EnvConfig で定義
+- 実験ごとの設定は `exp/{minor_exp_name}.yaml` で管理
+- `{major_exp_name}` と `{minor_exp_name}` の組み合わせで実験を再現
 
-## Structure
+## セットアップ
+
+### uv のインストール
+
+```bash
+# uv のインストール（未導入の場合）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### 依存関係のインストール
+
+```bash
+# 基本依存関係のインストール
+uv sync
+
+# 開発用依存関係も含める
+uv sync --extra dev
+
+# GPU 環境の場合
+uv sync --extra gpu
+```
+
+### pre-commit のセットアップ
+
+```bash
+# pre-commit フックをインストール
+uv run pre-commit install
+```
+
+## ディレクトリ構成
+
 ```text
 .
-├── experiments
-├── input
-├── notebook
-├── output
-├── tools
-├── utils
-├── Dockerfile
-├── Dockerfile.cpu
-├── LICENSE
-├── Makefile
-├── README.md
-├── compose.cpu.yaml
-└── compose.yaml
-
+├── experiments/       # 実験スクリプト（Hydra ベース）
+│   ├── exp000_sample/
+│   │   ├── README.md
+│   │   ├── run.py
+│   │   ├── config.yaml
+│   │   └── exp/
+│   │       ├── 000.yaml
+│   │       └── 001.yaml
+│   └── README_TEMPLATE.md
+├── input/             # 入力データ
+├── notebooks/         # 公開用ノートブック
+├── output/            # 出力ファイル
+├── tools/             # ユーティリティスクリプト
+├── utils/             # 共通モジュール
+├── pyproject.toml     # プロジェクト設定
+├── CLAUDE.md          # AI アシスタント向けガイドライン
+├── AGENTS.md          # CLAUDE.md へのリンク
+└── README.md
 ```
 
-## Docker による環境構築
+## 実験の実行
 
-```sh
-# imageのbuild
-make build
+```bash
+# デフォルト設定で実行
+uv run python experiments/exp000_sample/run.py
 
-# bash に入る場合
-make bash
+# 設定を指定して実行
+uv run python experiments/exp000_sample/run.py exp=001
 
-# jupyter lab を起動する場合
-make jupyter
-
-# CPUで起動する場合はCPU=1やCPU=True などをつける
+# デバッグモード
+uv run python experiments/exp000_sample/run.py exp.debug=true
 ```
 
-## スクリプトの実行方法
+## コード品質管理
 
-```sh
-# python experiments/{major_version_name}/run.py exp={minor_version_name}
+```bash
+# lint チェック
+uv run ruff check .
 
-python experiments/exp000_sample/run.py
-python experiments/exp000_sample/run.py exp=001
+# 自動フォーマット
+uv run ruff format .
+
+# pre-commit 手動実行
+uv run pre-commit run --all-files
 ```
+
+## JupyterLab の起動
+
+```bash
+uv run jupyter lab
+```
+
+## 新しい実験の追加
+
+1. experiments/ 内に新しいフォルダを作成
+2. README_TEMPLATE.md を参考に README.md を作成
+3. run.py, config.yaml, exp/ を配置
+4. GitHub Issue で実験目的を記録
