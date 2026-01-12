@@ -33,7 +33,7 @@ class ExpConfig:
 @dataclass
 class Config:
     env: EnvConfig = field(default_factory=EnvConfig)
-    exp: ExpConfig = field(default_factory=ExpConfig)
+    conf: ExpConfig = field(default_factory=ExpConfig)
 
 
 # hydra用にdefaultを設定
@@ -73,8 +73,8 @@ def main(
         project=WANDB_PROJECT_NAME,
         name=exp_name,
         notes=", ".join(HydraConfig.get().overrides.task),  # オーバーライドの内容
-        config=OmegaConf.to_container(cfg.exp, resolve=True),
-        mode="disabled" if cfg.exp.debug else "online",
+        config=OmegaConf.to_container(cfg.conf, resolve=True),
+        mode="disabled" if cfg.conf.debug else "online",
     )
 
 

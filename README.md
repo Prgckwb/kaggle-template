@@ -77,7 +77,7 @@ uv run python experiments/exp000_sample/run.py
 uv run python experiments/exp000_sample/run.py conf=001
 
 # デバッグモード
-uv run python experiments/exp000_sample/run.py exp.debug=true
+uv run python experiments/exp000_sample/run.py conf.debug=true
 ```
 
 ## コード品質管理
