@@ -40,7 +40,7 @@
 
 ### 実験の追加
 1. `experiments/exp{番号}_{名前}/` フォルダを作成
-2. `run.py`, `config.yaml`, `exp/` を配置
+2. `run.py`, `config.yaml`, `conf/` を配置
 3. `README.md` を作成（テンプレート参照）
 4. Issue を作成して実験目的を記録
 

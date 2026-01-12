@@ -11,7 +11,7 @@
 - Config は yamlとdictではなく、dataclass を用いて定義
 - エディタの補完機能を活用してタイポを防止
 - 共通設定は utils/env.py の EnvConfig で定義
-- 実験ごとの設定は `exp/{minor_exp_name}.yaml` で管理
+- 実験ごとの設定は `conf/{minor_exp_name}.yaml` で管理
 - `{major_exp_name}` と `{minor_exp_name}` の組み合わせで実験を再現
 
 ## セットアップ
@@ -52,7 +52,7 @@ uv run pre-commit install
 │   │   ├── README.md
 │   │   ├── run.py
 │   │   ├── config.yaml
-│   │   └── exp/
+│   │   └── conf/
 │   │       ├── 000.yaml
 │   │       └── 001.yaml
 │   └── README_TEMPLATE.md
@@ -74,7 +74,7 @@ uv run pre-commit install
 uv run python experiments/exp000_sample/run.py
 
 # 設定を指定して実行
-uv run python experiments/exp000_sample/run.py exp=001
+uv run python experiments/exp000_sample/run.py conf=001
 
 # デバッグモード
 uv run python experiments/exp000_sample/run.py exp.debug=true
@@ -103,5 +103,5 @@ uv run jupyter lab
 
 1. experiments/ 内に新しいフォルダを作成
 2. README_TEMPLATE.md を参考に README.md を作成
-3. run.py, config.yaml, exp/ を配置
+3. run.py, config.yaml, conf/ を配置
 4. GitHub Issue で実験目的を記録

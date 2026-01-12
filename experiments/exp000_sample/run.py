@@ -39,7 +39,7 @@ class Config:
 # hydra用にdefaultを設定
 cs = ConfigStore.instance()
 cs.store(name="default", group="env", node=EnvConfig)
-cs.store(name="default", group="exp", node=ExpConfig)
+cs.store(name="default", group="conf", node=ExpConfig)
 
 
 ####################
@@ -55,7 +55,7 @@ def main(
 ) -> None:  # Duck typing: cfgは実際にはDictConfigだが、Configクラスのように扱える
     print(cfg)
 
-    exp_name = f"{Path(sys.argv[0]).parent.name}/{HydraConfig.get().runtime.choices.exp}"  # e.g. 000_sample/default
+    exp_name = f"{Path(sys.argv[0]).parent.name}/{HydraConfig.get().runtime.choices.conf}"  # e.g. 000_sample/default
     output_dir = Path(cfg.env.exp_output_dir) / exp_name
     os.makedirs(output_dir, exist_ok=True)
     print(f"output_dir: {output_dir}")

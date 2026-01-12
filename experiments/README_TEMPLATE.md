@@ -13,12 +13,12 @@
 
 ```bash
 uv run python experiments/exp{番号}_{名前}/run.py
-uv run python experiments/exp{番号}_{名前}/run.py exp={minor}
+uv run python experiments/exp{番号}_{名前}/run.py conf={minor}
 ```
 
 ## 設定ファイル
 - `config.yaml`: メイン設定
-- `exp/*.yaml`: 実験パラメータ
+- `conf/*.yaml`: 実験パラメータ
 
 ## 結果
 <!-- CV/LB スコアなど -->

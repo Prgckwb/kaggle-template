@@ -15,13 +15,13 @@
 uv run python experiments/exp000_sample/run.py
 
 # 設定を指定して実行
-uv run python experiments/exp000_sample/run.py exp=001
+uv run python experiments/exp000_sample/run.py conf=001
 ```
 
 ## 設定ファイル
 - `config.yaml`: メイン設定
-- `exp/000.yaml`: デフォルト実験設定
-- `exp/001.yaml`: 別シード実験設定
+- `conf/000.yaml`: デフォルト実験設定
+- `conf/001.yaml`: 別シード実験設定
 
 ## 結果
 <!-- 実験結果を記載 -->
