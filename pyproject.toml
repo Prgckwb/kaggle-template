@@ -7,6 +7,13 @@ requires-python = ">=3.12"
 dependencies = [
     "hydra-core",
     "wandb",
+]
+
+[dependency-groups]
+dev = [
+    "jupyter",
+    "ruff",
+    "ty",
     "fastapi",
     "uvicorn",
     "jinja2",

@@ -130,17 +130,6 @@ gitmoji を使用し、日本語で記述する。
 - 実験が完了したら push する
 - 長時間作業する場合は WIP でも定期的に push する
 
-## スキル（スラッシュコマンド）
-
-このリポジトリでは以下のスキルが利用可能：
-
-| コマンド | 説明 |
-|----------|------|
-| `/kaggle:create-experiment` | 新しい実験ディレクトリを作成 |
-| `/kaggle:record-experiment-result` | 実験結果を README と docs/insights に記録 |
-| `/kaggle:create-dashboard-page` | ダッシュボードに新しいページを追加 |
-| `/kaggle:commit-and-push` | gitmoji + 日本語でコミットしてプッシュ |
-
 ## 技術スタック
 
 - **実験管理**: Hydra, Wandb
