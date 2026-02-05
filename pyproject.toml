@@ -1,0 +1,13 @@
+[project]
+name = "kaggle-template"
+version = "0.1.0"
+description = "Kaggle competition template"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "hydra-core",
+    "wandb",
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+]

@@ -1,0 +1,28 @@
+# Experiment configuration
+defaults:
+  - _self_
+
+# Experiment
+exp_name: exp000-sample
+seed: 42
+
+# Data
+data:
+  train_path: ${hydra:runtime.cwd}/input/train.csv
+  test_path: ${hydra:runtime.cwd}/input/test.csv
+
+# Model
+model:
+  name: baseline
+
+# Training
+training:
+  epochs: 10
+  batch_size: 32
+  lr: 1e-3
+
+# Wandb
+wandb:
+  project: kaggle-competition
+  entity: null  # Set your wandb entity
+  mode: online  # online, offline, disabled
