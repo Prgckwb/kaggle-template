@@ -12,5 +12,5 @@ templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 async def index(request: Request):
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "title": "Dashboard"},
+        {"request": request, "title": "Dashboard", "active_page": "home"},
     )
