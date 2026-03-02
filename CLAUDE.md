@@ -39,12 +39,20 @@ kaggle-template/
 
 ```
 src/exp001-xxx/
+├── README.md       # 実験の概要・仮説・結果・考察
 ├── train.py        # 学習スクリプト
 ├── model.py        # モデル定義
 ├── data.py         # データ処理
 └── config/         # Hydra 設定
     └── config.yaml
 ```
+
+各実験の `README.md` には以下を記載する：
+
+- **目的・仮説**: この実験で何を検証するか
+- **実行方法**: 実験を再現するためのコマンド
+- **結果**: CV スコア、LB スコア
+- **考察**: 結果から何がわかったか
 
 ### 依存関係
 
@@ -119,11 +127,15 @@ uv run python train.py debug=false
 
 新しい実験を作成・完了したら、以下を必ず更新する：
 
-1. **README.md の Experiments テーブル**
+1. **各実験フォルダの README.md**
+   - 実験開始時: 目的・仮説・実行方法を記載する
+   - 実験完了時: 結果（CV・LB スコア）と考察を追記する
+
+2. **リポジトリルートの README.md の Experiments テーブル**
    - 実験名、CV スコア、LB スコア、説明を追記
    - Experiment Tree（mermaid）に実験の派生関係を追加
 
-2. **docs/insights/**
+3. **docs/insights/**
    - `YYYY-MM-DD_exp{番号}-{subtitle}.md` で知見を記録
    - 何を試したか、結果、考察、次に試すべきことを記載
 
