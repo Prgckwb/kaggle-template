@@ -70,7 +70,9 @@ app/
 ├── pages/           # 各ページの APIRouter
 │   ├── __init__.py
 │   ├── experiments.py  # 実験一覧 + 詳細
-│   └── docs.py         # ドキュメント閲覧
+│   ├── discussions.py  # Discussion 閲覧
+│   ├── knowledge.py    # 知識ベース（official / insights）
+│   └── data.py         # データ閲覧（input/ 配下）
 └── templates/
     ├── base.html           # 共通レイアウト（サイドバー + メイン）
     ├── index.html          # ホームページ
@@ -83,12 +85,21 @@ app/
     │   └── _markdown.html
     ├── partials/           # htmx 差し替え用パーシャル
     │   ├── _experiment_list.html
-    │   └── _doc_content.html
+    │   ├── _experiment_readme.html
+    │   ├── _experiment_config.html
+    │   ├── _experiment_files.html
+    │   ├── _doc_content.html
+    │   ├── _data_preview.html
+    │   └── _image_gallery.html
     ├── experiments/
     │   ├── list.html       # 実験一覧ページ
     │   └── detail.html     # 実験詳細ページ
-    └── docs/
-        └── viewer.html     # ドキュメント閲覧ページ
+    ├── discussions/
+    │   └── viewer.html     # Discussion 閲覧ページ
+    ├── knowledge/
+    │   └── viewer.html     # 知識ベース閲覧ページ
+    └── data/
+        └── viewer.html     # データ閲覧ページ
 ```
 
 ## htmx パターン
