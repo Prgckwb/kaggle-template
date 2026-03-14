@@ -16,7 +16,7 @@ kaggle-template/
 │   ├── discussion/ # Kaggle Discussion 情報
 │   └── insights/   # 実験から得た知見
 └── src/            # 実験ディレクトリ
-    └── exp001-xxx/ # 各実験（独立した構成）
+    └── exp000-sample/ # 各実験（独立した構成）
 ```
 
 ## Experiments
@@ -37,17 +37,20 @@ kaggle-template/
 
 ```mermaid
 graph TD
-    A[exp000-sample] --> B[exp001-baseline]
-    B --> C[exp002-xxx]
-    B --> D[exp003-yyy]
+    A[exp000-sample]
 ```
 
 ## Setup
 
 ```bash
-# Install dependencies
+# 依存関係インストール
 uv sync
 
-# Run web app
-uv run uvicorn app.main:app --reload
+# Web アプリ起動
+just app
+
+# 実験実行（詳細は CLAUDE.md 参照）
+just debug exp001-baseline     # デバッグモード
+just train exp001-baseline     # 本番モード
+just infer exp001-baseline     # 推論
 ```
