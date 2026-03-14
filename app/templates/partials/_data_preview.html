@@ -1,0 +1,193 @@
+{% from "components/_metric_card.html" import metric_card %}
+
+<div class="space-y-4">
+    <!-- File info header -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+                <i class="fa-solid {{ data_file_icon(file.type) }} text-amber-500"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-gray-800">{{ file.name }}</h2>
+                <p class="text-xs text-gray-400">{{ file.size | filesize }} | {{ file.suffix }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if file.type == "tabular" and stats %}
+    <!-- Statistics cards -->
+    <div class="grid grid-cols-3 gap-4">
+        {{ metric_card("Rows", stats.total_rows, icon="fa-table-list", color="emerald") }}
+        {{ metric_card("Columns", stats.total_cols, icon="fa-table-columns", color="sky") }}
+        {% set null_total = stats.null_counts.values() | sum %}
+        {{ metric_card("Null cells", null_total, icon="fa-circle-exclamation", color="amber") }}
+    </div>
+
+    <!-- Describe table -->
+    {% if stats.describe_rows %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+            <i class="fa-solid fa-chart-bar text-gray-400"></i>
+            <span class="text-sm font-bold text-gray-600">Statistics (describe)</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        {% for col in stats.describe_columns %}
+                        <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 whitespace-nowrap">{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for row in stats.describe_rows %}
+                    <tr class="hover:bg-gray-50">
+                        {% for col in stats.describe_columns %}
+                        <td class="px-3 py-2 text-gray-700 whitespace-nowrap">{{ row[col] if row[col] is not none else '-' }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Data preview table -->
+    {% if preview %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+            <i class="fa-solid fa-table text-gray-400"></i>
+            <span class="text-sm font-bold text-gray-600">Preview ({{ preview.rows|length }} / {{ preview.total_rows }} rows)</span>
+        </div>
+        <div class="overflow-x-auto max-h-96">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
+                    <tr>
+                        {% for col in preview.columns %}
+                        <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 whitespace-nowrap">{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for row in preview.rows %}
+                    <tr class="hover:bg-gray-50">
+                        {% for col in preview.columns %}
+                        <td class="px-3 py-2 text-gray-700 whitespace-nowrap max-w-xs truncate">{{ row[col] if row[col] is not none else '' }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% elif file.type == "tabular" and not stats %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
+        <i class="fa-solid fa-table text-gray-300 text-4xl mb-3"></i>
+        <p class="text-gray-500 font-semibold">統計情報を読み込めませんでした</p>
+    </div>
+
+    {% elif file.type == "image" %}
+    <!-- Image preview -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <img src="/data/raw/{{ file.path }}" alt="{{ file.name }}"
+             class="max-w-full max-h-[600px] mx-auto rounded-xl shadow-sm"
+             id="image-preview">
+
+        {% if sibling_images|length > 1 %}
+        <!-- Navigation -->
+        <div class="flex items-center justify-center gap-4 mt-4">
+            <button id="prev-btn"
+                    class="w-10 h-10 bg-gray-100 hover:bg-emerald-50 rounded-full flex items-center justify-center text-gray-500 hover:text-emerald-500 transition-all">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span id="image-counter" class="text-sm text-gray-500 font-semibold"></span>
+            <button id="next-btn"
+                    class="w-10 h-10 bg-gray-100 hover:bg-emerald-50 rounded-full flex items-center justify-center text-gray-500 hover:text-emerald-500 transition-all">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+
+        <script>
+        (function() {
+            var images = {{ sibling_images | tojson }};
+            var currentPath = '{{ file.path }}';
+            var currentIdx = images.findIndex(function(img) { return img.path === currentPath; });
+            if (currentIdx < 0) currentIdx = 0;
+
+            var imgEl = document.getElementById('image-preview');
+            var counter = document.getElementById('image-counter');
+
+            function update() {
+                var img = images[currentIdx];
+                imgEl.src = '/data/raw/' + img.path;
+                imgEl.alt = img.name;
+                counter.textContent = (currentIdx + 1) + ' / ' + images.length;
+                history.replaceState(null, '', '/data/preview/' + img.path);
+            }
+            update();
+
+            document.getElementById('prev-btn').onclick = function() {
+                currentIdx = (currentIdx - 1 + images.length) % images.length;
+                update();
+            };
+            document.getElementById('next-btn').onclick = function() {
+                currentIdx = (currentIdx + 1) % images.length;
+                update();
+            };
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowLeft') { currentIdx = (currentIdx - 1 + images.length) % images.length; update(); }
+                if (e.key === 'ArrowRight') { currentIdx = (currentIdx + 1) % images.length; update(); }
+            });
+        })();
+        </script>
+        {% endif %}
+    </div>
+
+    {% if sibling_images|length > 1 %}
+    <!-- Thumbnail grid -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
+        <div class="flex items-center gap-2 mb-3">
+            <i class="fa-solid fa-images text-gray-400"></i>
+            <span class="text-sm font-bold text-gray-600">Gallery ({{ sibling_images|length }} images)</span>
+        </div>
+        <div class="grid grid-cols-6 gap-2">
+            {% for img in sibling_images %}
+            <a href="/data/preview/{{ img.path }}"
+               hx-get="/data/preview/{{ img.path }}"
+               hx-target="#data-content"
+               hx-push-url="true"
+               class="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-emerald-400 transition-all
+                      {% if file.path == img.path %}ring-2 ring-emerald-500{% endif %}">
+                <img src="/data/raw/{{ img.path }}" alt="{{ img.name }}"
+                     loading="lazy"
+                     class="w-full h-full object-cover">
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% elif file.type == "video" %}
+    <!-- Video preview -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <video controls class="max-w-full mx-auto rounded-xl">
+            <source src="/data/raw/{{ file.path }}">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
+    {% else %}
+    <!-- Generic file info -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+            <i class="fa-solid {{ data_file_icon(file.type) }} text-gray-400 text-2xl"></i>
+        </div>
+        <p class="text-gray-500 font-semibold">このファイル形式のプレビューは対応していません</p>
+        <p class="text-xs text-gray-400 mt-1">{{ file.name }} ({{ file.size | filesize }})</p>
+    </div>
+    {% endif %}
+</div>

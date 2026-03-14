@@ -4,279 +4,136 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dashboard{% endblock %} - Kaggle Dashboard</title>
+
+    <!-- Google Fonts: Nunito -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome 6 Free -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Tailwind CSS CDN + Typography plugin -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        nunito: ['Nunito', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <!-- htmx -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- highlight.js: GitHub Light + emerald overrides -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+
     <style>
-        /* === リセット === */
-        *, *::before, *::after {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        body { font-family: 'Nunito', system-ui, sans-serif; }
+        .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+        .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+        .tab-btn.active { background: white; color: #1f2937; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
 
-        /* === CSS 変数 === */
-        :root {
-            --color-accent: #22c55e;
-            --color-accent-hover: #16a34a;
-            --color-accent-light: #dcfce7;
-            --color-bg: #f8f9fa;
-            --color-bg-sidebar: #ffffff;
-            --color-bg-card: #ffffff;
-            --color-text: #1a1a2e;
-            --color-text-secondary: #6b7280;
-            --color-text-muted: #9ca3af;
-            --color-border: #e5e7eb;
-            --sidebar-width: 260px;
-            --radius: 12px;
-            --radius-sm: 8px;
-            --shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
-            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.06);
-            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            --font-mono: 'SF Mono', 'Fira Code', monospace;
-        }
-
-        /* === ベースタイポグラフィ === */
-        body {
-            font-family: var(--font-sans);
-            line-height: 1.6;
-            color: var(--color-text);
-            background: var(--color-bg);
-        }
-
-        /* === 2カラムレイアウト === */
-        .layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* === サイドバー === */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--color-bg-sidebar);
-            border-right: 1px solid var(--color-border);
-            padding: 1.5rem 1rem;
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-        }
-
-        .sidebar-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem 0.75rem;
-            margin-bottom: 1.5rem;
-            font-weight: 700;
-            font-size: 1rem;
-            color: var(--color-text);
-        }
-
-        .brand-icon {
-            font-size: 1.4rem;
-        }
-
-        .sidebar-nav {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            flex: 1;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.625rem 0.75rem;
-            border-radius: var(--radius-sm);
-            color: var(--color-text-secondary);
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: background 0.15s ease, color 0.15s ease;
-        }
-
-        .nav-item:hover {
-            background: var(--color-bg);
-            color: var(--color-text);
-        }
-
-        .nav-item.active {
-            background: var(--color-accent-light);
-            color: var(--color-accent);
-            font-weight: 600;
-        }
-
-        .sidebar-footer {
-            margin-top: auto;
-            padding-top: 1rem;
-            border-top: 1px solid var(--color-border);
-        }
-
-        /* === メインコンテンツ === */
-        .main {
-            margin-left: var(--sidebar-width);
-            flex: 1;
-            padding: 2rem 3rem;
-            max-width: calc(100% - var(--sidebar-width));
-        }
-
-        /* === ページヘッダー === */
-        .page-header {
-            margin-bottom: 2rem;
-        }
-
-        .page-header h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--color-text);
-            margin-bottom: 0.25rem;
-        }
-
-        .page-subtitle {
-            color: var(--color-text-secondary);
-            font-size: 0.95rem;
-        }
-
-        /* === カード === */
-        .card {
-            background: var(--color-bg-card);
-            border-radius: var(--radius);
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--color-border);
-        }
-
-        .card h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-        }
-
-        .card p {
-            color: var(--color-text-secondary);
-            font-size: 0.95rem;
-        }
-
-        /* === グリッド === */
-        .grid {
-            display: grid;
-            gap: 1rem;
-        }
-
-        .grid-2 {
-            grid-template-columns: repeat(2, 1fr);
-        }
-
-        .grid-3 {
-            grid-template-columns: repeat(3, 1fr);
-        }
-
-        /* === ボタン === */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.625rem 1.25rem;
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
-            font-weight: 500;
-            cursor: pointer;
-            border: none;
-            transition: background 0.15s ease, color 0.15s ease;
-            text-decoration: none;
-            font-family: var(--font-sans);
-        }
-
-        .btn-primary {
-            background: var(--color-accent);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--color-accent-hover);
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--color-border);
-            color: var(--color-text);
-        }
-
-        .btn-outline:hover {
-            background: var(--color-bg);
-        }
-
-        /* === コード === */
-        code {
-            background: var(--color-bg);
-            padding: 0.2em 0.4em;
-            border-radius: 4px;
-            font-family: var(--font-mono);
-            font-size: 0.875em;
-            color: var(--color-accent-hover);
-        }
-
-        /* === テーブル === */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--color-border);
-        }
-
-        th {
-            font-weight: 600;
-            color: var(--color-text-secondary);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        td {
-            font-size: 0.95rem;
-        }
-
-        /* === ユーティリティ === */
-        .text-muted {
-            color: var(--color-text-muted);
-            font-size: 0.85rem;
-        }
-
-        .accent {
-            color: var(--color-accent);
-        }
-
-        .mt-1 { margin-top: 0.5rem; }
-        .mt-2 { margin-top: 1rem; }
-        .mt-4 { margin-top: 2rem; }
+        /* highlight.js emerald accent overrides */
+        .hljs { background: #f9fafb; border-radius: 0.75rem; }
+        .hljs-keyword { color: #059669; }
+        .hljs-string { color: #0284c7; }
+        .hljs-number { color: #d97706; }
+        .hljs-comment { color: #9ca3af; font-style: italic; }
+        .hljs-literal { color: #059669; }
+        .hljs-attr { color: #6d28d9; }
     </style>
+
     {% block head %}{% endblock %}
 </head>
-<body>
-    <div class="layout">
-        <aside class="sidebar">
-            <div class="sidebar-brand">
-                <span class="brand-icon">📊</span>
-                <span>Kaggle Dashboard</span>
+<body class="bg-gray-50 text-gray-800" hx-indicator="#global-indicator">
+
+    <!-- Global htmx loading indicator -->
+    <div id="global-indicator" class="htmx-indicator fixed top-0 left-0 right-0 z-50">
+        <div class="h-1 bg-emerald-500 rounded-full animate-pulse"></div>
+    </div>
+
+    <div class="flex min-h-screen">
+
+        <!-- Sidebar -->
+        <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col z-10">
+            <!-- Brand -->
+            <div class="px-5 py-5">
+                <a href="/" class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-trophy text-white text-lg"></i>
+                    </div>
+                    <span class="text-lg font-extrabold text-gray-800">Kaggle</span>
+                </a>
             </div>
-            <nav class="sidebar-nav">
-                <a href="/" class="nav-item {% if active_page == 'home' %}active{% endif %}">🏠 Home</a>
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-3 flex flex-col gap-1">
+                <a href="/"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
+                          {% if active_page == 'home' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                    <i class="fa-solid fa-house w-5 text-center"></i>
+                    Home
+                </a>
+                <a href="/experiments"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
+                          {% if active_page == 'experiments' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                    <i class="fa-solid fa-flask w-5 text-center"></i>
+                    Experiments
+                </a>
+                <a href="/data"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
+                          {% if active_page == 'data' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                    <i class="fa-solid fa-database w-5 text-center"></i>
+                    Data
+                </a>
+                <a href="/discussions"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
+                          {% if active_page == 'discussions' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                    <i class="fa-solid fa-comments w-5 text-center"></i>
+                    Discussions
+                </a>
+                <a href="/knowledge"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
+                          {% if active_page == 'knowledge' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                    <i class="fa-solid fa-book w-5 text-center"></i>
+                    Knowledge
+                </a>
                 {% block sidebar_nav %}{% endblock %}
             </nav>
-            <div class="sidebar-footer">
-                <p class="text-muted">Kaggle Competition Dashboard</p>
+
+            <!-- Footer -->
+            <div class="px-4 py-4 border-t border-gray-100">
+                <p class="text-xs text-gray-400 text-center">Kaggle Competition Dashboard</p>
             </div>
         </aside>
-        <main class="main">
-            {% block content %}{% endblock %}
+
+        <!-- Main Content -->
+        <main class="ml-64 flex-1 px-8 py-8">
+            <div class="max-w-4xl mx-auto">
+                {% block content %}{% endblock %}
+            </div>
         </main>
+
     </div>
+
+    <script>
+        hljs.highlightAll();
+        document.body.addEventListener('htmx:afterSwap', function(event) {
+            event.detail.target.querySelectorAll('pre code').forEach(function(el) {
+                hljs.highlightElement(el);
+            });
+        });
+    </script>
 </body>
 </html>

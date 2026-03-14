@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "components/_metric_card.html" import metric_card %}
+{% from "components/_badge.html" import badge %}
+
+{% block title %}{{ exp.name }}{% endblock %}
+
+{% block content %}
+
+<!-- Back link -->
+<a href="/experiments" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-500 font-semibold mb-4 transition-colors">
+    <i class="fa-solid fa-arrow-left text-xs"></i>
+    Experiments
+</a>
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-extrabold text-gray-800">{{ exp.name }}</h1>
+    <div class="flex items-center gap-2">
+        {% if exp.oof_exists %}
+            {{ badge("OOF", color="emerald", icon="fa-check") }}
+        {% endif %}
+        {% if exp.checkpoints %}
+            {{ badge(exp.checkpoints|length ~ " ckpt", color="sky", icon="fa-weight-hanging") }}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Score cards -->
+<div class="grid grid-cols-3 gap-4 mb-6">
+    {{ metric_card("CV Score", exp.cv, icon="fa-chart-line", color="emerald") }}
+    {{ metric_card("LB Score", exp.lb, icon="fa-ranking-star", color="amber") }}
+    {{ metric_card("Files", exp.files|length ~ " files", icon="fa-folder-open", color="sky") }}
+</div>
+
+<!-- Tabs -->
+<div class="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+    <button class="tab-btn active px-4 py-2 rounded-lg text-sm font-bold transition-all"
+            hx-get="/experiments/{{ exp.name }}/_readme"
+            hx-target="#tab-content"
+            onclick="activateTab(this)">
+        <i class="fa-solid fa-file-lines mr-1.5"></i>Overview
+    </button>
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+            hx-get="/experiments/{{ exp.name }}/_config"
+            hx-target="#tab-content"
+            onclick="activateTab(this)">
+        <i class="fa-solid fa-gear mr-1.5"></i>Config
+    </button>
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+            hx-get="/experiments/{{ exp.name }}/_files"
+            hx-target="#tab-content"
+            onclick="activateTab(this)">
+        <i class="fa-solid fa-folder-open mr-1.5"></i>Files
+    </button>
+</div>
+
+<!-- Tab Content -->
+<div id="tab-content">
+    {% include "partials/_experiment_readme.html" %}
+</div>
+
+<script>
+function activateTab(el) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.classList.add('text-gray-500');
+    });
+    el.classList.add('active');
+    el.classList.remove('text-gray-500');
+}
+</script>
+
+{% endblock %}

@@ -20,4 +20,5 @@ dev = [
     "uvicorn",
     "jinja2",
     "kaggle",
+    "markdown",
 ]

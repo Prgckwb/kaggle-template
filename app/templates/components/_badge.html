@@ -1,0 +1,6 @@
+{% macro badge(text, color="gray", icon="") %}
+<span class="inline-flex items-center gap-1.5 bg-{{ color }}-50 text-{{ color }}-600 rounded-full px-3 py-1 text-xs font-semibold">
+    {% if icon %}<i class="fa-solid {{ icon }} text-[10px]"></i>{% endif %}
+    {{ text }}
+</span>
+{% endmacro %}

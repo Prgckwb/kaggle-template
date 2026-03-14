@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Data{% endblock %}
+
+{% block content %}
+{% from "components/_badge.html" import badge %}
+{% from "components/_empty_state.html" import empty_state %}
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-3xl font-extrabold text-gray-800">Data</h1>
+        <p class="text-gray-500 mt-1">入力データの統計量とプレビュー</p>
+    </div>
+    {% if current_dir %}
+    <a href="/data" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-500 font-semibold transition-colors">
+        <i class="fa-solid fa-arrow-left text-xs"></i>
+        input/
+    </a>
+    {% endif %}
+</div>
+
+{% if files %}
+<!-- 2-column layout -->
+<div class="flex gap-6">
+    <!-- File list sidebar -->
+    <div class="w-64 flex-shrink-0">
+        {% if current_dir %}
+        <div class="flex items-center gap-2 mb-2 px-1">
+            <i class="fa-solid fa-folder-open text-amber-400 text-xs"></i>
+            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">{{ current_dir }}</span>
+        </div>
+        {% endif %}
+
+        <ul class="space-y-0.5">
+            {% for f in files %}
+            <li>
+                {% if f.is_dir %}
+                <a href="/data?dir={{ f.path }}"
+                   class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-all">
+                    <i class="fa-solid fa-folder text-amber-400 w-4 text-center"></i>
+                    <span class="truncate flex-1">{{ f.name }}</span>
+                    <span class="text-xs text-gray-400">{{ f.child_count }}</span>
+                </a>
+                {% else %}
+                <a href="/data/preview/{{ f.path }}"
+                   hx-get="/data/preview/{{ f.path }}"
+                   hx-target="#data-content"
+                   hx-push-url="true"
+                   class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all
+                          {% if selected and selected.path == f.path %}
+                          bg-amber-50 text-amber-600
+                          {% else %}
+                          text-gray-500 hover:bg-gray-50 hover:text-gray-800
+                          {% endif %}">
+                    <i class="fa-solid {{ data_file_icon(f.type) }} w-4 text-center text-gray-400"></i>
+                    <span class="truncate flex-1">{{ f.name }}</span>
+                    <span class="text-xs text-gray-400">{{ f.size | filesize }}</span>
+                </a>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Content area -->
+    <div class="flex-1 min-w-0" id="data-content">
+        {% if selected %}
+            {% include "partials/_data_preview.html" with context %}
+        {% else %}
+            {{ empty_state("左のリストからファイルを選択してください", "fa-database") }}
+        {% endif %}
+    </div>
+</div>
+{% else %}
+{{ empty_state("input/ にデータを追加してください", "fa-database", "Kaggle API でダウンロード", "#") }}
+{% endif %}
+{% endblock %}

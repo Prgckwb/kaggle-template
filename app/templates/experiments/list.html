@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Experiments{% endblock %}
+
+{% block head %}
+{% if mermaid_source %}
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'base',
+        themeVariables: {
+            primaryColor: '#ecfdf5',
+            primaryTextColor: '#1f2937',
+            primaryBorderColor: '#10b981',
+            lineColor: '#10b981',
+            secondaryColor: '#f0fdf4',
+            tertiaryColor: '#f9fafb',
+            fontFamily: 'Nunito, system-ui, sans-serif',
+            fontSize: '14px',
+            nodeBorder: '#10b981',
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% from "components/_badge.html" import badge %}
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-3xl font-extrabold text-gray-800">Experiments</h1>
+        <p class="text-gray-500 mt-1">全ての実験を管理</p>
+    </div>
+    {{ badge(experiments|length ~ " 件", color="emerald", icon="fa-flask") }}
+</div>
+
+<!-- Search -->
+<div class="mb-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-3 flex items-center gap-3">
+        <i class="fa-solid fa-magnifying-glass text-gray-400 ml-1"></i>
+        <input type="search"
+               name="q"
+               value="{{ query }}"
+               placeholder="実験を検索..."
+               hx-get="/experiments"
+               hx-trigger="keyup changed delay:300ms, search"
+               hx-target="#experiment-results"
+               class="flex-1 bg-transparent outline-none text-sm text-gray-800 placeholder-gray-400">
+    </div>
+</div>
+
+{% if mermaid_source %}
+<!-- Experiment Tree -->
+<div class="mb-6">
+    <button onclick="toggleTree()"
+            class="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-emerald-500 transition-colors mb-3">
+        <i class="fa-solid fa-diagram-project"></i>
+        <span>Experiment Tree</span>
+        <i id="tree-chevron" class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
+    </button>
+    <div id="experiment-tree" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 overflow-x-auto text-center">
+        <pre class="mermaid">{{ mermaid_source }}</pre>
+    </div>
+</div>
+
+<script>
+function toggleTree() {
+    var tree = document.getElementById('experiment-tree');
+    var chevron = document.getElementById('tree-chevron');
+    tree.classList.toggle('hidden');
+    chevron.classList.toggle('rotate-180');
+}
+</script>
+{% endif %}
+
+<!-- Results -->
+<div id="experiment-results">
+    {% include "partials/_experiment_list.html" %}
+</div>
+{% endblock %}

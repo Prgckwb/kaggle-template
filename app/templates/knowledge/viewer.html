@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Knowledge{% endblock %}
+
+{% block content %}
+{% from "components/_badge.html" import badge %}
+{% from "components/_markdown.html" import render_md %}
+{% from "components/_empty_state.html" import empty_state %}
+
+<!-- Header -->
+<div class="mb-6">
+    <h1 class="text-3xl font-extrabold text-gray-800">Knowledge</h1>
+    <p class="text-gray-500 mt-1">コンペティションの概要・ドメイン知識・実験知見</p>
+</div>
+
+<!-- Overview + Validation: side by side -->
+{% if overview or validation %}
+<div class="grid grid-cols-2 gap-5 mb-6">
+    {% if overview %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+        <div class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
+                <i class="fa-solid fa-trophy text-emerald-500 text-xs"></i>
+            </div>
+            <h2 class="text-base font-extrabold text-gray-800">{{ overview.title }}</h2>
+        </div>
+        {% if overview.description %}
+        <p class="text-sm text-gray-500">{{ overview.description }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if validation %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+        <div class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
+                <i class="fa-solid fa-shield-halved text-amber-500 text-xs"></i>
+            </div>
+            <h2 class="text-base font-extrabold text-gray-800">Validation Strategy</h2>
+        </div>
+        <div class="text-sm">
+            {{ render_md(validation) }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Documents: Official + Insights -->
+{% set categories = [
+    ("official", "Official", "fa-building-columns", "emerald"),
+    ("insights", "Insights", "fa-lightbulb", "amber")
+] %}
+
+{% for cat_key, cat_label, cat_icon, cat_color in categories %}
+<div class="mb-5">
+    <div class="flex items-center gap-2 mb-3">
+        <i class="fa-solid {{ cat_icon }} text-{{ cat_color }}-500 text-sm"></i>
+        <span class="text-sm font-bold text-gray-700">{{ cat_label }}</span>
+        {{ badge(docs[cat_key]|length ~ "", color=cat_color) }}
+    </div>
+
+    {% if docs[cat_key] %}
+    <div class="space-y-1.5">
+        {% for doc in docs[cat_key] %}
+        <a href="/knowledge/{{ cat_key }}/{{ doc.filename }}"
+           hx-get="/knowledge/{{ cat_key }}/{{ doc.filename }}"
+           hx-target="#doc-content"
+           hx-push-url="true"
+           class="block bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 flex items-center justify-between hover:shadow-md hover:border-{{ cat_color }}-300 transition-all group
+                  {% if selected and selected.category == cat_key and selected.filename == doc.filename %}
+                  border-{{ cat_color }}-400 bg-{{ cat_color }}-50
+                  {% endif %}">
+            <span class="font-semibold text-sm text-gray-700 group-hover:text-{{ cat_color }}-600 transition-colors
+                         {% if selected and selected.category == cat_key and selected.filename == doc.filename %}text-{{ cat_color }}-600{% endif %}">
+                {{ doc.name }}
+            </span>
+            <i class="fa-solid fa-chevron-right text-xs text-gray-400 group-hover:text-{{ cat_color }}-500 transition-colors"></i>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400 px-1">No documents</p>
+    {% endif %}
+</div>
+{% endfor %}
+
+<!-- Document content area -->
+<div id="doc-content" class="mt-6">
+    {% if selected %}
+        {% include "partials/_doc_content.html" %}
+    {% endif %}
+</div>
+
+{% endblock %}

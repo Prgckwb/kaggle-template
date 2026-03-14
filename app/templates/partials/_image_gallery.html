@@ -1,0 +1,26 @@
+<!-- Standalone image gallery partial (for htmx loading) -->
+{% if images %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
+    <div class="flex items-center gap-2 mb-3">
+        <i class="fa-solid fa-images text-gray-400"></i>
+        <span class="text-sm font-bold text-gray-600">Gallery ({{ images|length }} images)</span>
+    </div>
+    <div class="grid grid-cols-6 gap-2">
+        {% for img in images %}
+        <a href="/data/preview/{{ img.path }}"
+           hx-get="/data/preview/{{ img.path }}"
+           hx-target="#data-content"
+           hx-push-url="true"
+           class="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-emerald-400 transition-all">
+            <img src="/data/raw/{{ img.path }}" alt="{{ img.name }}"
+                 loading="lazy"
+                 class="w-full h-full object-cover">
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="text-center py-8">
+    <p class="text-gray-400 text-sm">画像がありません</p>
+</div>
+{% endif %}

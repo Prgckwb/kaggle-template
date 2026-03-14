@@ -3,20 +3,122 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>Kaggle Competition Dashboard</h1>
-    <p class="page-subtitle">EDA や実験結果の可視化用ダッシュボードです。</p>
+
+<!-- Hero Section -->
+<div class="text-center py-10">
+    <div class="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 rounded-full mb-5">
+        <i class="fa-solid fa-trophy text-emerald-500 text-3xl"></i>
+    </div>
+    <h1 class="text-4xl font-extrabold text-gray-800 mb-2">
+        Kaggle Dashboard
+    </h1>
+    <p class="text-lg text-gray-500 mb-3">
+        EDA / 実験管理 / スコア追跡をひとつの場所で
+    </p>
+    <p class="text-emerald-500 font-bold">
+        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>
+        実験を始めよう
+    </p>
 </div>
 
-<div class="grid grid-2">
-    <div class="card">
-        <h2>Welcome</h2>
-        <p>新しいページは <code>app/pages/</code> に追加してください。</p>
-        <p class="mt-1">スキル <code>/create-dashboard-page [page-name]</code> で自動生成できます。</p>
+<!-- Quick Action Bar -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-8 flex items-center gap-4">
+    <div class="flex-1 flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+        <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
+        <input type="search"
+               name="q"
+               placeholder="実験を検索..."
+               hx-get="/experiments"
+               hx-trigger="keyup changed delay:300ms, search"
+               hx-target="#search-results"
+               hx-push-url="false"
+               hx-vals='{"source": "index"}'
+               oninput="if(!this.value) document.getElementById('search-results').innerHTML=''"
+               class="flex-1 bg-transparent outline-none text-sm text-gray-800 placeholder-gray-400">
     </div>
-    <div class="card">
-        <h2>Getting Started</h2>
-        <p>実験を開始するには <code>src/</code> ディレクトリに実験フォルダを追加してください。</p>
-    </div>
+    <a href="/experiments"
+       class="flex items-center gap-2 bg-emerald-500 text-white rounded-full px-6 py-3 font-bold text-sm hover:bg-emerald-600 transition-all shadow-sm">
+        <i class="fa-solid fa-plus"></i>
+        New Experiment
+    </a>
 </div>
+
+<!-- Search results (hidden until search) -->
+<div id="search-results" class="mb-8"></div>
+
+<!-- Feature Cards -->
+<div class="grid grid-cols-2 gap-5">
+
+    <!-- Experiments -->
+    <a href="/experiments" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group block">
+        <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-4">
+            <i class="fa-solid fa-flask text-emerald-500 text-xl"></i>
+        </div>
+        <h2 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-emerald-500 transition-colors">
+            Experiments
+        </h2>
+        <p class="text-gray-500 text-sm">
+            実験の一覧と CV / LB スコアを確認
+        </p>
+        <div class="mt-4 inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 rounded-full px-3 py-1 text-sm font-semibold">
+            <i class="fa-solid fa-flask text-xs"></i>
+            {{ experiments|length }} 件の実験
+        </div>
+    </a>
+
+    <!-- Data -->
+    <a href="/data" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group block">
+        <div class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center mb-4">
+            <i class="fa-solid fa-database text-amber-500 text-xl"></i>
+        </div>
+        <h2 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-amber-500 transition-colors">
+            Data
+        </h2>
+        <p class="text-gray-500 text-sm">
+            データの統計量とプレビュー
+        </p>
+        <div class="mt-4 inline-flex items-center gap-2 bg-amber-50 text-amber-600 rounded-full px-3 py-1 text-sm font-semibold">
+            <i class="fa-solid fa-database text-xs"></i>
+            {{ input_files|length }} 件のファイル
+        </div>
+    </a>
+
+    <!-- Discussions -->
+    <a href="/discussions" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group block">
+        <div class="w-12 h-12 bg-sky-50 rounded-xl flex items-center justify-center mb-4">
+            <i class="fa-solid fa-comments text-sky-500 text-xl"></i>
+        </div>
+        <h2 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-sky-500 transition-colors">
+            Discussions
+        </h2>
+        <p class="text-gray-500 text-sm">
+            コミュニティの知見とディスカッション
+        </p>
+        {% set total_discussions = discussions.get('discussion', [])|length %}
+        <div class="mt-4 inline-flex items-center gap-2 bg-sky-50 text-sky-600 rounded-full px-3 py-1 text-sm font-semibold">
+            <i class="fa-solid fa-comments text-xs"></i>
+            {{ total_discussions }} 件のディスカッション
+        </div>
+    </a>
+
+    <!-- Knowledge -->
+    <a href="/knowledge" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group block">
+        <div class="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center mb-4">
+            <i class="fa-solid fa-book text-rose-500 text-xl"></i>
+        </div>
+        <h2 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-rose-500 transition-colors">
+            Knowledge
+        </h2>
+        <p class="text-gray-500 text-sm">
+            コンペの概要・ドメイン知識・実験知見
+        </p>
+        {% set total_knowledge = discussions.get('official', [])|length + discussions.get('insights', [])|length %}
+        <div class="mt-4 inline-flex items-center gap-2 bg-rose-50 text-rose-600 rounded-full px-3 py-1 text-sm font-semibold">
+            <i class="fa-solid fa-book text-xs"></i>
+            {{ total_knowledge }} 件のドキュメント
+        </div>
+    </a>
+
+</div>
+
 {% endblock %}

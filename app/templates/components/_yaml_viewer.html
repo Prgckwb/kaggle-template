@@ -1,0 +1,11 @@
+{% macro yaml_viewer(config_dict, title="Configuration") %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+        <i class="fa-solid fa-gear text-gray-400"></i>
+        <span class="text-sm font-bold text-gray-600">{{ title }}</span>
+    </div>
+    <div class="p-4">
+        <pre class="text-sm leading-relaxed !bg-gray-50 !border !border-gray-200 !rounded-xl"><code class="language-yaml">{{ config_dict | yaml_dump }}</code></pre>
+    </div>
+</div>
+{% endmacro %}

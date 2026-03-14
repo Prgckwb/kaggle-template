@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Discussions{% endblock %}
+
+{% block content %}
+{% from "components/_badge.html" import badge %}
+{% from "components/_empty_state.html" import empty_state %}
+
+<!-- Header -->
+<div class="mb-6">
+    <h1 class="text-3xl font-extrabold text-gray-800">Discussions</h1>
+    <p class="text-gray-500 mt-1">Kaggle Discussion の要約とメモ</p>
+</div>
+
+{% if docs %}
+<!-- 2-column layout -->
+<div class="flex gap-6">
+    <!-- Sidebar: file list -->
+    <div class="w-64 flex-shrink-0">
+        <div class="flex items-center gap-2 mb-2 px-1">
+            <i class="fa-solid fa-comments text-sky-500 text-xs"></i>
+            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Discussion</span>
+            {{ badge(docs|length ~ "", color="sky") }}
+        </div>
+        <ul class="space-y-0.5">
+            {% for doc in docs %}
+            <li>
+                <a href="/discussions/{{ doc.filename }}"
+                   hx-get="/discussions/{{ doc.filename }}"
+                   hx-target="#doc-content"
+                   hx-push-url="true"
+                   class="block px-3 py-2 rounded-xl text-sm font-semibold transition-all
+                          {% if selected and selected.filename == doc.filename %}
+                          bg-sky-50 text-sky-600
+                          {% else %}
+                          text-gray-500 hover:bg-gray-50 hover:text-gray-800
+                          {% endif %}">
+                    {{ doc.name }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Content area -->
+    <div class="flex-1 min-w-0" id="doc-content">
+        {% if selected %}
+            {% include "partials/_doc_content.html" %}
+        {% else %}
+            {{ empty_state("左のリストからディスカッションを選択してください", "fa-comments") }}
+        {% endif %}
+    </div>
+</div>
+{% else %}
+{{ empty_state("docs/discussion/ にディスカッションメモを追加してください", "fa-comments") }}
+{% endif %}
+{% endblock %}

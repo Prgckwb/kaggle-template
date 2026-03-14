@@ -1,0 +1,21 @@
+{% from "components/_empty_state.html" import empty_state %}
+
+{% if exp.files %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+        <i class="fa-solid fa-folder-open text-gray-400"></i>
+        <span class="text-sm font-bold text-gray-600">{{ exp.name }}/</span>
+    </div>
+    <ul class="divide-y divide-gray-50">
+        {% for f in exp.files %}
+        <li class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm">
+            <i class="{{ file_icon(f.type) }} text-gray-400 w-4 text-center"></i>
+            <span class="font-semibold text-gray-700 flex-1">{{ f.name }}</span>
+            <span class="text-xs text-gray-400">{{ f.size | filesize }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% else %}
+{{ empty_state("ファイルがありません", "fa-folder-open") }}
+{% endif %}

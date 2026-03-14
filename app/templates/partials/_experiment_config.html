@@ -1,0 +1,8 @@
+{% from "components/_yaml_viewer.html" import yaml_viewer %}
+{% from "components/_empty_state.html" import empty_state %}
+
+{% if exp.config %}
+{{ yaml_viewer(exp.config, title=exp.name ~ " / config.yaml") }}
+{% else %}
+{{ empty_state("config.yaml がありません", "fa-gear") }}
+{% endif %}

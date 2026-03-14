@@ -1,0 +1,33 @@
+{% macro data_table(columns, rows, empty_message="データがありません", empty_icon="fa-inbox") %}
+{% from "components/_empty_state.html" import empty_state %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    {% if rows %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    {% for col in columns %}
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        {{ col.label }}
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for row in rows %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    {% for col in columns %}
+                    <td class="px-4 py-3 text-gray-700">
+                        {{ row[col.key] if row[col.key] is defined else '-' }}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {{ empty_state(empty_message, empty_icon) }}
+    {% endif %}
+</div>
+{% endmacro %}
