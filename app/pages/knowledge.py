@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from app.template_env import templates
 from app.utils import (
     PROJECT_ROOT,
+    error_response,
     get_competition_overview,
     get_validation_strategy,
     is_htmx,
@@ -43,12 +44,12 @@ def knowledge_index(request: Request):
 @router.get("/knowledge/{category}/{filename}", response_class=HTMLResponse)
 def knowledge_detail(request: Request, category: str, filename: str):
     if category not in VALID_CATEGORIES:
-        return HTMLResponse("<p>Invalid category</p>", status_code=404)
+        return error_response(request, templates, 404, "無効なカテゴリです")
 
     docs_dir = PROJECT_ROOT / "docs" / category
     path = safe_relative_path(filename, docs_dir)
     if path is None or not path.exists():
-        return HTMLResponse("<p>Not found</p>", status_code=404)
+        return error_response(request, templates, 404, "ドキュメントが見つかりませんでした")
 
     doc = read_markdown_file(path)
     overview = get_competition_overview()

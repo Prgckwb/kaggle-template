@@ -29,6 +29,10 @@
 
     <!-- htmx (local) -->
     <script src="/static/js/htmx.min.js"></script>
+    <script>
+        htmx.config.historyCacheSize = 0;
+        htmx.config.refreshOnHistoryMiss = true;
+    </script>
 
     <!-- highlight.js (local) -->
     <link rel="stylesheet" href="/static/css/highlight-github.min.css">
@@ -109,12 +113,6 @@
                     <i class="fa-solid fa-book w-5 text-center"></i>
                     Knowledge
                 </a>
-                <a href="/notebooks"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
-                          {% if active_page == 'notebooks' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
-                    <i class="fa-solid fa-file-code w-5 text-center"></i>
-                    Notebooks
-                </a>
                 {% block sidebar_nav %}{% endblock %}
             </nav>
 
@@ -126,7 +124,7 @@
 
         <!-- Main Content -->
         <main class="ml-64 flex-1 px-8 py-8">
-            <div class="max-w-4xl mx-auto">
+            <div class="{% block content_width %}max-w-7xl mx-auto{% endblock %}">
                 {% block content %}{% endblock %}
             </div>
         </main>

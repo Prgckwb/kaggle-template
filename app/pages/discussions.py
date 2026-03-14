@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from app.template_env import templates
 from app.utils import (
     PROJECT_ROOT,
+    error_response,
     is_htmx,
     list_discussion_docs,
     read_markdown_file,
@@ -36,7 +37,7 @@ def discussions_detail(request: Request, filename: str):
     docs_dir = PROJECT_ROOT / "docs" / "discussion"
     path = safe_relative_path(filename, docs_dir)
     if path is None or not path.exists():
-        return HTMLResponse("<p>Not found</p>", status_code=404)
+        return error_response(request, templates, 404, "ディスカッションが見つかりませんでした")
 
     doc = read_markdown_file(path)
     all_docs = list_discussion_docs()

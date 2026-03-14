@@ -12,6 +12,8 @@ from app.services.data import (  # noqa: F401
     list_directory_images,
     list_input_files,
     read_csv_preview,
+    read_json_preview,
+    read_text_preview,
 )
 from app.services.documents import (  # noqa: F401
     get_competition_overview,
@@ -28,13 +30,14 @@ from app.services.experiments import (  # noqa: F401
     list_checkpoints,
     list_experiment_files,
     list_experiments,
-    list_notebooks,
+
     parse_experiments_table,
     parse_mermaid_tree,
     read_config_yaml,
 )
 from app.services.helpers import (  # noqa: F401
     PROJECT_ROOT,
+    error_response,
     file_icon,
     human_filesize,
     is_htmx,

@@ -46,50 +46,60 @@
 </div>
 {% endif %}
 
-<!-- Documents: Official + Insights -->
-{% set categories = [
-    ("official", "Official", "fa-building-columns", "emerald"),
-    ("insights", "Insights", "fa-lightbulb", "amber")
-] %}
+{% if docs.official or docs.insights %}
+<!-- 2-column layout -->
+<div class="flex gap-6">
+    <!-- Document list sidebar -->
+    <div class="w-64 flex-shrink-0">
+        {% set categories = [
+            ("official", "Official", "fa-building-columns", "emerald"),
+            ("insights", "Insights", "fa-lightbulb", "amber")
+        ] %}
 
-{% for cat_key, cat_label, cat_icon, cat_color in categories %}
-<div class="mb-5">
-    <div class="flex items-center gap-2 mb-3">
-        <i class="fa-solid {{ cat_icon }} text-{{ cat_color }}-500 text-sm"></i>
-        <span class="text-sm font-bold text-gray-700">{{ cat_label }}</span>
-        {{ badge(docs[cat_key]|length ~ "", color=cat_color) }}
-    </div>
+        {% for cat_key, cat_label, cat_icon, cat_color in categories %}
+        <div class="mb-4">
+            <div class="flex items-center gap-2 mb-2 px-1">
+                <i class="fa-solid {{ cat_icon }} text-{{ cat_color }}-500 text-xs"></i>
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">{{ cat_label }}</span>
+                {{ badge(docs[cat_key]|length ~ "", color=cat_color) }}
+            </div>
 
-    {% if docs[cat_key] %}
-    <div class="space-y-1.5">
-        {% for doc in docs[cat_key] %}
-        <a href="/knowledge/{{ cat_key }}/{{ doc.filename }}"
-           hx-get="/knowledge/{{ cat_key }}/{{ doc.filename }}"
-           hx-target="#doc-content"
-           hx-push-url="true"
-           class="block bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 flex items-center justify-between hover:shadow-md hover:border-{{ cat_color }}-300 transition-all group
-                  {% if selected and selected.category == cat_key and selected.filename == doc.filename %}
-                  border-{{ cat_color }}-400 bg-{{ cat_color }}-50
-                  {% endif %}">
-            <span class="font-semibold text-sm text-gray-700 group-hover:text-{{ cat_color }}-600 transition-colors
-                         {% if selected and selected.category == cat_key and selected.filename == doc.filename %}text-{{ cat_color }}-600{% endif %}">
-                {{ doc.name }}
-            </span>
-            <i class="fa-solid fa-chevron-right text-xs text-gray-400 group-hover:text-{{ cat_color }}-500 transition-colors"></i>
-        </a>
+            {% if docs[cat_key] %}
+            <ul class="space-y-0.5">
+                {% for doc in docs[cat_key] %}
+                <li>
+                    <a href="/knowledge/{{ cat_key }}/{{ doc.filename }}"
+                       hx-get="/knowledge/{{ cat_key }}/{{ doc.filename }}"
+                       hx-target="#doc-content"
+                       hx-push-url="true"
+                       class="block px-3 py-2 rounded-xl text-sm font-semibold transition-all
+                              {% if selected and selected.category == cat_key and selected.filename == doc.filename %}
+                              bg-{{ cat_color }}-50 text-{{ cat_color }}-600
+                              {% else %}
+                              text-gray-500 hover:bg-gray-50 hover:text-gray-800
+                              {% endif %}">
+                        {{ doc.name }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-sm text-gray-400 px-1">No documents</p>
+            {% endif %}
+        </div>
         {% endfor %}
     </div>
-    {% else %}
-    <p class="text-sm text-gray-400 px-1">No documents</p>
-    {% endif %}
-</div>
-{% endfor %}
 
-<!-- Document content area -->
-<div id="doc-content" class="mt-6">
-    {% if selected %}
-        {% include "partials/_doc_content.html" %}
-    {% endif %}
+    <!-- Content area -->
+    <div class="flex-1 min-w-0" id="doc-content">
+        {% if selected %}
+            {% include "partials/_doc_content.html" %}
+        {% else %}
+            {{ empty_state("左のリストからドキュメントを選択してください", "fa-book") }}
+        {% endif %}
+    </div>
 </div>
-
+{% else %}
+{{ empty_state("docs/ にドキュメントを追加してください", "fa-book") }}
+{% endif %}
 {% endblock %}

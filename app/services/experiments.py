@@ -267,19 +267,3 @@ def get_all_experiment_scores() -> list[dict]:
                 "lb": lb_val,
             })
     return scores
-
-
-def list_notebooks() -> list[dict]:
-    """notebook/*.ipynb を列挙。"""
-    nb_dir = PROJECT_ROOT / "notebook"
-    if not nb_dir.exists():
-        return []
-    return [
-        {
-            "name": f.stem,
-            "filename": f.name,
-            "size": f.stat().st_size,
-            "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc),
-        }
-        for f in sorted(nb_dir.glob("*.ipynb"))
-    ]

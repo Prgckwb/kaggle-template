@@ -180,6 +180,44 @@
         </video>
     </div>
 
+    {% elif file.type == "audio" %}
+    <!-- Audio preview -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-center mb-4">
+            <div class="w-20 h-20 bg-violet-50 rounded-full flex items-center justify-center">
+                <i class="fa-solid fa-music text-violet-500 text-3xl"></i>
+            </div>
+        </div>
+        <audio controls class="w-full">
+            <source src="/data/raw/{{ file.path }}">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+
+    {% elif file.type == "json" and text_content %}
+    <!-- JSON preview -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+            <i class="fa-solid fa-file-code text-gray-400"></i>
+            <span class="text-sm font-bold text-gray-600">JSON</span>
+        </div>
+        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <pre class="p-4 text-sm"><code class="language-json">{{ text_content }}</code></pre>
+        </div>
+    </div>
+
+    {% elif file.type == "text" and text_content %}
+    <!-- Text preview -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+            <i class="fa-solid fa-file-lines text-gray-400"></i>
+            <span class="text-sm font-bold text-gray-600">Text</span>
+        </div>
+        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <pre class="p-4 text-sm"><code>{{ text_content }}</code></pre>
+        </div>
+    </div>
+
     {% else %}
     <!-- Generic file info -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">

@@ -9,7 +9,13 @@ from app.services.helpers import PROJECT_ROOT
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff"}
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
+AUDIO_EXTENSIONS = {".ogg", ".wav", ".mp3", ".flac", ".m4a", ".aac", ".wma"}
 TABULAR_EXTENSIONS = {".csv", ".tsv", ".parquet"}
+TEXT_EXTENSIONS = {
+    ".txt", ".log", ".cfg", ".ini", ".md", ".py", ".sh", ".bash",
+    ".r", ".sql", ".yaml", ".yml", ".toml", ".xml", ".html", ".css",
+    ".js", ".ts", ".c", ".cpp", ".h", ".java", ".go", ".rs",
+}
 
 
 def list_input_files(directory: str = "") -> list[dict]:
@@ -149,6 +155,40 @@ def list_directory_images(directory: str, base: Path) -> list[dict]:
     return images
 
 
+def read_text_preview(path: Path, max_bytes: int = 100_000) -> str | None:
+    """テキストファイルの先頭を読み取る。"""
+    if not path.exists() or not path.is_file():
+        return None
+    try:
+        size = path.stat().st_size
+        if size > max_bytes:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                return f.read(max_bytes) + "\n... (truncated)"
+        return path.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return None
+
+
+def read_json_preview(path: Path, max_bytes: int = 100_000) -> str | None:
+    """JSON ファイルを整形して返す。"""
+    import json
+
+    if not path.exists():
+        return None
+    try:
+        raw = path.read_text(encoding="utf-8", errors="replace")
+        if path.suffix.lower() == ".jsonl":
+            lines = raw.splitlines()[:50]
+            return "\n".join(lines)
+        obj = json.loads(raw)
+        formatted = json.dumps(obj, indent=2, ensure_ascii=False)
+        if len(formatted) > max_bytes:
+            return formatted[:max_bytes] + "\n... (truncated)"
+        return formatted
+    except Exception:
+        return raw[:max_bytes] if len(raw) <= max_bytes else raw[:max_bytes] + "\n..."
+
+
 def _data_file_type(suffix: str) -> str:
     """拡張子をデータ型カテゴリに変換。"""
     s = suffix.lower()
@@ -158,8 +198,12 @@ def _data_file_type(suffix: str) -> str:
         return "image"
     if s in VIDEO_EXTENSIONS:
         return "video"
+    if s in AUDIO_EXTENSIONS:
+        return "audio"
     if s in {".json", ".jsonl"}:
         return "json"
+    if s in TEXT_EXTENSIONS:
+        return "text"
     return "other"
 
 
@@ -169,7 +213,9 @@ def data_file_icon(file_type: str) -> str:
         "tabular": "fa-file-csv",
         "image": "fa-image",
         "video": "fa-film",
+        "audio": "fa-music",
         "json": "fa-file-code",
+        "text": "fa-file-lines",
         "other": "fa-file",
     }
     return mapping.get(file_type, "fa-file")

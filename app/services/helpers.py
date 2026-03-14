@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Request
+from fastapi.responses import HTMLResponse
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
@@ -13,6 +14,35 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 def is_htmx(request: Request) -> bool:
     """HX-Request header check."""
     return request.headers.get("HX-Request") == "true"
+
+
+def error_response(
+    request: Request,
+    templates,
+    status_code: int,
+    message: str,
+) -> HTMLResponse:
+    """htmx-aware なエラーレスポンスを返す。"""
+    if is_htmx(request):
+        return templates.TemplateResponse(
+            "partials/_error.html",
+            {
+                "request": request,
+                "error_title": f"Error {status_code}",
+                "error_message": message,
+            },
+            status_code=status_code,
+        )
+    return templates.TemplateResponse(
+        "error.html",
+        {
+            "request": request,
+            "active_page": "",
+            "status_code": status_code,
+            "message": message,
+        },
+        status_code=status_code,
+    )
 
 
 def safe_relative_path(requested: str, allowed_root: Path) -> Path | None:

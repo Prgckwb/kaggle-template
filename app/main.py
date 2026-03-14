@@ -7,10 +7,11 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.pages import data, discussions, experiments, knowledge, notebooks
+from app.pages import data, discussions, experiments, knowledge
 from app.template_env import templates
-from app.utils import list_docs, list_experiments, list_input_files
+from app.utils import is_htmx, list_docs, list_experiments, list_input_files
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +25,48 @@ app.include_router(experiments.router)
 app.include_router(discussions.router)
 app.include_router(knowledge.router)
 app.include_router(data.router)
-app.include_router(notebooks.router)
+
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """HTTP エラー（404 等）をスタイル付きページで返す。"""
+    if is_htmx(request):
+        return templates.TemplateResponse(
+            "partials/_error.html",
+            {
+                "request": request,
+                "error_title": f"Error {exc.status_code}",
+                "error_message": str(exc.detail),
+            },
+            status_code=exc.status_code,
+        )
+    return templates.TemplateResponse(
+        "error.html",
+        {
+            "request": request,
+            "active_page": "",
+            "status_code": exc.status_code,
+            "message": str(exc.detail),
+        },
+        status_code=exc.status_code,
+    )
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """500 エラー時にユーザーフレンドリーなエラーページを返す。"""
     logger.error("Unhandled exception: %s\n%s", exc, traceback.format_exc())
+    if is_htmx(request):
+        return templates.TemplateResponse(
+            "partials/_error.html",
+            {
+                "request": request,
+                "error_title": "Server Error",
+                "error_message": "内部エラーが発生しました",
+            },
+            status_code=500,
+        )
     return templates.TemplateResponse(
         "error.html",
         {
