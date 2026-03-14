@@ -55,11 +55,8 @@ src/exp001-xxx/
 
 ### 推論スクリプト
 
-各実験ディレクトリに `inference.py` を作成する:
+各実験ディレクトリに `inference.py` を作成し、`sample_submission.csv` と同じ形式の CSV を出力する。
 
-- チェックポイント自動検索（`best-*.ckpt` パターン）
-- 全 fold の softmax 確率平均によるアンサンブル
-- OOF 予測の保存: `oof_predictions.csv`（image_id, fold, true_label, pred_label, prob_0〜prob_N）
 ### デバッグモード
 
 `config.yaml` の `debug: true` でデータ・エポック・fold 数を制限し、wandb を無効化する。まずデバッグモードでパイプライン全体が通ることを確認してから `debug=false` で本番実行する。
@@ -78,7 +75,38 @@ src/exp001-xxx/
 2. **ルート README.md**: Experiments テーブルと Experiment Tree を更新
 3. **docs/insights/**: `YYYY-MM-DD_exp{番号}-{subtitle}.md` で知見を記録
 
-**exp000 はサンプル実験のため、exp001 以降が作成された後は README.md の Experiments テーブルおよび Experiment Tree に載せない。**
+**Experiments テーブルのフォーマット:**
+
+| Exp | Name | Split | Key Change | CV | LB |
+|-----|------|-------|------------|----|----|
+
+- `Split`: 分割方法（例: `5-Fold SKF`, `GroupKFold(user)`）
+- `Key Change`: 前実験からの主な変更点・実験の焦点
+
+**Experiment Tree（Mermaid）のフォーマット:**
+
+- ノード: `"exp名<br/>Split | CV: x.xxx | LB: x.xxx"`
+- エッジラベル: 前実験からの主な変更点（= Key Change）
+- スタイル: `best`(緑)=最高LB, `good`(青)=完了, `base`(灰)=ベースライン, `wip`(黄/破線)=進行中
+
+例:
+
+```mermaid
+graph TD
+    A["exp001-baseline<br/>5-Fold SKF | CV: 0.850 | LB: 0.841"]
+    B["exp002-augment<br/>5-Fold SKF | CV: 0.872 | LB: 0.865"]
+    A -- "データ拡張追加" --> B
+
+    classDef best fill:#10b981,stroke:#059669,color:#fff,stroke-width:3px
+    classDef good fill:#3b82f6,stroke:#2563eb,color:#fff
+    classDef base fill:#64748b,stroke:#475569,color:#fff
+    classDef wip fill:#f59e0b,stroke:#d97706,color:#fff,stroke-dasharray:5 5
+
+    class A base
+    class B best
+```
+
+**exp000 はサンプル実験のため、exp001 以降が作成された後は Experiments テーブルおよび Experiment Tree に載せない。**
 
 ## 探索の独立性（AI エージェントへの注意）
 
@@ -95,6 +123,14 @@ LLM は過去の実験結果に引きずられ、探索空間を狭めてしま�
 - 探索範囲の絞り込み
 
 **新しい実験では:** 問題の本質・データの特性・ドメイン知識から仮説をゼロベースで立てる。
+
+## 疑問点の確認（AI エージェントへの注意）
+
+不明点や曖昧な点がある場合は、推測で進めずにユーザに質問すること。一度の質問で解消しない場合は、理解できるまで繰り返し質問する。特に以下の場面では必ず確認する:
+
+- 実験の方針・仮説の妥当性に自信がないとき
+- 複数のアプローチが考えられ、どれを選ぶべきか判断できないとき
+- コンペ固有のドメイン知識が必要なとき
 
 ## sandbox
 

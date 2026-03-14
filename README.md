@@ -21,9 +21,9 @@ kaggle-template/
 
 ## Experiments
 
-| Exp | Name | CV | LB | Description |
-|-----|------|----|----|-------------|
-| exp000 | sample | - | - | サンプル実験（テンプレート） |
+| Exp | Name | Split | Key Change | CV | LB |
+|-----|------|-------|------------|----|----|
+| exp000 | sample | - | テンプレート | - | - |
 
 ## Validation Strategy
 
@@ -37,8 +37,21 @@ kaggle-template/
 
 ```mermaid
 graph TD
-    A[exp000-sample]
+    A["exp000-sample"]
+
+    classDef best fill:#10b981,stroke:#059669,color:#fff,stroke-width:3px
+    classDef good fill:#3b82f6,stroke:#2563eb,color:#fff
+    classDef base fill:#64748b,stroke:#475569,color:#fff
+    classDef wip fill:#f59e0b,stroke:#d97706,color:#fff,stroke-dasharray:5 5
+
+    class A base
 ```
+
+<!-- Experiment Tree ルール
+- ノード: "exp名<br/>Split | CV: x.xxx | LB: x.xxx"
+- エッジラベル: 前実験からの主な変更点（= Key Change）
+- classDef: best(緑)=最高LB, good(青)=完了, base(灰)=ベースライン, wip(黄/破線)=進行中
+-->
 
 ## Setup
 
