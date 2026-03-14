@@ -1,0 +1,61 @@
+{% if scores %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+    <h3 class="text-sm font-bold text-gray-800 mb-4">
+        <i class="fa-solid fa-chart-line text-emerald-500 mr-2"></i>Score Comparison
+    </h3>
+    <canvas id="score-chart" height="200"></canvas>
+</div>
+<script src="/static/js/chart.min.js"></script>
+<script>
+    new Chart(document.getElementById('score-chart'), {
+        type: 'line',
+        data: {
+            labels: {{ scores | map(attribute='exp') | list | tojson }},
+            datasets: [
+                {
+                    label: 'CV',
+                    data: {{ scores | map(attribute='cv') | list | tojson }},
+                    borderColor: 'rgb(16, 185, 129)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                },
+                {
+                    label: 'LB',
+                    data: {{ scores | map(attribute='lb') | list | tojson }},
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        afterBody: function(items) {
+                            var idx = items[0].dataIndex;
+                            var names = {{ scores | map(attribute='name') | list | tojson }};
+                            return names[idx] || '';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: { beginAtZero: false, ticks: { font: { size: 11 } } },
+                x: { ticks: { font: { size: 10 }, maxRotation: 45 } }
+            }
+        }
+    });
+</script>
+{% else %}
+<p class="text-sm text-gray-400 text-center py-8">No experiment scores available</p>
+{% endif %}

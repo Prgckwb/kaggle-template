@@ -1,0 +1,118 @@
+{% if oof %}
+<div class="space-y-6">
+    <!-- Summary -->
+    <div class="flex gap-4">
+        {% from "components/_metric_card.html" import metric_card %}
+        {{ metric_card("Predictions", oof.total_rows, icon="fa-table-list", color="emerald") }}
+        {% if oof.accuracy is defined %}
+        {{ metric_card("Accuracy", (oof.accuracy * 100) | round(2) ~ "%", icon="fa-bullseye", color="sky") }}
+        {% endif %}
+    </div>
+
+    <!-- Confusion Matrix -->
+    {% if oof.confusion_matrix %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+        <h3 class="text-sm font-bold text-gray-800 mb-4">
+            <i class="fa-solid fa-table-cells text-emerald-500 mr-2"></i>Confusion Matrix
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="text-sm">
+                <thead>
+                    <tr>
+                        <th class="px-3 py-2 text-xs text-gray-500 font-semibold">True \ Pred</th>
+                        {% for label in oof.confusion_matrix.labels %}
+                        <th class="px-3 py-2 text-xs text-gray-500 font-semibold text-center">{{ label }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in range(oof.confusion_matrix.labels | length) %}
+                    <tr>
+                        <td class="px-3 py-2 text-xs font-semibold text-gray-600">{{ oof.confusion_matrix.labels[i] }}</td>
+                        {% for j in range(oof.confusion_matrix.labels | length) %}
+                        <td class="px-3 py-2 text-center text-xs
+                            {% if i == j %}bg-emerald-50 text-emerald-700 font-bold{% else %}text-gray-500{% endif %}">
+                            {{ oof.confusion_matrix.matrix[i][j] }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Probability Distribution -->
+    {% if oof.prob_distributions %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+        <h3 class="text-sm font-bold text-gray-800 mb-4">
+            <i class="fa-solid fa-chart-bar text-sky-500 mr-2"></i>Probability Distribution
+        </h3>
+        <div class="grid grid-cols-2 gap-4">
+            {% for col, hist in oof.prob_distributions.items() %}
+            <div>
+                <p class="text-xs font-semibold text-gray-600 mb-2">{{ col }}</p>
+                <canvas id="chart-{{ col }}" height="120"></canvas>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <script src="/static/js/chart.min.js"></script>
+    <script>
+        {% for col, hist in oof.prob_distributions.items() %}
+        new Chart(document.getElementById('chart-{{ col }}'), {
+            type: 'bar',
+            data: {
+                labels: ['0.0-0.1','0.1-0.2','0.2-0.3','0.3-0.4','0.4-0.5','0.5-0.6','0.6-0.7','0.7-0.8','0.8-0.9','0.9-1.0'],
+                datasets: [{
+                    data: {{ hist }},
+                    backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                    borderColor: 'rgb(16, 185, 129)',
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                    x: { ticks: { font: { size: 9 } } }
+                }
+            }
+        });
+        {% endfor %}
+    </script>
+    {% endif %}
+
+    <!-- Preview Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+        <h3 class="text-sm font-bold text-gray-800 mb-4">
+            <i class="fa-solid fa-eye text-amber-500 mr-2"></i>Preview (first 20 rows)
+        </h3>
+        <div class="overflow-x-auto max-h-96">
+            <table class="w-full text-xs">
+                <thead class="sticky top-0">
+                    <tr class="bg-gray-50">
+                        {% for col in oof.columns %}
+                        <th class="px-3 py-2 text-left text-gray-500 font-semibold whitespace-nowrap">{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in oof.preview_rows %}
+                    <tr class="border-t border-gray-50 hover:bg-gray-50">
+                        {% for col in oof.columns %}
+                        <td class="px-3 py-1.5 whitespace-nowrap text-gray-600">{{ row[col] }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+{% from "components/_empty_state.html" import empty_state %}
+{{ empty_state("OOF predictions not found. Run inference first.", "fa-chart-bar") }}
+{% endif %}

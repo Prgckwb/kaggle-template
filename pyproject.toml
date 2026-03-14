@@ -21,4 +21,5 @@ dev = [
     "jinja2",
     "kaggle",
     "markdown",
+    "nh3",
 ]

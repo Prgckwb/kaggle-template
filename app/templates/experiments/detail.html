@@ -52,6 +52,14 @@
             onclick="activateTab(this)">
         <i class="fa-solid fa-folder-open mr-1.5"></i>Files
     </button>
+    {% if exp.oof_exists %}
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+            hx-get="/experiments/{{ exp.name }}/_oof"
+            hx-target="#tab-content"
+            onclick="activateTab(this)">
+        <i class="fa-solid fa-chart-bar mr-1.5"></i>OOF
+    </button>
+    {% endif %}
 </div>
 
 <!-- Tab Content -->

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Notebooks{% endblock %}
+{% block content %}
+
+<div class="mb-8">
+    <h1 class="text-2xl font-extrabold text-gray-800 mb-1">Notebooks</h1>
+    <p class="text-gray-500 text-sm">Jupyter Notebook</p>
+</div>
+
+{% if notebooks %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-100 text-gray-500 text-xs uppercase tracking-wider">
+                <th class="text-left px-5 py-3 font-semibold">Name</th>
+                <th class="text-left px-5 py-3 font-semibold">Size</th>
+                <th class="text-left px-5 py-3 font-semibold">Modified</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for nb in notebooks %}
+            <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                <td class="px-5 py-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+                            <i class="fa-solid fa-book text-amber-500 text-sm"></i>
+                        </div>
+                        <span class="font-semibold text-gray-800">{{ nb.name }}</span>
+                    </div>
+                </td>
+                <td class="px-5 py-3 text-gray-500">{{ nb.size | filesize }}</td>
+                <td class="px-5 py-3 text-gray-500">{{ nb.modified | timeago }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+{% from "components/_empty_state.html" import empty_state %}
+{{ empty_state("No notebooks found", "fa-book") }}
+{% endif %}
+
+{% endblock %}

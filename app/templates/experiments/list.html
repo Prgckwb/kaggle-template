@@ -76,6 +76,14 @@ function toggleTree() {
 </script>
 {% endif %}
 
+<!-- Score Chart -->
+<div class="mb-6"
+     hx-get="/experiments/_scores"
+     hx-trigger="load"
+     hx-target="#score-chart-container">
+    <div id="score-chart-container"></div>
+</div>
+
 <!-- Results -->
 <div id="experiment-results">
     {% include "partials/_experiment_list.html" %}

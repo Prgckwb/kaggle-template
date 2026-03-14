@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 
+from app.template_env import templates
 from app.utils import (
     PROJECT_ROOT,
     is_htmx,
@@ -17,11 +15,10 @@ from app.utils import (
 )
 
 router = APIRouter()
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 
 @router.get("/discussions", response_class=HTMLResponse)
-async def discussions_index(request: Request):
+def discussions_index(request: Request):
     docs = list_discussion_docs()
     return templates.TemplateResponse(
         "discussions/viewer.html",
@@ -35,7 +32,7 @@ async def discussions_index(request: Request):
 
 
 @router.get("/discussions/{filename}", response_class=HTMLResponse)
-async def discussions_detail(request: Request, filename: str):
+def discussions_detail(request: Request, filename: str):
     docs_dir = PROJECT_ROOT / "docs" / "discussion"
     path = safe_relative_path(filename, docs_dir)
     if path is None or not path.exists():

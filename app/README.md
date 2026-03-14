@@ -18,10 +18,13 @@ uv run uvicorn app.main:app --reload
 |------|------|-------------|
 | FastAPI | Web フレームワーク | pip (dev 依存) |
 | Jinja2 | テンプレートエンジン | pip (dev 依存) |
-| htmx 1.9.10 | 動的 UI 更新 | CDN |
+| nh3 | HTML サニタイズ (XSS 防止) | pip (dev 依存) |
+| htmx 1.9.10 | 動的 UI 更新 | ローカル (`static/js/`) |
 | Tailwind CSS + typography plugin | スタイリング | CDN |
 | FontAwesome 6 Free | アイコン | CDN |
 | Nunito (Google Fonts) | フォント | CDN |
+| highlight.js 11.9.0 | シンタックスハイライト | ローカル (`static/`) |
+| Chart.js 4.4.7 | スコアグラフ・OOF 可視化 | ローカル (`static/js/`) |
 
 ## スタイリング規則
 
@@ -64,43 +67,50 @@ FontAwesome 6 Free (`fa-solid` 系) を使用。絵文字は使わない。
 
 ```
 app/
-├── README.md        # このファイル
-├── main.py          # FastAPI アプリ本体、Router 登録、Jinja2 フィルタ
-├── utils.py         # 共通データ取得ユーティリティ
-├── pages/           # 各ページの APIRouter
-│   ├── __init__.py
-│   ├── experiments.py  # 実験一覧 + 詳細
+├── README.md           # このファイル
+├── main.py             # FastAPI アプリ本体、Router 登録、エラーハンドリング
+├── template_env.py     # 共有 Jinja2 テンプレート環境（単一インスタンス）
+├── utils.py            # 再エクスポートファサード
+├── services/           # ビジネスロジック
+│   ├── helpers.py      # 汎用ヘルパー（パス検証、サイズ変換等）
+│   ├── experiments.py  # 実験管理（一覧、詳細、OOF、スコア）
+│   ├── documents.py    # ドキュメント・Markdown 処理
+│   └── data.py         # データファイル操作（CSV、画像等）
+├── static/             # ローカル静的ファイル
+│   ├── css/            # highlight.js CSS
+│   └── js/             # htmx, highlight.js, Chart.js
+├── pages/              # 各ページの APIRouter
+│   ├── experiments.py  # 実験一覧 + 詳細 + OOF + スコア
 │   ├── discussions.py  # Discussion 閲覧
 │   ├── knowledge.py    # 知識ベース（official / insights）
-│   └── data.py         # データ閲覧（input/ 配下）
+│   ├── data.py         # データ閲覧（input/ 配下）
+│   └── notebooks.py    # Notebook 一覧
 └── templates/
     ├── base.html           # 共通レイアウト（サイドバー + メイン）
+    ├── error.html          # エラーページ
     ├── index.html          # ホームページ
     ├── components/         # 再利用可能な Jinja2 マクロ
-    │   ├── _data_table.html
-    │   ├── _metric_card.html
-    │   ├── _badge.html
-    │   ├── _empty_state.html
-    │   ├── _yaml_viewer.html
-    │   └── _markdown.html
     ├── partials/           # htmx 差し替え用パーシャル
-    │   ├── _experiment_list.html
-    │   ├── _experiment_readme.html
-    │   ├── _experiment_config.html
-    │   ├── _experiment_files.html
-    │   ├── _doc_content.html
-    │   ├── _data_preview.html
-    │   └── _image_gallery.html
-    ├── experiments/
-    │   ├── list.html       # 実験一覧ページ
-    │   └── detail.html     # 実験詳細ページ
-    ├── discussions/
-    │   └── viewer.html     # Discussion 閲覧ページ
-    ├── knowledge/
-    │   └── viewer.html     # 知識ベース閲覧ページ
-    └── data/
-        └── viewer.html     # データ閲覧ページ
+    ├── experiments/        # 実験ページ
+    ├── discussions/        # Discussion ページ
+    ├── knowledge/          # 知識ベースページ
+    ├── notebooks/          # Notebook ページ
+    └── data/               # データ閲覧ページ
 ```
+
+## アーキテクチャ
+
+### テンプレート環境の共有
+
+`template_env.py` に単一の `Jinja2Templates` インスタンスを定義。全ページモジュールがこれをインポートすることで、フィルタ・グローバル関数の登録が一箇所で完結する。
+
+### サービス層
+
+`app/services/` にビジネスロジックを分離。`app/utils.py` は後方互換のための再エクスポートファサード。
+
+### エンドポイント定義
+
+全エンドポイントは `def`（非 `async`）で定義。FastAPI が自動でスレッドプールで実行するため、同期 I/O（ファイル操作、Polars、YAML パース等）がイベントループをブロックしない。
 
 ## htmx パターン
 
@@ -112,7 +122,7 @@ app/
 from app.utils import is_htmx
 
 @router.get("/experiments")
-async def experiment_list(request: Request):
+def experiment_list(request: Request):
     template = "partials/_experiment_list.html" if is_htmx(request) else "experiments/list.html"
     return templates.TemplateResponse(template, {...})
 ```
@@ -145,7 +155,7 @@ async def experiment_list(request: Request):
 1. `app/pages/xxx.py` に `APIRouter` を作成
 2. `app/templates/xxx/` にテンプレートを配置
 3. `app/main.py` で `app.include_router(xxx.router)` を追加
-4. `base.html` のサイドバーにナビリンクを追加（コンペ固有なら `{% block sidebar_nav %}` を使用）
+4. `base.html` のサイドバーにナビリンクを追加
 
 ## Jinja2 コンポーネントの使い方
 

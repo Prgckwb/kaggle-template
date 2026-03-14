@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 
+from app.template_env import templates
 from app.utils import (
     PROJECT_ROOT,
     get_competition_overview,
@@ -19,13 +17,12 @@ from app.utils import (
 )
 
 router = APIRouter()
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 VALID_CATEGORIES = {"official", "insights"}
 
 
 @router.get("/knowledge", response_class=HTMLResponse)
-async def knowledge_index(request: Request):
+def knowledge_index(request: Request):
     overview = get_competition_overview()
     validation = get_validation_strategy()
     docs = list_knowledge_docs()
@@ -44,7 +41,7 @@ async def knowledge_index(request: Request):
 
 
 @router.get("/knowledge/{category}/{filename}", response_class=HTMLResponse)
-async def knowledge_detail(request: Request, category: str, filename: str):
+def knowledge_detail(request: Request, category: str, filename: str):
     if category not in VALID_CATEGORIES:
         return HTMLResponse("<p>Invalid category</p>", status_code=404)
 

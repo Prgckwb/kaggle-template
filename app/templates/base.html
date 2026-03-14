@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- FontAwesome 6 Free -->
+    <!-- FontAwesome 6 Free (CDN — requires font files) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Tailwind CSS CDN + Typography plugin -->
@@ -27,16 +27,16 @@
         }
     </script>
 
-    <!-- htmx -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- htmx (local) -->
+    <script src="/static/js/htmx.min.js"></script>
 
-    <!-- highlight.js: GitHub Light + emerald overrides -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+    <!-- highlight.js (local) -->
+    <link rel="stylesheet" href="/static/css/highlight-github.min.css">
+    <script src="/static/js/highlight.min.js"></script>
+    <script src="/static/js/highlight-yaml.min.js"></script>
+    <script src="/static/js/highlight-python.min.js"></script>
+    <script src="/static/js/highlight-json.min.js"></script>
+    <script src="/static/js/highlight-bash.min.js"></script>
 
     <style>
         body { font-family: 'Nunito', system-ui, sans-serif; }
@@ -108,6 +108,12 @@
                           {% if active_page == 'knowledge' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
                     <i class="fa-solid fa-book w-5 text-center"></i>
                     Knowledge
+                </a>
+                <a href="/notebooks"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
+                          {% if active_page == 'notebooks' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                    <i class="fa-solid fa-file-code w-5 text-center"></i>
+                    Notebooks
                 </a>
                 {% block sidebar_nav %}{% endblock %}
             </nav>
