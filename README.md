@@ -51,6 +51,4 @@ just app
 
 # 実験実行（詳細は CLAUDE.md 参照）
 just debug exp001-baseline     # デバッグモード
-just train exp001-baseline     # 本番モード
-just infer exp001-baseline     # 推論
 ```

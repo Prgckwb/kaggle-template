@@ -60,8 +60,6 @@ src/exp001-xxx/
 - チェックポイント自動検索（`best-*.ckpt` パターン）
 - 全 fold の softmax 確率平均によるアンサンブル
 - OOF 予測の保存: `oof_predictions.csv`（image_id, fold, true_label, pred_label, prob_0〜prob_N）
-- TTA が必要な場合は `inference_tta.py` を追加
-
 ### デバッグモード
 
 `config.yaml` の `debug: true` でデータ・エポック・fold 数を制限し、wandb を無効化する。まずデバッグモードでパイプライン全体が通ることを確認してから `debug=false` で本番実行する。
@@ -114,7 +112,4 @@ AI Agent が検証用スクリプトを実行するディレクトリ。gitignor
 uv sync                        # 依存関係インストール
 just app                       # Web アプリ起動
 just debug exp001-baseline     # デバッグモードで実行
-just train exp001-baseline     # 本番モードで実行
-just infer exp001-baseline     # 推論実行
-just infer-tta exp001-baseline # TTA 推論実行
 ```
