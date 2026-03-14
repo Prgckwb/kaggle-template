@@ -63,5 +63,7 @@ uv sync
 just app
 
 # 実験実行（詳細は CLAUDE.md 参照）
-just debug exp001-baseline     # デバッグモード
+uv run python -m src.exp001-baseline.train              # fold0（デフォルト）
+uv run python -m src.exp001-baseline.train run_mode=debug  # デバッグモード
+uv run python -m src.exp001-baseline.train run_mode=full   # 全 fold
 ```

@@ -172,7 +172,7 @@ AI Agent が検証用スクリプトを実行するディレクトリ。gitignor
 ```bash
 uv sync                        # 依存関係インストール
 just app                       # Web アプリ起動
-just debug exp001-baseline     # デバッグモードで実行（パイプライン確認）
-just train exp001-baseline     # fold0 のみで学習（デフォルト）
-just train-full exp001-baseline  # 全 fold で学習
+uv run python -m src.exp001-baseline.train                  # fold0 のみで学習（デフォルト）
+uv run python -m src.exp001-baseline.train run_mode=debug   # デバッグモード
+uv run python -m src.exp001-baseline.train run_mode=full    # 全 fold で学習
 ```
