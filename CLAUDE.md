@@ -13,7 +13,7 @@ kaggle-template/
 ├── input/          # データ格納（gitignore）
 ├── output/         # 出力格納（gitignore）
 ├── sandbox/        # AI Agent 検証用（gitignore）
-├── notebook/       # Jupyter Notebook
+├── notebook/       # Jupyter Notebook（公開Code、検証用）
 ├── app/            # Web アプリ（FastAPI + htmx）
 ├── docs/
 │   ├── official/   # Kaggle 公式情報
@@ -116,4 +116,5 @@ just app                       # Web アプリ起動
 just debug exp001-baseline     # デバッグモードで実行
 just train exp001-baseline     # 本番モードで実行
 just infer exp001-baseline     # 推論実行
+just infer-tta exp001-baseline # TTA 推論実行
 ```
