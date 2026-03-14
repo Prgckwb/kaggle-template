@@ -34,7 +34,7 @@ kaggle-template/
 
 ## TDD 適用除外
 
-このプロジェクトでは TDD は適用しない。`debug: true` でパイプライン全体の動作確認を行うことで代替する。
+このプロジェクトでは TDD は適用しない。`run_mode=debug` でパイプライン全体の動作確認を行うことで代替する。
 
 ## 実験ディレクトリの規則
 
@@ -57,13 +57,38 @@ src/exp001-xxx/
 
 各実験ディレクトリに `inference.py` を作成し、`sample_submission.csv` と同じ形式の CSV を出力する。
 
-### デバッグモード
+### 実行モード
 
-`config.yaml` の `debug: true` でデータ・エポック・fold 数を制限し、wandb を無効化する。まずデバッグモードでパイプライン全体が通ることを確認してから `debug=false` で本番実行する。
+`config.yaml` の `run_mode` で実行モードを切り替える。デフォルトは `fold0`。
+
+| モード | 動作 | 用途 |
+|--------|------|------|
+| `debug` | データ・エポック制限、fold0 のみ、wandb disabled | パイプラインの動作確認 |
+| `fold0`（デフォルト） | fold0 のみ、通常のデータ量・エポック数 | 高速に1セット学習して性能確認 |
+| `full` | 全 fold 実行 | 完全な CV スコア算出・OOF 予測生成 |
+
+まず `debug` でパイプラインが通ることを確認 → `fold0` で性能確認 → `full` で本番実行の流れ。
 
 ### wandb ログの統一
 
 評価指標の wandb log は実験を跨いで比較するため、同じキー名を使い続ける。表記揺れ（`acc` vs `accuracy`、`valid` vs `val`）を避ける。メトリクス名はプロジェクト初回の実験で決定し、以降変更しない。
+
+### チェックポイントと出力
+
+```
+output/{exp_name}/
+├── fold0/
+│   ├── {exp_name}-val_score={score}.ckpt
+│   ├── train.csv       # この fold の学習データ index/ID
+│   └── val.csv         # この fold の検証データ index/ID
+├── fold1/
+│   └── ...
+└── oof_predictions.csv  # full モードで生成
+```
+
+- **チェックポイント**: `ModelCheckpoint` で `output/{exp_name}/fold{i}/` に保存。ファイル名に実験名と val スコアを含む
+- **train/val split**: 各 fold の train.csv, val.csv を保存し OOF の再現性を担保
+- **再実行時は上書き**: 同一設定の再実行は問題なし。パラメータを変えて比較したい場合は新しい実験ディレクトリを作成する
 
 ### 再現性
 
@@ -147,5 +172,7 @@ AI Agent が検証用スクリプトを実行するディレクトリ。gitignor
 ```bash
 uv sync                        # 依存関係インストール
 just app                       # Web アプリ起動
-just debug exp001-baseline     # デバッグモードで実行
+just debug exp001-baseline     # デバッグモードで実行（パイプライン確認）
+just train exp001-baseline     # fold0 のみで学習（デフォルト）
+just train-full exp001-baseline  # 全 fold で学習
 ```

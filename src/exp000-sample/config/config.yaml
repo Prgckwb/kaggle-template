@@ -6,10 +6,23 @@ defaults:
 exp_name: exp000-sample
 seed: 42
 
+# Run mode: debug / fold0 / full
+# - debug: パイプライン確認（少データ・少エポック・1fold・wandb disabled）
+# - fold0: fold0 のみ実行（デフォルト）
+# - full: 全 fold 実行
+run_mode: fold0
+
+# Debug settings (run_mode=debug 時に適用)
+debug:
+  epochs: 2
+  samples: 100
+  n_folds: 1
+
 # Data
 data:
   train_path: ${hydra:runtime.cwd}/input/train.csv
   test_path: ${hydra:runtime.cwd}/input/test.csv
+  n_folds: 5
 
 # Model
 model:
@@ -21,8 +34,19 @@ training:
   batch_size: 32
   lr: 1e-3
 
+# Output
+output_dir: ${hydra:runtime.cwd}/output/${exp_name}
+
 # Wandb
 wandb:
   project: kaggle-competition
   entity: null  # Set your wandb entity
   mode: online  # online, offline, disabled
+
+# Hydra settings
+hydra:
+  run:
+    dir: .
+  job:
+    chdir: false
+  output_subdir: null

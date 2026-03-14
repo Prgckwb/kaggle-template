@@ -173,17 +173,17 @@ def parse_mermaid_tree() -> str | None:
 
 
 def list_checkpoints(exp_name: str) -> list[dict]:
-    """output/{exp_name}/ の best-*.ckpt を列挙。"""
+    """output/{exp_name}/fold*/*.ckpt を列挙。"""
     out_dir = PROJECT_ROOT / "output" / exp_name
     if not out_dir.exists():
         return []
     return [
         {
-            "filename": f.name,
+            "filename": f"{f.parent.name}/{f.name}",
             "size": f.stat().st_size,
             "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc),
         }
-        for f in sorted(out_dir.glob("best-*.ckpt"))
+        for f in sorted(out_dir.glob("fold*/*.ckpt"))
     ]
 
 
