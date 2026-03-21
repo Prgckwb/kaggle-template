@@ -176,7 +176,7 @@ metrics_logger.finish()
 ### 実験後の更新（必須）
 
 1. **各実験の README.md**: 目的・仮説（開始時）、結果・Runs テーブル・考察（完了時）
-2. **ルート README.md**: Experiments テーブルと Experiment Tree を更新（大実験の best run のスコアを記載）
+2. **EXP_SUMMARY.md**: Experiments テーブルと Experiment Tree を更新（大実験の best run のスコアを記載）
 3. **docs/insights/**: `YYYY-MM-DD_exp{番号}-{subtitle}.md` で知見を記録
 
 **Experiments テーブルのフォーマット:**

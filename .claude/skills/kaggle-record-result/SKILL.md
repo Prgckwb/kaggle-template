@@ -27,7 +27,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 3. **現在の実験状況を確認する**
    - 対象 run の config を Read
    - `src/{exp-name}/output/{run_name}/` 配下に学習済みの出力があるか確認
-   - ルート README.md の Experiments テーブルで既存のスコアを確認
+   - EXP_SUMMARY.md の Experiments テーブルで既存のスコアを確認
 
 ## フェーズ 2: スコアの収集（対話的）
 
@@ -96,7 +96,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 | ...  | ...   |
 ```
 
-### 4-2. ルート README.md の更新
+### 4-2. EXP_SUMMARY.md の更新
 
 1. **Experiments テーブル**: 該当行の Split, CV, LB を更新（大実験の best run のスコアを記載）
 2. **Experiment Tree**: ノードにスコアを追加し、クラスを更新

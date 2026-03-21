@@ -1,6 +1,19 @@
 # Competition Name
 
-> コンペティションの概要をここに記載
+> Kaggle コンペティション用テンプレート。Hydra + Wandb で実験管理、FastAPI + htmx でダッシュボード。
+
+## Quick Start
+
+```bash
+# 1. クローン
+git clone <repo-url> && cd <repo-name>
+
+# 2. 依存関係インストール
+uv sync
+
+# 3. Claude Code でコンペ情報をセットアップ
+/kaggle:init
+```
 
 ## Directory Structure
 
@@ -20,11 +33,43 @@ kaggle-template/
         └── output/     # 学習出力（gitignore）
 ```
 
-## Experiments
+## Commands
 
-| Exp | Name | Split | Key Change | CV | LB |
-|-----|------|-------|------------|----|----|
-| exp000 | sample | - | テンプレート | - | - |
+```bash
+# 依存関係インストール
+uv sync
+
+# Web ダッシュボード起動
+just app
+
+# 実験実行
+uv run python -m src.exp001-xxx.train                              # fold0（デフォルト）
+uv run python -m src.exp001-xxx.train run_mode=debug               # デバッグモード
+uv run python -m src.exp001-xxx.train run_mode=full                # 全 fold
+
+# 小実験（Run）を指定して実行
+uv run python -m src.exp001-xxx.train --config-name=run001-yyy
+uv run python -m src.exp001-xxx.train --config-name=run001-yyy run_mode=debug
+```
+
+## Skills (Claude Code)
+
+| スキル | 説明 |
+|--------|------|
+| `/kaggle:init` | テンプレート初期化（コンペ名・データ・docs セットアップ） |
+| `/kaggle:new-experiment` | 新しい実験を対話的に設計・作成 |
+| `/kaggle:record-result` | 実験結果を記録 |
+| `/kaggle:commit` | 変更を論理単位でコミット＆プッシュ |
+| `/kaggle:check-commands` | 実行コマンドの確認 |
+| `/kaggle:add-app-page` | ダッシュボードに新ページ追加 |
+
+## Experiment Workflow
+
+1. `/kaggle:new-experiment` で実験を設計・作成
+2. `run_mode=debug` でパイプラインの動作確認
+3. `run_mode=fold0` で性能確認
+4. `run_mode=full` で全 fold 実行・CV スコア算出
+5. `/kaggle:record-result` で結果を記録
 
 ## Validation Strategy
 
@@ -34,43 +79,6 @@ kaggle-template/
 > - 学習データとの分布の違い
 > - リークの有無の確認方法
 
-## Experiment Tree
+## Experiments
 
-```mermaid
-graph TD
-    A["exp000-sample"]
-
-    classDef best fill:#10b981,stroke:#059669,color:#fff,stroke-width:3px
-    classDef good fill:#3b82f6,stroke:#2563eb,color:#fff
-    classDef base fill:#64748b,stroke:#475569,color:#fff
-    classDef wip fill:#f59e0b,stroke:#d97706,color:#fff,stroke-dasharray:5 5
-
-    class A base
-```
-
-<!-- Experiment Tree ルール
-- ステータスごとに色分けしたカラフルなツリーにし、進捗・成果を視覚的に即座に判別できるようにする
-- ノード: "exp名<br/>Split | CV: x.xxx | LB: x.xxx"
-- エッジラベル: 前実験からの主な変更点（= Key Change）
-- classDef で色を定義し、全ノードにクラスを割り当てる:
-  - best(緑 #10b981)=最高LB（太枠で強調）
-  - good(青 #3b82f6)=完了
-  - base(灰 #64748b)=ベースライン
-  - wip(黄 #f59e0b、破線)=進行中
--->
-
-## Setup
-
-```bash
-# 依存関係インストール
-uv sync
-
-# Web アプリ起動
-just app
-
-# 実験実行（詳細は CLAUDE.md 参照）
-uv run python -m src.exp001-baseline.train                              # ベース config で fold0
-uv run python -m src.exp001-baseline.train run_mode=debug               # デバッグモード
-uv run python -m src.exp001-baseline.train --config-name=run001-bert    # 小実験を指定
-uv run python -m src.exp001-baseline.train run_mode=full                # 全 fold
-```
+実験の記録は [EXP_SUMMARY.md](EXP_SUMMARY.md) を参照。

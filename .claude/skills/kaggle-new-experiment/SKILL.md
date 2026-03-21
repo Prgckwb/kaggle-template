@@ -20,7 +20,7 @@ allowed-tools: Bash, Read, Write, Glob, Edit
 1. **既存の実験状況を把握する**
    - `src/exp*/` を Glob で検索し、既存の実験一覧を確認
    - 各大実験の `config/run*.yaml` を確認し、小実験の状況も把握する
-   - ルート `README.md` の Experiments テーブルを Read で確認し、各実験の Key Change・CV・LB を把握
+   - `EXP_SUMMARY.md` の Experiments テーブルを Read で確認し、各実験の Key Change・CV・LB を把握
    - `docs/insights/` の知見ファイルを確認（実装上の知見のみ参考にする）
    - `docs/official/` を Read してコンペの概要・評価指標・データを把握
 
@@ -132,7 +132,7 @@ allowed-tools: Bash, Read, Write, Glob, Edit
    （実験完了後に記載する）
    ```
 
-5. **ルート README.md を更新**
+5. **EXP_SUMMARY.md を更新**
    - Experiments テーブルに新しい行を追加
    - Experiment Tree に `wip` クラスで新ノードを追加（ベース実験からエッジを張る）
 
@@ -157,7 +157,7 @@ allowed-tools: Bash, Read, Write, Glob, Edit
    | run{NNN}-{subtitle} | {変更内容} | - | - |
    ```
 
-3. ルート README.md は更新不要
+3. EXP_SUMMARY.md は更新不要
 
 ## フェーズ 5: 完了報告
 
