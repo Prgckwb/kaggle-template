@@ -11,12 +11,12 @@ wheels/
 
 # Data and outputs (large files)
 input/*
-output/*
 sandbox/*
+src/*/output/
+src/*/logs/
 
 # Keep directory structure
 !input/.gitkeep
-!output/.gitkeep
 !sandbox/.gitkeep
 
 # Jupyter
@@ -31,6 +31,9 @@ sandbox/*
 # OS
 .DS_Store
 Thumbs.db
+
+# Cache (leaderboard etc.)
+.cache/
 
 # Hydra outputs
 outputs/
