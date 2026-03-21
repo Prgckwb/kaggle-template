@@ -1,0 +1,12 @@
+# Small experiment: sample-v2
+defaults:
+  - config
+
+run_name: run001-sample-v2
+
+model:
+  name: sample-v2
+
+training:
+  lr: 5e-4
+  epochs: 15

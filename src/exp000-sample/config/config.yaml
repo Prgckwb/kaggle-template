@@ -4,6 +4,7 @@ defaults:
 
 # Experiment
 exp_name: exp000-sample
+run_name: run000-base
 seed: 42
 
 # Run mode: debug / fold0 / full
@@ -35,7 +36,8 @@ training:
   lr: 1e-3
 
 # Output
-output_dir: ${hydra:runtime.cwd}/output/${exp_name}
+output_dir: ${hydra:runtime.cwd}/src/${exp_name}/output/${run_name}
+logs_dir: ${hydra:runtime.cwd}/src/${exp_name}/logs/${run_name}
 
 # Wandb
 wandb:

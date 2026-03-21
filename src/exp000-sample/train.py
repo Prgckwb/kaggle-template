@@ -9,6 +9,8 @@ import torch
 import wandb
 from omegaconf import DictConfig, OmegaConf
 
+from src.utils.metrics_logger import MetricsLogger
+
 
 def seed_everything(seed: int) -> None:
     random.seed(seed)
@@ -58,6 +60,7 @@ def main(cfg: DictConfig) -> None:
     output_dir = Path(cfg.output_dir)
 
     print(f"Experiment: {cfg.exp_name}")
+    print(f"Run: {cfg.run_name}")
     print(f"Run mode: {cfg.run_mode}")
     print(f"Config:\n{OmegaConf.to_yaml(cfg)}")
 
@@ -65,10 +68,13 @@ def main(cfg: DictConfig) -> None:
     wandb.init(
         project=cfg.wandb.project,
         entity=cfg.wandb.entity,
-        name=f"{cfg.exp_name}_{cfg.run_mode}",
+        name=f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}",
         config=OmegaConf.to_container(cfg, resolve=True),
         mode=run_cfg["wandb_mode"],
     )
+
+    # Initialize local metrics logger
+    metrics_logger = MetricsLogger(cfg)
 
     # TODO: Load data
     # df = pd.read_csv(cfg.data.train_path)
@@ -135,6 +141,12 @@ def main(cfg: DictConfig) -> None:
                 "val_loss": val_loss,
             })
 
+            metrics_logger.log_epoch(fold_idx, {
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "val_loss": val_loss,
+            })
+
             print(f"  Epoch {epoch}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}")
 
     # Save OOF predictions (full mode)
@@ -143,6 +155,7 @@ def main(cfg: DictConfig) -> None:
     #     oof_df.to_csv(output_dir / "oof_predictions.csv", index=False)
     #     print(f"\nOOF predictions saved to {output_dir / 'oof_predictions.csv'}")
 
+    metrics_logger.finish()
     wandb.finish()
     print(f"\nTraining complete. Output dir: {output_dir}")
 
