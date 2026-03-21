@@ -32,42 +32,62 @@ $ARGUMENTS があればそこから意図を読み取る。なければ質問す
 ### 3. config を確認
 
 - `src/{exp-name}/config/config.yaml` を Read して構造を把握
+- `src/{exp-name}/config/run*.yaml` を Glob で検索し、小実験 config の一覧を把握
 - Hydra の defaults リスト、パラメータ階層を確認
 
-### 4. コマンドを生成・提示
+### 4. run を特定
+
+- 小実験 config が存在する場合、ユーザーに「どの run を実行しますか？」と確認
+  - ベース config（config.yaml）で実行する場合は `--config-name` 不要
+  - 小実験を指定する場合は `--config-name={run_name}` を付与
+
+### 5. コマンドを生成・提示
 
 以下のパターンに基づいてコマンドを生成する:
 
-**基本コマンド:**
+**基本コマンド（ベース config）:**
 
 ```bash
 # デバッグモードで学習
-cd src/{exp-name} && uv run python train.py
+uv run python -m src.{exp-name}.train run_mode=debug
 
-# 本番モードで学習
-cd src/{exp-name} && uv run python train.py debug=false
+# fold0 で学習（デフォルト）
+uv run python -m src.{exp-name}.train
+
+# 全 fold で学習
+uv run python -m src.{exp-name}.train run_mode=full
 
 # 推論
-cd src/{exp-name} && uv run python inference.py
+uv run python -m src.{exp-name}.inference
+```
+
+**小実験を指定する場合:**
+
+```bash
+# 小実験をデバッグモードで学習
+uv run python -m src.{exp-name}.train --config-name={run_name} run_mode=debug
+
+# 小実験を fold0 で学習
+uv run python -m src.{exp-name}.train --config-name={run_name}
+
+# 小実験を全 fold で学習
+uv run python -m src.{exp-name}.train --config-name={run_name} run_mode=full
 ```
 
 **Hydra オーバーライド:**
 
 ```bash
 # パラメータ変更
-cd src/{exp-name} && uv run python train.py training.lr=5e-4
-
-# debug 無効 + パラメータ変更
-cd src/{exp-name} && uv run python train.py debug=false training.lr=5e-4
+uv run python -m src.{exp-name}.train training.lr=5e-4
 
 # config 表示（実行せず）
-cd src/{exp-name} && uv run python train.py --cfg job
+uv run python -m src.{exp-name}.train --cfg job
 
 # multirun
-cd src/{exp-name} && uv run python train.py -m training.lr=1e-3,5e-4,1e-4
+uv run python -m src.{exp-name}.train -m training.lr=1e-3,5e-4,1e-4
 ```
 
-**justfile コマンド:**
+**その他:**
 
 ```bash
 just app    # Web アプリ起動

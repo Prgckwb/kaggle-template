@@ -18,9 +18,15 @@ allowed-tools: Bash, Read, Write, Edit, Glob
    - なければ `src/exp*/` を Glob で検索し、ユーザーに選択肢を提示
    - 対象実験の README.md を Read して目的・仮説を確認
 
-2. **現在の実験状況を確認する**
-   - `src/{exp-name}/config/config.yaml` を Read
-   - `output/` 配下に学習済みの出力があるか確認
+2. **対象 run を特定する**
+   - `src/{exp-name}/config/run*.yaml` を Glob で検索し、小実験の一覧を把握
+   - `config/config.yaml` の `run_name` も確認（ベース run）
+   - ユーザーに「どの run の結果ですか？」と確認
+   - 複数 run がある場合は一覧を提示して選択してもらう
+
+3. **現在の実験状況を確認する**
+   - 対象 run の config を Read
+   - `src/{exp-name}/output/{run_name}/` 配下に学習済みの出力があるか確認
    - ルート README.md の Experiments テーブルで既存のスコアを確認
 
 ## フェーズ 2: スコアの収集（対話的）
@@ -61,9 +67,9 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 
 ### 4-1. 実験 README.md の更新
 
-`src/{exp-name}/README.md` の「結果」と「考察」セクションを更新する。
+`src/{exp-name}/README.md` を更新する:
 
-結果テーブル:
+- **結果テーブル**（大実験全体の best スコアを記載）:
 ```markdown
 | Metric | Value |
 |--------|-------|
@@ -71,6 +77,16 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 | CV     | {cv_score} |
 | LB     | {lb_score} |
 ```
+
+- **Runs テーブル**の該当行を更新:
+```markdown
+| Run | Key Change | CV | LB |
+|-----|-----------|----|----|
+| run000-base | ベースライン | {cv} | {lb} |
+| run001-xxx | XXX | {cv} | {lb} |
+```
+
+- **考察**セクションを記述
 
 各 Fold のスコアが判明している場合は追記:
 ```markdown
@@ -82,7 +98,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 
 ### 4-2. ルート README.md の更新
 
-1. **Experiments テーブル**: 該当行の Split, CV, LB を更新
+1. **Experiments テーブル**: 該当行の Split, CV, LB を更新（大実験の best run のスコアを記載）
 2. **Experiment Tree**: ノードにスコアを追加し、クラスを更新
    - スコアが入ったら `wip` → `good`（青）に変更
    - 全実験中で最高 LB なら `best`（緑）に変更
