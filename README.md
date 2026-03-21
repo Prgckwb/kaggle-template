@@ -21,7 +21,6 @@ uv sync
 kaggle-template/
 ├── input/          # データ格納（gitignore）
 ├── sandbox/        # AI Agent 検証用（gitignore）
-├── notebook/       # Jupyter Notebook（公開Code、検証用）
 ├── app/            # Web アプリ（FastAPI + htmx）
 ├── docs/           # ドキュメント
 │   ├── official/   # Kaggle 公式情報

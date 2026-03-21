@@ -12,7 +12,6 @@ Kaggle コンペティション用テンプレート。Hydra + Wandb で実験�
 kaggle-template/
 ├── input/          # データ格納（gitignore）
 ├── sandbox/        # AI Agent 検証用（gitignore）
-├── notebook/       # Jupyter Notebook（公開Code、検証用）
 ├── app/            # Web アプリ（FastAPI + htmx）
 ├── docs/
 │   ├── official/   # Kaggle 公式情報
