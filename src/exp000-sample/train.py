@@ -72,14 +72,9 @@ def main(cfg: DictConfig) -> None:
     print(f"Run mode: {cfg.run_mode}")
     print(f"Config:\n{OmegaConf.to_yaml(cfg)}")
 
-    # Initialize wandb
-    wandb.init(
-        project=cfg.wandb.project,
-        entity=cfg.wandb.entity,
-        name=f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}",
-        config=OmegaConf.to_container(cfg, resolve=True),
-        mode=run_cfg["wandb_mode"],
-    )
+    # wandb group name（全 fold を束ねるキー）
+    group_name = f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}"
+    wandb_config = OmegaConf.to_container(cfg, resolve=True)
 
     # Initialize local metrics logger
     metrics_logger = MetricsLogger(cfg)
@@ -94,11 +89,24 @@ def main(cfg: DictConfig) -> None:
     # skf = StratifiedKFold(n_splits=run_cfg["n_folds"], shuffle=True, random_state=cfg.seed)
 
     oof_predictions = []
+    fold_scores: dict[int, float] = {}
 
     for fold_idx in run_cfg["folds_to_run"]:
         print(f"\n{'='*50}")
         print(f"Fold {fold_idx}")
         print(f"{'='*50}")
+
+        # Initialize wandb fold run
+        wandb.init(
+            project=cfg.wandb.project,
+            entity=cfg.wandb.entity,
+            group=group_name,
+            name=f"fold_{fold_idx}",
+            job_type="train",
+            config=wandb_config,
+            mode=run_cfg["wandb_mode"],
+            reinit=True,
+        )
 
         fold_dir = output_dir / f"fold{fold_idx}"
         fold_dir.mkdir(parents=True, exist_ok=True)
@@ -128,8 +136,10 @@ def main(cfg: DictConfig) -> None:
         # trainer = pl.Trainer(
         #     max_epochs=run_cfg["epochs"],
         #     accelerator="auto",
+        #     limit_train_batches=run_cfg["limit_train_batches"],
+        #     limit_val_batches=run_cfg["limit_val_batches"],
         #     callbacks=[checkpoint_callback],
-        #     logger=WandbLogger() if run_cfg["wandb_mode"] != "disabled" else False,
+        #     logger=WandbLogger(experiment=wandb.run),
         # )
         #
         # trainer.fit(model, train_dataloader, val_dataloader)
@@ -138,15 +148,16 @@ def main(cfg: DictConfig) -> None:
         # oof_predictions.append(val_predictions_df)
 
         # Example: simulate training loop
+        best_val_loss = float("inf")
         for epoch in range(run_cfg["epochs"]):
             train_loss = 1.0 / (epoch + 1)
             val_loss = 1.1 / (epoch + 1)
+            best_val_loss = min(best_val_loss, val_loss)
 
             wandb.log({
-                "fold": fold_idx,
                 "epoch": epoch,
-                "train_loss": train_loss,
-                "val_loss": val_loss,
+                "train/loss": train_loss,
+                "val/loss": val_loss,
             })
 
             metrics_logger.log_epoch(fold_idx, {
@@ -157,14 +168,39 @@ def main(cfg: DictConfig) -> None:
 
             print(f"  Epoch {epoch}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}")
 
+        fold_scores[fold_idx] = best_val_loss
+        wandb.finish()
+
     # Save OOF predictions (full mode)
     # if run_cfg["folds_to_run"] == list(range(run_cfg["n_folds"])) and oof_predictions:
     #     oof_df = pd.concat(oof_predictions, ignore_index=True)
     #     oof_df.to_csv(output_dir / "oof_predictions.csv", index=False)
     #     print(f"\nOOF predictions saved to {output_dir / 'oof_predictions.csv'}")
 
+    # Summary run（full モード && wandb 有効 && fold≥2）
+    if len(run_cfg["folds_to_run"]) >= 2 and run_cfg["wandb_mode"] != "disabled":
+        wandb.init(
+            project=cfg.wandb.project,
+            entity=cfg.wandb.entity,
+            group=group_name,
+            name="summary",
+            job_type="summary",
+            config=wandb_config,
+            mode=run_cfg["wandb_mode"],
+            reinit=True,
+        )
+        scores = list(fold_scores.values())
+        cv_mean = sum(scores) / len(scores)
+        cv_std = (sum((s - cv_mean) ** 2 for s in scores) / len(scores)) ** 0.5
+        # TODO: Replace "loss" with your competition metric (e.g., "auc", "f1")
+        wandb.summary["cv/loss"] = cv_mean
+        wandb.summary["cv/loss_std"] = cv_std
+        for fi, score in fold_scores.items():
+            wandb.summary[f"fold{fi}/best_val_loss"] = score
+        wandb.finish()
+        print(f"\nCV score: {cv_mean:.4f} ± {cv_std:.4f}")
+
     metrics_logger.finish()
-    wandb.finish()
     print(f"\nTraining complete. Output dir: {output_dir}")
 
 
