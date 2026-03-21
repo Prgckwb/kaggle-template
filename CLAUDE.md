@@ -11,7 +11,6 @@ Kaggle コンペティション用テンプレート。Hydra + Wandb で実験�
 ```
 kaggle-template/
 ├── input/          # データ格納（gitignore）
-├── output/         # 出力格納（gitignore）
 ├── sandbox/        # AI Agent 検証用（gitignore）
 ├── notebook/       # Jupyter Notebook（公開Code、検証用）
 ├── app/            # Web アプリ（FastAPI + htmx）
@@ -21,6 +20,8 @@ kaggle-template/
 │   └── insights/   # 実験知見（YYYY-MM-DD_topic.md）
 └── src/            # 実験ディレクトリ
     └── exp000-sample/
+        ├── config/         # ベース config + 小実験 config
+        └── output/         # 学習出力（gitignore）
 ```
 
 ## 技術スタック
@@ -32,6 +33,12 @@ kaggle-template/
   - MPS / CUDA / CPU を想定（`pin_memory` は GPU 時のみ有効化、`accelerator="auto"` を使用）
 - **Web アプリ**: FastAPI, htmx, Jinja2
 
+## Web アプリ（ダッシュボード）の実装方針
+
+- **ナビゲーション構造**: サイドバーのトップレベルは Experiments / Data / Knowledge の3つ。新ページはまず既存セクションのサブページとして追加を検討し、どこにも属さない場合のみトップレベルに追加する
+- **ページレイアウト**: サイドバー内にさらにサイドバーを入れる「2重サイドバー」は避ける。Data ページのファイルツリーのような専用 UI は例外
+- **スタイルの詳細**: `app/README.md` を参照
+
 ## TDD 適用除外
 
 このプロジェクトでは TDD は適用しない。`run_mode=debug` でパイプライン全体の動作確認を行うことで代替する。
@@ -40,17 +47,68 @@ kaggle-template/
 
 ### 命名・構成
 
-`exp{番号}-{subtitle}` 形式。各実験は独立し、他の実験に依存しない。共通コードが必要な場合はコピーする。
+`exp{番号}-{subtitle}` 形式（大実験）。各実験は独立し、他の実験に依存しない。共通コードが必要な場合はコピーする。
 
 ```
 src/exp001-xxx/
-├── README.md       # 目的・仮説・結果・考察
+├── README.md       # 目的・仮説・結果・Runs テーブル・考察
 ├── train.py        # 学習スクリプト
 ├── inference.py    # 推論スクリプト
 ├── model.py        # モデル定義
 ├── data.py         # データ処理
-└── config/
-    └── config.yaml
+├── config/
+│   ├── config.yaml           # ベース設定（run_name: run000-base）
+│   ├── run001-yyy.yaml       # 小実験1（差分のみ、defaults: [config] で継承）
+│   └── run002-zzz.yaml       # 小実験2
+├── logs/                     # 学習メトリクスログ（gitignore、自動生成）
+│   └── run000-base/
+│       ├── fold0_metrics.csv # epoch ごとの train_loss, val_loss 等
+│       └── run_summary.json  # CV スコア、各 fold のベスト、config snapshot
+└── output/                   # gitignore
+    ├── run000-base/          # ベース config の出力
+    │   ├── fold0/
+    │   │   ├── {exp_name}-val_score={score}.ckpt
+    │   │   ├── train.csv
+    │   │   └── val.csv
+    │   └── oof_predictions.csv
+    └── run001-yyy/
+        └── ...
+```
+
+### 小実験（Run）の規則
+
+大実験の範囲内でモデル名・ハイパーパラメータ・前処理の細かな変更を行う場合は、小実験（Run）として `config/run{NNN}-{subtitle}.yaml` を追加する。
+
+- **大実験の基準**: アプローチ・アーキテクチャ・データパイプラインが根本的に異なる場合に新規作成
+- **小実験の基準**: 既存大実験のコードを共有し、config の差分のみで表現できる変更
+
+**小実験 config の形式**（差分のみ記述、ベース config を Hydra defaults で継承）:
+
+```yaml
+# config/run001-bert.yaml
+defaults:
+  - config    # ベース config.yaml を継承
+
+run_name: run001-bert
+
+model:
+  name: bert-base-uncased
+
+training:
+  lr: 2e-5
+```
+
+**実行コマンド**:
+
+```bash
+# ベース config で実行
+uv run python -m src.exp001-xxx.train
+
+# 小実験を指定して実行
+uv run python -m src.exp001-xxx.train --config-name=run001-bert
+
+# run_mode も指定可能
+uv run python -m src.exp001-xxx.train --config-name=run001-bert run_mode=debug
 ```
 
 ### 推論スクリプト
@@ -75,8 +133,10 @@ src/exp001-xxx/
 
 ### チェックポイントと出力
 
+出力は各実験の `output/{run_name}/` 配下に保存される。
+
 ```
-output/{exp_name}/
+src/{exp_name}/output/{run_name}/
 ├── fold0/
 │   ├── {exp_name}-val_score={score}.ckpt
 │   ├── train.csv       # この fold の学習データ index/ID
@@ -86,9 +146,28 @@ output/{exp_name}/
 └── oof_predictions.csv  # full モードで生成
 ```
 
-- **チェックポイント**: `ModelCheckpoint` で `output/{exp_name}/fold{i}/` に保存。ファイル名に実験名と val スコアを含む
+- **チェックポイント**: `ModelCheckpoint` で `src/{exp_name}/output/{run_name}/fold{i}/` に保存。ファイル名に実験名と val スコアを含む
 - **train/val split**: 各 fold の train.csv, val.csv を保存し OOF の再現性を担保
-- **再実行時は上書き**: 同一設定の再実行は問題なし。パラメータを変えて比較したい場合は新しい実験ディレクトリを作成する
+- **再実行時は上書き**: 同一設定の再実行は問題なし。パラメータを変えて比較したい場合は小実験（Run）を追加する
+
+### ローカルメトリクスログ
+
+`MetricsLogger`（`src/utils/metrics_logger.py`）を使い、wandb と並行してローカルにメトリクスを保存する。wandb にアクセスせずとも学習曲線や CV スコアを確認できる。
+
+```python
+from src.utils.metrics_logger import MetricsLogger
+
+# wandb.init() の後
+metrics_logger = MetricsLogger(cfg)
+
+# 各 epoch で wandb.log() と併用
+metrics_logger.log_epoch(fold_idx, {"epoch": epoch, "train_loss": train_loss, "val_loss": val_loss})
+
+# 学習完了時（wandb.finish() の前）
+metrics_logger.finish()
+```
+
+出力先は `src/{exp_name}/logs/{run_name}/`（gitignore 対象）。ダッシュボードの Logs タブで学習曲線を閲覧可能。
 
 ### 再現性
 
@@ -96,8 +175,8 @@ output/{exp_name}/
 
 ### 実験後の更新（必須）
 
-1. **各実験の README.md**: 目的・仮説（開始時）、結果・考察（完了時）
-2. **ルート README.md**: Experiments テーブルと Experiment Tree を更新
+1. **各実験の README.md**: 目的・仮説（開始時）、結果・Runs テーブル・考察（完了時）
+2. **ルート README.md**: Experiments テーブルと Experiment Tree を更新（大実験の best run のスコアを記載）
 3. **docs/insights/**: `YYYY-MM-DD_exp{番号}-{subtitle}.md` で知見を記録
 
 **Experiments テーブルのフォーマット:**
@@ -110,9 +189,15 @@ output/{exp_name}/
 
 **Experiment Tree（Mermaid）のフォーマット:**
 
+実験の進捗・成果が一目で把握できるよう、ステータスごとに色分けしたカラフルなツリーにする。色によって「どの実験が最高スコアか」「どれが進行中か」を視覚的に即座に判別できることが重要。
+
 - ノード: `"exp名<br/>Split | CV: x.xxx | LB: x.xxx"`
 - エッジラベル: 前実験からの主な変更点（= Key Change）
-- スタイル: `best`(緑)=最高LB, `good`(青)=完了, `base`(灰)=ベースライン, `wip`(黄/破線)=進行中
+- スタイル（必ず `classDef` で色を定義し、全ノードにクラスを割り当てる）:
+  - `best`（緑 `#10b981`）= 最高 LB、太枠で強調
+  - `good`（青 `#3b82f6`）= 完了した実験
+  - `base`（灰 `#64748b`）= ベースライン
+  - `wip`（黄 `#f59e0b`、破線）= 進行中の実験
 
 例:
 
@@ -172,7 +257,13 @@ AI Agent が検証用スクリプトを実行するディレクトリ。gitignor
 ```bash
 uv sync                        # 依存関係インストール
 just app                       # Web アプリ起動
+
+# 大実験のベース config で実行
 uv run python -m src.exp001-baseline.train                  # fold0 のみで学習（デフォルト）
 uv run python -m src.exp001-baseline.train run_mode=debug   # デバッグモード
 uv run python -m src.exp001-baseline.train run_mode=full    # 全 fold で学習
+
+# 小実験を指定して実行
+uv run python -m src.exp001-baseline.train --config-name=run001-bert
+uv run python -m src.exp001-baseline.train --config-name=run001-bert run_mode=debug
 ```

@@ -7,7 +7,6 @@
 ```
 kaggle-template/
 ├── input/          # データ格納（gitignore）
-├── output/         # 出力格納（gitignore）
 ├── sandbox/        # AI Agent 検証用（gitignore）
 ├── notebook/       # Jupyter Notebook（公開Code、検証用）
 ├── app/            # Web アプリ（FastAPI + htmx）
@@ -16,7 +15,9 @@ kaggle-template/
 │   ├── discussion/ # Kaggle Discussion 情報
 │   └── insights/   # 実験から得た知見
 └── src/            # 実験ディレクトリ
-    └── exp000-sample/ # 各実験（独立した構成）
+    └── exp000-sample/
+        ├── config/     # ベース config + 小実験 config
+        └── output/     # 学習出力（gitignore）
 ```
 
 ## Experiments
@@ -48,9 +49,14 @@ graph TD
 ```
 
 <!-- Experiment Tree ルール
+- ステータスごとに色分けしたカラフルなツリーにし、進捗・成果を視覚的に即座に判別できるようにする
 - ノード: "exp名<br/>Split | CV: x.xxx | LB: x.xxx"
 - エッジラベル: 前実験からの主な変更点（= Key Change）
-- classDef: best(緑)=最高LB, good(青)=完了, base(灰)=ベースライン, wip(黄/破線)=進行中
+- classDef で色を定義し、全ノードにクラスを割り当てる:
+  - best(緑 #10b981)=最高LB（太枠で強調）
+  - good(青 #3b82f6)=完了
+  - base(灰 #64748b)=ベースライン
+  - wip(黄 #f59e0b、破線)=進行中
 -->
 
 ## Setup
@@ -63,7 +69,8 @@ uv sync
 just app
 
 # 実験実行（詳細は CLAUDE.md 参照）
-uv run python -m src.exp001-baseline.train              # fold0（デフォルト）
-uv run python -m src.exp001-baseline.train run_mode=debug  # デバッグモード
-uv run python -m src.exp001-baseline.train run_mode=full   # 全 fold
+uv run python -m src.exp001-baseline.train                              # ベース config で fold0
+uv run python -m src.exp001-baseline.train run_mode=debug               # デバッグモード
+uv run python -m src.exp001-baseline.train --config-name=run001-bert    # 小実験を指定
+uv run python -m src.exp001-baseline.train run_mode=full                # 全 fold
 ```
