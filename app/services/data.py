@@ -66,35 +66,44 @@ def get_file_info(path: Path, base: Path) -> dict:
 
 
 
-def get_csv_preview_and_stats(
-    path: Path, preview_rows: int = 50, stats_rows: int = 10000
-) -> dict | None:
-    """CSV のプレビューと統計を1回の読み込みで返す。"""
+def get_csv_preview(path: Path, preview_rows: int = 5) -> dict | None:
+    """CSV の先頭行プレビューを返す（軽量）。"""
     if not path.exists():
         return None
     import polars as pl
 
     try:
-        df_stats = pl.read_csv(path, n_rows=stats_rows)
-        total = pl.scan_csv(path).select(pl.len()).collect().item()
-        df_preview = df_stats.head(preview_rows)
-        describe = df_stats.describe()
-        null_counts = {col: df_stats[col].null_count() for col in df_stats.columns}
+        df = pl.read_csv(path, n_rows=preview_rows, infer_schema_length=10000)
+        total = pl.scan_csv(path, infer_schema_length=10000).select(pl.len()).collect().item()
+        return {
+            "columns": df.columns,
+            "rows": df.to_dicts(),
+            "total_rows": total,
+            "total_cols": len(df.columns),
+        }
+    except Exception:
+        return None
+
+
+def get_csv_stats(path: Path, stats_rows: int = 10000) -> dict | None:
+    """CSV の統計情報を返す（重い処理）。"""
+    if not path.exists():
+        return None
+    import polars as pl
+
+    try:
+        df = pl.read_csv(path, n_rows=stats_rows, infer_schema_length=10000)
+        total = pl.scan_csv(path, infer_schema_length=10000).select(pl.len()).collect().item()
+        describe = df.describe()
+        null_counts = {col: df[col].null_count() for col in df.columns}
 
         return {
-            "preview": {
-                "columns": df_preview.columns,
-                "rows": df_preview.to_dicts(),
-                "total_rows": total,
-            },
-            "stats": {
-                "total_rows": total,
-                "total_cols": len(df_stats.columns),
-                "dtypes": {col: str(df_stats[col].dtype) for col in df_stats.columns},
-                "null_counts": null_counts,
-                "describe_columns": describe.columns,
-                "describe_rows": describe.to_dicts(),
-            },
+            "total_rows": total,
+            "total_cols": len(df.columns),
+            "dtypes": {col: str(df[col].dtype) for col in df.columns},
+            "null_counts": null_counts,
+            "describe_columns": describe.columns,
+            "describe_rows": describe.to_dicts(),
         }
     except Exception:
         return None

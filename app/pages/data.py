@@ -6,7 +6,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
 from app.services.data import (
-    get_csv_preview_and_stats,
+    get_csv_preview,
+    get_csv_stats,
     get_file_info,
     list_directory_images,
     list_input_files,
@@ -54,16 +55,12 @@ def data_preview(request: Request, file_path: str):
 
     info = get_file_info(full_path, INPUT_DIR)
     preview_data = None
-    stats = None
     sibling_images: list[dict] = []
 
     text_content: str | None = None
 
     if info["type"] == "tabular":
-        result = get_csv_preview_and_stats(full_path)
-        if result:
-            preview_data = result["preview"]
-            stats = result["stats"]
+        preview_data = get_csv_preview(full_path)
     elif info["type"] == "image":
         parent_dir = str(full_path.parent.relative_to(INPUT_DIR))
         if parent_dir == ".":
@@ -78,7 +75,6 @@ def data_preview(request: Request, file_path: str):
         "request": request,
         "file": info,
         "preview": preview_data,
-        "stats": stats,
         "sibling_images": sibling_images,
         "text_content": text_content,
     }
@@ -96,6 +92,16 @@ def data_preview(request: Request, file_path: str):
     ctx["active_page"] = "data"
     ctx["selected"] = info
     return templates.TemplateResponse("data/viewer.html", ctx)
+
+
+@router.get("/data/stats/{file_path:path}", response_class=HTMLResponse)
+def data_stats(request: Request, file_path: str):
+    full_path = safe_relative_path(file_path, INPUT_DIR)
+    if full_path is None or not full_path.exists():
+        return error_response(request, templates, 404, "ファイルが見つかりません")
+    stats = get_csv_stats(full_path)
+    ctx = {"request": request, "stats": stats}
+    return templates.TemplateResponse("partials/_data_stats.html", ctx)
 
 
 @router.get("/data/gallery/{dir_path:path}", response_class=HTMLResponse)

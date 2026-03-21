@@ -1,0 +1,47 @@
+{% from "components/_metric_card.html" import metric_card %}
+
+{% if stats %}
+<!-- Statistics cards -->
+<div class="grid grid-cols-3 gap-4">
+    {{ metric_card("Rows", stats.total_rows, icon="fa-table-list", color="emerald") }}
+    {{ metric_card("Columns", stats.total_cols, icon="fa-table-columns", color="sky") }}
+    {% set null_total = stats.null_counts.values() | sum %}
+    {{ metric_card("Null cells", null_total, icon="fa-circle-exclamation", color="amber") }}
+</div>
+
+<!-- Describe table -->
+{% if stats.describe_rows %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mt-4">
+    <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+        <i class="fa-solid fa-chart-bar text-gray-400"></i>
+        <span class="text-sm font-bold text-gray-600">Statistics (describe)</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    {% for col in stats.describe_columns %}
+                    <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 whitespace-nowrap">{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for row in stats.describe_rows %}
+                <tr class="hover:bg-gray-50">
+                    {% for col in stats.describe_columns %}
+                    <td class="px-3 py-2 text-gray-700 whitespace-nowrap">{{ row[col] if row[col] is not none else '-' }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
+    <i class="fa-solid fa-chart-bar text-gray-300 text-4xl mb-3"></i>
+    <p class="text-gray-500 font-semibold">統計情報を計算できませんでした</p>
+</div>
+{% endif %}

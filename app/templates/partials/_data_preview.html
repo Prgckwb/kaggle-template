@@ -1,5 +1,3 @@
-{% from "components/_metric_card.html" import metric_card %}
-
 <div class="space-y-4">
     <!-- File info header -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 flex items-center justify-between">
@@ -14,51 +12,12 @@
         </div>
     </div>
 
-    {% if file.type == "tabular" and stats %}
-    <!-- Statistics cards -->
-    <div class="grid grid-cols-3 gap-4">
-        {{ metric_card("Rows", stats.total_rows, icon="fa-table-list", color="emerald") }}
-        {{ metric_card("Columns", stats.total_cols, icon="fa-table-columns", color="sky") }}
-        {% set null_total = stats.null_counts.values() | sum %}
-        {{ metric_card("Null cells", null_total, icon="fa-circle-exclamation", color="amber") }}
-    </div>
-
-    <!-- Describe table -->
-    {% if stats.describe_rows %}
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-            <i class="fa-solid fa-chart-bar text-gray-400"></i>
-            <span class="text-sm font-bold text-gray-600">Statistics (describe)</span>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                        {% for col in stats.describe_columns %}
-                        <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 whitespace-nowrap">{{ col }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    {% for row in stats.describe_rows %}
-                    <tr class="hover:bg-gray-50">
-                        {% for col in stats.describe_columns %}
-                        <td class="px-3 py-2 text-gray-700 whitespace-nowrap">{{ row[col] if row[col] is not none else '-' }}</td>
-                        {% endfor %}
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% endif %}
-
+    {% if file.type == "tabular" and preview %}
     <!-- Data preview table -->
-    {% if preview %}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
             <i class="fa-solid fa-table text-gray-400"></i>
-            <span class="text-sm font-bold text-gray-600">Preview ({{ preview.rows|length }} / {{ preview.total_rows }} rows)</span>
+            <span class="text-sm font-bold text-gray-600">Preview ({{ preview.rows|length }} / {{ preview.total_rows }} rows, {{ preview.total_cols }} cols)</span>
         </div>
         <div class="overflow-x-auto max-h-96">
             <table class="w-full text-sm">
@@ -81,12 +40,21 @@
             </table>
         </div>
     </div>
-    {% endif %}
 
-    {% elif file.type == "tabular" and not stats %}
+    <!-- Statistics (on-demand) -->
+    <div id="csv-stats-container">
+        <button hx-get="/data/stats/{{ file.path }}"
+                hx-target="#csv-stats-container"
+                hx-swap="innerHTML"
+                class="w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors cursor-pointer">
+            <i class="fa-solid fa-chart-bar mr-2"></i>統計情報を表示
+        </button>
+    </div>
+
+    {% elif file.type == "tabular" and not preview %}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
         <i class="fa-solid fa-table text-gray-300 text-4xl mb-3"></i>
-        <p class="text-gray-500 font-semibold">統計情報を読み込めませんでした</p>
+        <p class="text-gray-500 font-semibold">プレビューを読み込めませんでした</p>
     </div>
 
     {% elif file.type == "image" %}
@@ -181,18 +149,91 @@
     </div>
 
     {% elif file.type == "audio" %}
-    <!-- Audio preview -->
+    <!-- Audio preview (WaveSurfer) -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-        <div class="flex items-center justify-center mb-4">
-            <div class="w-20 h-20 bg-violet-50 rounded-full flex items-center justify-center">
-                <i class="fa-solid fa-music text-violet-500 text-3xl"></i>
-            </div>
+        <div id="waveform" class="mb-4 rounded-xl overflow-hidden"></div>
+
+        <!-- Time display -->
+        <div class="flex justify-between text-xs text-gray-400 font-mono mb-4 px-1">
+            <span id="ws-current">0:00</span>
+            <span id="ws-duration">0:00</span>
         </div>
-        <audio controls class="w-full">
-            <source src="/data/raw/{{ file.path }}">
-            Your browser does not support the audio element.
-        </audio>
+
+        <!-- Controls -->
+        <div class="flex items-center justify-center gap-3">
+            <!-- Skip back -->
+            <button onclick="wsSkip(-5)"
+                    class="w-10 h-10 bg-gray-100 hover:bg-violet-50 rounded-full flex items-center justify-center text-gray-500 hover:text-violet-500 transition-all">
+                <i class="fa-solid fa-backward text-sm"></i>
+            </button>
+
+            <!-- Play/Pause -->
+            <button id="ws-play-btn" onclick="wsTogglePlay()"
+                    class="w-14 h-14 bg-violet-500 hover:bg-violet-600 rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-xl transition-all">
+                <i id="ws-play-icon" class="fa-solid fa-play text-lg ml-0.5"></i>
+            </button>
+
+            <!-- Skip forward -->
+            <button onclick="wsSkip(5)"
+                    class="w-10 h-10 bg-gray-100 hover:bg-violet-50 rounded-full flex items-center justify-center text-gray-500 hover:text-violet-500 transition-all">
+                <i class="fa-solid fa-forward text-sm"></i>
+            </button>
+
+            <!-- Speed control -->
+            <select id="ws-speed" onchange="wsSetSpeed(this.value)"
+                    class="ml-4 text-xs font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1.5 border-0 cursor-pointer transition-colors">
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1.0x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2.0x</option>
+            </select>
+        </div>
     </div>
+
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <script>
+    (function() {
+        var ws = WaveSurfer.create({
+            container: '#waveform',
+            waveColor: '#c4b5fd',
+            progressColor: '#8b5cf6',
+            cursorColor: '#7c3aed',
+            barWidth: 2,
+            barRadius: 2,
+            barGap: 1,
+            height: 80,
+            url: '/data/raw/{{ file.path }}'
+        });
+
+        function fmt(sec) {
+            var m = Math.floor(sec / 60);
+            var s = Math.floor(sec % 60);
+            return m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        ws.on('ready', function() {
+            document.getElementById('ws-duration').textContent = fmt(ws.getDuration());
+        });
+        ws.on('audioprocess', function() {
+            document.getElementById('ws-current').textContent = fmt(ws.getCurrentTime());
+        });
+        ws.on('seeking', function() {
+            document.getElementById('ws-current').textContent = fmt(ws.getCurrentTime());
+        });
+        ws.on('play', function() {
+            document.getElementById('ws-play-icon').className = 'fa-solid fa-pause text-lg';
+        });
+        ws.on('pause', function() {
+            document.getElementById('ws-play-icon').className = 'fa-solid fa-play text-lg ml-0.5';
+        });
+
+        window.wsTogglePlay = function() { ws.playPause(); };
+        window.wsSkip = function(sec) { ws.skip(sec); };
+        window.wsSetSpeed = function(rate) { ws.setPlaybackRate(parseFloat(rate)); };
+    })();
+    </script>
 
     {% elif file.type == "json" and text_content %}
     <!-- JSON preview -->
