@@ -1,126 +1,95 @@
 {% extends "base.html" %}
+{% from "components/_badge.html" import badge %}
+{% from "components/_empty_state.html" import empty_state %}
 
 {% block title %}Home{% endblock %}
 
-{% block content_width %}max-w-4xl mx-auto{% endblock %}
+{% block content_width %}max-w-5xl mx-auto{% endblock %}
 
 {% block content %}
 
 <!-- Hero Section -->
-<div class="text-center py-10">
-    <div class="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 rounded-full mb-5">
-        <i class="fa-solid fa-trophy text-emerald-500 text-3xl"></i>
+<div class="text-center py-6">
+    <div class="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
+        <i class="fa-solid fa-trophy text-emerald-500 text-2xl"></i>
     </div>
-    <h1 class="text-4xl font-extrabold text-gray-800 mb-2">
+    <h1 class="text-3xl font-extrabold text-gray-800 mb-2">
         Kaggle Dashboard
     </h1>
-    <p class="text-lg text-gray-500 mb-3">
-        EDA / 実験管理 / スコア追跡をひとつの場所で
-    </p>
-    <p class="text-emerald-500 font-bold">
-        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>
-        実験を始めよう
-    </p>
 </div>
 
-<!-- Quick Action Bar -->
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-8 flex items-center gap-4">
-    <div class="flex-1 flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
-        <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
-        <input type="search"
-               name="q"
-               placeholder="実験を検索..."
-               hx-get="/experiments"
-               hx-trigger="keyup changed delay:300ms, search"
-               hx-target="#search-results"
-               hx-push-url="false"
-               hx-vals='{"source": "index"}'
-               oninput="if(!this.value) document.getElementById('search-results').innerHTML=''"
-               class="flex-1 bg-transparent outline-none text-sm text-gray-800 placeholder-gray-400">
+<!-- Metrics Bar -->
+{% set total_knowledge = all_docs.get('official', [])|length + all_docs.get('insights', [])|length + all_docs.get('discussion', [])|length %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 mb-5">
+    <div class="grid grid-cols-2 md:grid-cols-5 divide-x divide-gray-100">
+        {% for label, value, icon, color, subtitle in [
+            ("Best LB", "%.4f"|format(best_lb) if best_lb is not none else "-", "fa-ranking-star", "emerald", "Leaderboard"),
+            ("Best CV", "%.4f"|format(best_cv) if best_cv is not none else "-", "fa-chart-line", "sky", "Cross Validation"),
+            ("Experiments", experiments|length, "fa-flask", "amber", ""),
+            ("Data", input_files|length ~ " files", "fa-database", "violet", ""),
+            ("Docs", total_knowledge ~ " docs", "fa-book", "rose", ""),
+        ] %}
+        <div class="px-4 py-4 flex items-center gap-3">
+            <div class="w-9 h-9 bg-{{ color }}-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid {{ icon }} text-{{ color }}-500 text-sm"></i>
+            </div>
+            <div class="min-w-0">
+                <p class="text-xs font-semibold text-gray-400">{{ label }}</p>
+                <p class="text-lg font-extrabold text-gray-800 leading-tight">{{ value if value and value != '-' else '-' }}</p>
+                {% if subtitle %}
+                <p class="text-[10px] text-gray-300">{{ subtitle }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
     </div>
-    <a href="/experiments"
-       class="flex items-center gap-2 bg-emerald-500 text-white rounded-full px-6 py-3 font-bold text-sm hover:bg-emerald-600 transition-all shadow-sm">
-        <i class="fa-solid fa-plus"></i>
-        New Experiment
-    </a>
 </div>
 
-<!-- Search results (hidden until search) -->
-<div id="search-results" class="mb-8"></div>
+<!-- Competition Overview -->
+{% if competition %}
+<div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 mb-5">
+    <div class="flex items-center gap-2 mb-2">
+        <i class="fa-solid fa-flag text-emerald-500"></i>
+        <span class="text-sm font-semibold text-gray-500">Competition</span>
+    </div>
+    <p class="text-lg font-bold text-gray-800 mb-1">{{ competition.title }}</p>
+    {% if competition.description %}
+    <p class="text-sm text-gray-500 line-clamp-3">{{ competition.description }}</p>
+    {% endif %}
+</div>
+{% endif %}
 
-<!-- Feature Cards -->
-<div class="grid grid-cols-2 gap-5">
+<!-- Leaderboard -->
+{% include "partials/_leaderboard_card.html" %}
 
-    <!-- Experiments -->
-    <a href="/experiments" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group block">
-        <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-4">
-            <i class="fa-solid fa-flask text-emerald-500 text-xl"></i>
-        </div>
-        <h2 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-emerald-500 transition-colors">
-            Experiments
-        </h2>
-        <p class="text-gray-500 text-sm">
-            実験の一覧と CV / LB スコアを確認
-        </p>
-        <div class="mt-4 inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 rounded-full px-3 py-1 text-sm font-semibold">
-            <i class="fa-solid fa-flask text-xs"></i>
-            {{ experiments|length }} 件の実験
-        </div>
-    </a>
-
-    <!-- Data -->
-    <a href="/data" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group block">
-        <div class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center mb-4">
-            <i class="fa-solid fa-database text-amber-500 text-xl"></i>
-        </div>
-        <h2 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-amber-500 transition-colors">
-            Data
-        </h2>
-        <p class="text-gray-500 text-sm">
-            データの統計量とプレビュー
-        </p>
-        <div class="mt-4 inline-flex items-center gap-2 bg-amber-50 text-amber-600 rounded-full px-3 py-1 text-sm font-semibold">
-            <i class="fa-solid fa-database text-xs"></i>
-            {{ input_files|length }} 件のファイル
-        </div>
-    </a>
-
-    <!-- Discussions -->
-    <a href="/discussions" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group block">
-        <div class="w-12 h-12 bg-sky-50 rounded-xl flex items-center justify-center mb-4">
-            <i class="fa-solid fa-comments text-sky-500 text-xl"></i>
-        </div>
-        <h2 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-sky-500 transition-colors">
-            Discussions
-        </h2>
-        <p class="text-gray-500 text-sm">
-            コミュニティの知見とディスカッション
-        </p>
-        {% set total_discussions = discussions.get('discussion', [])|length %}
-        <div class="mt-4 inline-flex items-center gap-2 bg-sky-50 text-sky-600 rounded-full px-3 py-1 text-sm font-semibold">
-            <i class="fa-solid fa-comments text-xs"></i>
-            {{ total_discussions }} 件のディスカッション
-        </div>
-    </a>
-
-    <!-- Knowledge -->
-    <a href="/knowledge" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group block">
-        <div class="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center mb-4">
-            <i class="fa-solid fa-book text-rose-500 text-xl"></i>
-        </div>
-        <h2 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-rose-500 transition-colors">
-            Knowledge
-        </h2>
-        <p class="text-gray-500 text-sm">
-            コンペの概要・ドメイン知識・実験知見
-        </p>
-        {% set total_knowledge = discussions.get('official', [])|length + discussions.get('insights', [])|length %}
-        <div class="mt-4 inline-flex items-center gap-2 bg-rose-50 text-rose-600 rounded-full px-3 py-1 text-sm font-semibold">
-            <i class="fa-solid fa-book text-xs"></i>
-            {{ total_knowledge }} 件のドキュメント
-        </div>
-    </a>
-
+<!-- Recently Updated Documents -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+    <div class="flex items-center gap-2 mb-4">
+        <i class="fa-solid fa-clock-rotate-left text-gray-400"></i>
+        <h2 class="text-sm font-bold text-gray-800">最近更新されたドキュメント</h2>
+    </div>
+    {% if recent_docs %}
+    <div class="space-y-1">
+        {% for doc in recent_docs %}
+        <a href="/knowledge/{{ doc.category }}/{{ doc.filename }}"
+           class="flex items-center justify-between py-2 hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors">
+            <div class="flex items-center gap-3">
+                {% if doc.category == "official" %}
+                    {{ badge("Official", color="sky", icon="fa-building-columns") }}
+                {% elif doc.category == "insights" %}
+                    {{ badge("Insights", color="amber", icon="fa-lightbulb") }}
+                {% elif doc.category == "discussion" %}
+                    {{ badge("Discussion", color="rose", icon="fa-comments") }}
+                {% endif %}
+                <span class="text-sm font-semibold text-gray-700">{{ doc.name }}</span>
+            </div>
+            <span class="text-xs text-gray-400">{{ doc.modified|timeago }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+        {{ empty_state("ドキュメントがありません", icon="fa-file-circle-question") }}
+    {% endif %}
 </div>
 
 {% endblock %}

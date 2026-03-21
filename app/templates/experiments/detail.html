@@ -14,10 +14,15 @@
 
 <!-- Header -->
 <div class="flex items-center justify-between mb-6">
-    <h1 class="text-3xl font-extrabold text-gray-800">{{ exp.name }}</h1>
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-flask text-emerald-500"></i>
+        </div>
+        <h1 class="text-3xl font-extrabold text-gray-800">{{ exp.name }}</h1>
+    </div>
     <div class="flex items-center gap-2">
-        {% if exp.oof_exists %}
-            {{ badge("OOF", color="emerald", icon="fa-check") }}
+        {% if exp.runs %}
+            {{ badge(exp.runs|length ~ " runs", color="amber", icon="fa-flask") }}
         {% endif %}
         {% if exp.checkpoints %}
             {{ badge(exp.checkpoints|length ~ " ckpt", color="sky", icon="fa-weight-hanging") }}
@@ -52,14 +57,25 @@
             onclick="activateTab(this)">
         <i class="fa-solid fa-folder-open mr-1.5"></i>Files
     </button>
-    {% if exp.oof_exists %}
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+            hx-get="/experiments/{{ exp.name }}/_runs"
+            hx-target="#tab-content"
+            onclick="activateTab(this)">
+        <i class="fa-solid fa-flask mr-1.5"></i>Runs
+        {% if exp.runs %}<span class="ml-1 text-xs text-gray-400">({{ exp.runs|length }})</span>{% endif %}
+    </button>
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+            hx-get="/experiments/{{ exp.name }}/_logs"
+            hx-target="#tab-content"
+            onclick="activateTab(this)">
+        <i class="fa-solid fa-chart-line mr-1.5"></i>Logs
+    </button>
     <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
             hx-get="/experiments/{{ exp.name }}/_oof"
             hx-target="#tab-content"
             onclick="activateTab(this)">
         <i class="fa-solid fa-chart-bar mr-1.5"></i>OOF
     </button>
-    {% endif %}
 </div>
 
 <!-- Tab Content -->

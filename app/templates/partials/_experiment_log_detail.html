@@ -1,0 +1,171 @@
+{% from "components/_metric_card.html" import metric_card %}
+{% from "components/_badge.html" import badge %}
+{% from "components/_empty_state.html" import empty_state %}
+
+<!-- Back to logs list -->
+<button class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-violet-500 font-semibold mb-4 transition-colors"
+        hx-get="/experiments/{{ exp_name }}/_logs"
+        hx-target="#tab-content">
+    <i class="fa-solid fa-arrow-left text-xs"></i>
+    Back to Logs
+</button>
+
+<h3 class="text-lg font-extrabold text-gray-800 mb-4">{{ run_name }}</h3>
+
+{% if summary %}
+<!-- Summary cards -->
+<div class="grid grid-cols-3 gap-4 mb-6">
+    {{ metric_card("CV Score", "%.4f" | format(summary.cv_score) if summary.cv_score is not none else "-", icon="fa-chart-line", color="emerald") }}
+    {{ metric_card("Folds", summary.folds | length, icon="fa-layer-group", color="sky") }}
+    {{ metric_card("Mode", summary.run_mode, icon="fa-play", color="amber") }}
+</div>
+
+<!-- Per-fold best scores -->
+{% if summary.folds %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
+    <h4 class="text-sm font-bold text-gray-800 mb-3">
+        <i class="fa-solid fa-trophy text-amber-500 mr-2"></i>Per-Fold Best Scores
+    </h4>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-200">
+                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Fold</th>
+                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Best Epoch</th>
+                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Best Val Loss</th>
+                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Best Val Score</th>
+                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Total Epochs</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for fold_name, fold_data in summary.folds.items() %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2 font-bold text-gray-800">{{ fold_name }}</td>
+                    <td class="px-4 py-2 text-center text-gray-600">{{ fold_data.best_epoch if fold_data.best_epoch is defined else "-" }}</td>
+                    <td class="px-4 py-2 text-center text-gray-600">{{ "%.4f" | format(fold_data.best_val_loss) if fold_data.best_val_loss is defined else "-" }}</td>
+                    <td class="px-4 py-2 text-center text-gray-600">{{ "%.4f" | format(fold_data.best_val_score) if fold_data.best_val_score is defined else "-" }}</td>
+                    <td class="px-4 py-2 text-center text-gray-600">{{ fold_data.total_epochs if fold_data.total_epochs is defined else "-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% if metrics %}
+<!-- Fold selector -->
+{% if available_folds | length > 1 %}
+<div class="flex gap-2 mb-4">
+    {% for f in available_folds %}
+    <button class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+        {% if f == fold %}bg-violet-500 text-white{% else %}bg-gray-100 text-gray-500 hover:bg-gray-200{% endif %}"
+        hx-get="/experiments/{{ exp_name }}/_logs/{{ run_name }}?fold={{ f }}"
+        hx-target="#tab-content">
+        Fold {{ f }}
+    </button>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Learning curves chart -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
+    <h4 class="text-sm font-bold text-gray-800 mb-4">
+        <i class="fa-solid fa-chart-line text-violet-500 mr-2"></i>Learning Curves — Fold {{ fold }}
+    </h4>
+    <canvas id="learning-curves-chart" height="100"></canvas>
+</div>
+
+<!-- Metrics table -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+    <h4 class="text-sm font-bold text-gray-800 mb-4">
+        <i class="fa-solid fa-table text-sky-500 mr-2"></i>Epoch Metrics
+    </h4>
+    <div class="overflow-x-auto max-h-96">
+        <table class="w-full text-xs">
+            <thead class="sticky top-0">
+                <tr class="bg-gray-50">
+                    {% for col in metrics.columns %}
+                    <th class="px-3 py-2 text-left text-gray-500 font-semibold whitespace-nowrap">{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in metrics.rows %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    {% for col in metrics.columns %}
+                    <td class="px-3 py-1.5 whitespace-nowrap text-gray-600 font-mono">
+                        {% if row[col] is number and row[col] is not integer %}{{ "%.6f" | format(row[col]) }}{% else %}{{ row[col] }}{% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="/static/js/chart.min.js"></script>
+<script>
+(function() {
+    var rows = {{ metrics.rows | tojson }};
+    var columns = {{ metrics.columns | tojson }};
+
+    // X axis: epoch column or row index
+    var epochs = rows.map(function(r, i) { return r.epoch !== undefined ? r.epoch : i; });
+
+    // Build datasets for all numeric columns except epoch
+    var colors = [
+        {bg: 'rgba(239, 68, 68, 0.1)', border: 'rgb(239, 68, 68)'},    // red (train_loss)
+        {bg: 'rgba(59, 130, 246, 0.1)', border: 'rgb(59, 130, 246)'},   // blue (val_loss)
+        {bg: 'rgba(16, 185, 129, 0.1)', border: 'rgb(16, 185, 129)'},   // green
+        {bg: 'rgba(245, 158, 11, 0.1)', border: 'rgb(245, 158, 11)'},   // amber
+        {bg: 'rgba(139, 92, 246, 0.1)', border: 'rgb(139, 92, 246)'},   // violet
+    ];
+
+    var datasets = [];
+    var colorIdx = 0;
+    for (var i = 0; i < columns.length; i++) {
+        var col = columns[i];
+        if (col === 'epoch') continue;
+        // Check if column is numeric
+        var vals = rows.map(function(r) { return r[col]; });
+        if (typeof vals[0] !== 'number') continue;
+        var c = colors[colorIdx % colors.length];
+        datasets.push({
+            label: col,
+            data: vals,
+            backgroundColor: c.bg,
+            borderColor: c.border,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            fill: false,
+        });
+        colorIdx++;
+    }
+
+    new Chart(document.getElementById('learning-curves-chart'), {
+        type: 'line',
+        data: { labels: epochs, datasets: datasets },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'top', labels: { font: { size: 11, weight: 'bold' }, usePointStyle: true } },
+                tooltip: { backgroundColor: 'rgba(0,0,0,0.8)', padding: 10, titleFont: { size: 12 } }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Epoch', font: { size: 11 } }, ticks: { font: { size: 10 } } },
+                y: { title: { display: true, text: 'Value', font: { size: 11 } }, ticks: { font: { size: 10 } }, beginAtZero: false }
+            }
+        }
+    });
+})();
+</script>
+
+{% elif not summary %}
+{{ empty_state("No metrics data found for this run.", "fa-chart-line") }}
+{% endif %}

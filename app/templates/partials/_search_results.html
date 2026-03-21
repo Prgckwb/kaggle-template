@@ -1,0 +1,36 @@
+{% from "components/_badge.html" import badge %}
+
+{% if total == 0 %}
+<div class="px-4 py-6 text-center text-sm text-gray-400">
+    <i class="fa-solid fa-magnifying-glass mb-2 text-lg"></i>
+    <p>「{{ query }}」に一致する結果はありません</p>
+</div>
+{% else %}
+<div class="max-h-[60vh] overflow-y-auto">
+    {% for category, label, color in [("experiments", "Experiments", "emerald"), ("runs", "Runs", "emerald"), ("knowledge", "Knowledge", "rose"), ("data", "Data", "amber")] %}
+    {% if results[category] %}
+    <div class="px-3 pt-3 pb-1">
+        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{{ label }}</span>
+    </div>
+    {% for item in results[category] %}
+    <a href="{{ item.url }}"
+       class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg mx-1 transition-colors"
+       onclick="closeSearch()">
+        <div class="w-7 h-7 bg-{{ item.color }}-50 rounded-lg flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid {{ item.icon }} text-{{ item.color }}-500 text-xs"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-gray-700 truncate">{{ item.title }}</p>
+            {% if item.description %}
+            <p class="text-xs text-gray-400 truncate">{{ item.description }}</p>
+            {% endif %}
+        </div>
+        {% if item.match_type is defined and item.match_type == "body" %}
+        <span class="text-[10px] text-gray-300 flex-shrink-0">本文</span>
+        {% endif %}
+    </a>
+    {% endfor %}
+    {% endif %}
+    {% endfor %}
+</div>
+{% endif %}

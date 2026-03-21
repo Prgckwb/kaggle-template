@@ -1,0 +1,35 @@
+{% from "components/_badge.html" import badge %}
+{% from "components/_empty_state.html" import empty_state %}
+
+{% if logs %}
+<div class="space-y-3">
+    {% for log in logs %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+         hx-get="/experiments/{{ exp_name }}/_logs/{{ log.run_name }}"
+         hx-target="#tab-content">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-chart-line text-violet-500 text-sm"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-gray-800">{{ log.run_name }}</span>
+                    {% if log.run_mode %}
+                    <span class="text-xs text-gray-400 ml-2">{{ log.run_mode }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                {% if log.cv_score is not none %}
+                {{ badge("CV: " ~ "%.4f" | format(log.cv_score), color="emerald", icon="fa-chart-line") }}
+                {% endif %}
+                {{ badge(log.fold_count ~ " folds", color="sky", icon="fa-layer-group") }}
+                <i class="fa-solid fa-chevron-right text-xs text-gray-300 ml-1"></i>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+{{ empty_state("No training logs found. Run training to generate logs.", "fa-chart-line") }}
+{% endif %}

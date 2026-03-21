@@ -5,19 +5,16 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
-from app.template_env import templates
-from app.utils import (
-    PROJECT_ROOT,
-    error_response,
+from app.services.data import (
     get_csv_preview_and_stats,
     get_file_info,
-    is_htmx,
     list_directory_images,
     list_input_files,
     read_json_preview,
     read_text_preview,
-    safe_relative_path,
 )
+from app.services.helpers import PROJECT_ROOT, error_response, is_htmx, safe_relative_path
+from app.template_env import templates
 
 router = APIRouter()
 
@@ -35,6 +32,18 @@ def data_index(request: Request, dir: str = ""):
         "selected": None,
     }
     return templates.TemplateResponse("data/viewer.html", ctx)
+
+
+@router.get("/data/tree/{dir_path:path}", response_class=HTMLResponse)
+def data_tree_children(request: Request, dir_path: str):
+    safe_path = safe_relative_path(dir_path, INPUT_DIR)
+    if safe_path is None or not safe_path.is_dir():
+        return error_response(request, templates, 404, "ディレクトリが見つかりません")
+    files = list_input_files(dir_path)
+    return templates.TemplateResponse(
+        "partials/_data_tree_children.html",
+        {"request": request, "files": files},
+    )
 
 
 @router.get("/data/preview/{file_path:path}", response_class=HTMLResponse)

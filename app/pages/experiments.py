@@ -3,19 +3,23 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
-from app.template_env import templates
-from app.utils import (
-    PROJECT_ROOT,
+from app.services.experiments import (
     get_all_experiment_scores,
     get_experiment_detail,
+    get_experiment_file_content,
     get_oof_analysis,
-    is_htmx,
+    get_run_config,
+    get_run_metrics,
+    get_run_summary,
     list_experiments,
+    list_run_logs,
+    list_runs,
     parse_mermaid_tree,
-    safe_relative_path,
 )
+from app.services.helpers import PROJECT_ROOT, is_htmx, safe_relative_path
+from app.template_env import templates
 
 router = APIRouter()
 
@@ -38,6 +42,7 @@ def experiment_list(request: Request, q: str = "", source: str = ""):
     if is_htmx(request):
         return templates.TemplateResponse("partials/_experiment_list.html", ctx)
     return templates.TemplateResponse("experiments/list.html", ctx)
+
 
 
 @router.get("/experiments/_scores", response_class=HTMLResponse)
@@ -98,10 +103,84 @@ def experiment_files(request: Request, name: str):
     )
 
 
+@router.get("/experiments/{name}/_runs", response_class=HTMLResponse)
+def experiment_runs(request: Request, name: str):
+    runs = list_runs(name)
+    return templates.TemplateResponse(
+        "partials/_experiment_runs.html",
+        {"request": request, "runs": runs, "exp_name": name},
+    )
+
+
 @router.get("/experiments/{name}/_oof", response_class=HTMLResponse)
-def experiment_oof(request: Request, name: str):
-    analysis = get_oof_analysis(name)
+def experiment_oof(request: Request, name: str, run: str = ""):
+    analysis = get_oof_analysis(name, run_name=run or None)
+    runs = list_runs(name)
+    oof_runs = [r for r in runs if r["has_oof"]]
     return templates.TemplateResponse(
         "partials/_experiment_oof.html",
-        {"request": request, "oof": analysis, "exp_name": name},
+        {"request": request, "oof": analysis, "exp_name": name, "oof_runs": oof_runs, "selected_run": run},
+    )
+
+
+@router.get("/experiments/{name}/_logs", response_class=HTMLResponse)
+def experiment_logs(request: Request, name: str):
+    logs = list_run_logs(name)
+    return templates.TemplateResponse(
+        "partials/_experiment_logs.html",
+        {"request": request, "logs": logs, "exp_name": name},
+    )
+
+
+@router.get("/experiments/{name}/_logs/{run_name}", response_class=HTMLResponse)
+def experiment_log_detail(request: Request, name: str, run_name: str, fold: int = 0):
+    metrics = get_run_metrics(name, run_name, fold_idx=fold)
+    summary = get_run_summary(name, run_name)
+    logs_dir = PROJECT_ROOT / "src" / name / "logs" / run_name
+    available_folds = sorted(
+        int(f.stem.replace("fold", "").replace("_metrics", ""))
+        for f in logs_dir.glob("fold*_metrics.csv")
+    ) if logs_dir.exists() else []
+    return templates.TemplateResponse(
+        "partials/_experiment_log_detail.html",
+        {
+            "request": request,
+            "metrics": metrics,
+            "summary": summary,
+            "exp_name": name,
+            "run_name": run_name,
+            "fold": fold,
+            "available_folds": available_folds,
+        },
+    )
+
+
+@router.get("/experiments/{name}/_file_content/{file_path:path}", response_class=HTMLResponse)
+def experiment_file_content(request: Request, name: str, file_path: str):
+    content = get_experiment_file_content(name, file_path)
+    if content is None:
+        return HTMLResponse("<p>File not found</p>", status_code=404)
+    return templates.TemplateResponse(
+        "partials/_experiment_file_preview.html",
+        {"request": request, "file": content, "exp_name": name},
+    )
+
+
+@router.get("/experiments/{name}/_file_raw/{file_path:path}")
+def experiment_file_raw(request: Request, name: str, file_path: str):
+    exp_dir = PROJECT_ROOT / "src" / name
+    full_path = safe_relative_path(file_path, exp_dir)
+    if full_path is None or not full_path.exists() or not full_path.is_file():
+        return HTMLResponse("<p>File not found</p>", status_code=404)
+    return FileResponse(full_path)
+
+
+@router.get("/experiments/{name}/_run_config/{run_name}", response_class=HTMLResponse)
+def experiment_run_config(request: Request, name: str, run_name: str):
+    config = get_run_config(name, run_name)
+    if config is None:
+        return HTMLResponse("<p>Config not found</p>", status_code=404)
+    return templates.TemplateResponse(
+        "partials/_run_config_detail.html",
+        {"request": request, "config": config, "run_name": run_name, "exp_name": name},
     )

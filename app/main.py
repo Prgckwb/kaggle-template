@@ -9,9 +9,14 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.pages import data, discussions, experiments, knowledge
+from app.pages import data, experiments, knowledge
+from app.services.data import list_input_files
+from app.services.documents import get_competition_overview, list_docs
+from app.services.experiments import get_all_experiment_scores, list_experiments
+from app.services.helpers import error_response, is_htmx
+from app.services.leaderboard import get_leaderboard_summary, is_default_competition
+from app.services.search import global_search
 from app.template_env import templates
-from app.utils import is_htmx, list_docs, list_experiments, list_input_files
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +27,6 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), na
 
 # Register routers
 app.include_router(experiments.router)
-app.include_router(discussions.router)
 app.include_router(knowledge.router)
 app.include_router(data.router)
 
@@ -31,51 +35,34 @@ app.include_router(data.router)
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """HTTP エラー（404 等）をスタイル付きページで返す。"""
-    if is_htmx(request):
-        return templates.TemplateResponse(
-            "partials/_error.html",
-            {
-                "request": request,
-                "error_title": f"Error {exc.status_code}",
-                "error_message": str(exc.detail),
-            },
-            status_code=exc.status_code,
-        )
-    return templates.TemplateResponse(
-        "error.html",
-        {
-            "request": request,
-            "active_page": "",
-            "status_code": exc.status_code,
-            "message": str(exc.detail),
-        },
-        status_code=exc.status_code,
-    )
+    return error_response(request, templates, exc.status_code, str(exc.detail))
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """500 エラー時にユーザーフレンドリーなエラーページを返す。"""
     logger.error("Unhandled exception: %s\n%s", exc, traceback.format_exc())
-    if is_htmx(request):
-        return templates.TemplateResponse(
-            "partials/_error.html",
-            {
-                "request": request,
-                "error_title": "Server Error",
-                "error_message": "内部エラーが発生しました",
-            },
-            status_code=500,
-        )
+    return error_response(request, templates, 500, "内部エラーが発生しました")
+
+
+@app.get("/search", response_class=HTMLResponse)
+def search(request: Request, q: str = ""):
+    if not q.strip():
+        return HTMLResponse("")
+    results = global_search(q)
+    total = sum(len(v) for v in results.values())
     return templates.TemplateResponse(
-        "error.html",
-        {
-            "request": request,
-            "active_page": "",
-            "status_code": 500,
-            "message": str(exc),
-        },
-        status_code=500,
+        "partials/_search_results.html",
+        {"request": request, "results": results, "query": q, "total": total},
+    )
+
+
+@app.post("/leaderboard/refresh", response_class=HTMLResponse)
+def leaderboard_refresh(request: Request):
+    leaderboard = get_leaderboard_summary(force_refresh=True)
+    return templates.TemplateResponse(
+        "partials/_leaderboard_card.html",
+        {"request": request, "leaderboard": leaderboard, "lb_is_default": is_default_competition()},
     )
 
 
@@ -83,6 +70,20 @@ async def global_exception_handler(request: Request, exc: Exception):
 def index(request: Request):
     all_docs = list_docs()
     input_files = list_input_files()
+    scores = get_all_experiment_scores()
+    competition = get_competition_overview()
+
+    best_lb = max((s["lb"] for s in scores if s["lb"] is not None), default=None)
+    best_cv = max((s["cv"] for s in scores if s["cv"] is not None), default=None)
+
+    recent_docs = sorted(
+        [doc for docs_list in all_docs.values() for doc in docs_list],
+        key=lambda d: d["modified"],
+        reverse=True,
+    )[:5]
+
+    leaderboard = get_leaderboard_summary()
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -90,7 +91,13 @@ def index(request: Request):
             "title": "Dashboard",
             "active_page": "home",
             "experiments": list_experiments(),
-            "discussions": all_docs,
+            "all_docs": all_docs,
             "input_files": input_files,
+            "best_lb": best_lb,
+            "best_cv": best_cv,
+            "competition": competition,
+            "recent_docs": recent_docs,
+            "leaderboard": leaderboard,
+            "lb_is_default": is_default_competition(),
         },
     )

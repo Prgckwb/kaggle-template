@@ -1,0 +1,106 @@
+{% from "components/_badge.html" import badge %}
+
+<div id="leaderboard-card" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-5">
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-ranking-star text-amber-500"></i>
+            <h2 class="text-sm font-bold text-gray-800">Leaderboard</h2>
+        </div>
+        <div class="flex items-center gap-3">
+            {% if leaderboard %}
+            <span class="text-[10px] text-gray-400">{{ leaderboard.updated_at|timeago }}</span>
+            {% endif %}
+            <button hx-post="/leaderboard/refresh"
+                    hx-target="#leaderboard-card"
+                    hx-swap="outerHTML"
+                    hx-indicator="#lb-spinner"
+                    class="text-gray-400 hover:text-emerald-500 transition-colors cursor-pointer"
+                    title="更新">
+                <i class="fa-solid fa-arrows-rotate text-xs"></i>
+            </button>
+            <span id="lb-spinner" class="htmx-indicator">
+                <i class="fa-solid fa-spinner fa-spin text-xs text-emerald-500"></i>
+            </span>
+        </div>
+    </div>
+
+    {% if lb_is_default is defined and lb_is_default %}
+    <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-xs"></i>
+        <p class="text-xs text-amber-700"><code>app/config.py</code> の <code>COMPETITION_ID</code> がデフォルト (titanic) のままです。<code>/init</code> で設定してください。</p>
+    </div>
+    {% endif %}
+
+    {% if leaderboard %}
+    <!-- Top metrics -->
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-amber-50 rounded-xl px-4 py-3">
+            <p class="text-[10px] font-semibold text-amber-400 mb-0.5">1st Place</p>
+            <p class="text-xl font-extrabold text-gray-800">{{ "%.3f"|format(leaderboard.top_score) }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl px-4 py-3">
+            <p class="text-[10px] font-semibold text-gray-400 mb-0.5">Total Teams</p>
+            <p class="text-xl font-extrabold text-gray-800">{{ "{:,}".format(leaderboard.total_teams) }}</p>
+        </div>
+    </div>
+
+    <!-- Medal boundaries -->
+    {% if leaderboard.medals.gold or leaderboard.medals.silver or leaderboard.medals.bronze %}
+    <div class="grid grid-cols-3 gap-2 mb-4">
+        {% for medal, icon_class, color in [("gold", "fa-medal", "yellow"), ("silver", "fa-medal", "gray"), ("bronze", "fa-medal", "amber")] %}
+        {% set m = leaderboard.medals[medal] %}
+        <div class="text-center py-2 rounded-lg bg-{{ color }}-50">
+            <div class="flex items-center justify-center gap-1 mb-1">
+                {% if medal == "gold" %}
+                <i class="fa-solid fa-medal text-yellow-500 text-sm"></i>
+                <span class="text-[10px] font-bold text-yellow-600">Gold</span>
+                {% elif medal == "silver" %}
+                <i class="fa-solid fa-medal text-gray-400 text-sm"></i>
+                <span class="text-[10px] font-bold text-gray-500">Silver</span>
+                {% else %}
+                <i class="fa-solid fa-medal text-amber-600 text-sm"></i>
+                <span class="text-[10px] font-bold text-amber-700">Bronze</span>
+                {% endif %}
+            </div>
+            {% if m %}
+            <p class="text-sm font-extrabold text-gray-800">{{ "%.3f"|format(m.score) }}</p>
+            <p class="text-[10px] text-gray-400">#{{ m.rank }}</p>
+            {% else %}
+            <p class="text-sm font-extrabold text-gray-300">-</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Top 5 -->
+    <div class="space-y-1">
+        {% for entry in leaderboard.top_entries %}
+        <div class="flex items-center justify-between py-1.5 px-2 rounded-lg {% if loop.first %}bg-amber-50{% else %}hover:bg-gray-50{% endif %} transition-colors">
+            <div class="flex items-center gap-2.5">
+                <span class="w-5 text-center text-xs font-bold {% if loop.first %}text-amber-500{% else %}text-gray-400{% endif %}">{{ entry.rank }}</span>
+                <span class="text-sm font-semibold text-gray-700 truncate max-w-[200px]">{{ entry.team_name }}</span>
+            </div>
+            <span class="text-sm font-bold text-gray-800">{{ "%.3f"|format(entry.score) }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- No data state -->
+    <div class="text-center py-6">
+        <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <i class="fa-solid fa-ranking-star text-gray-300 text-lg"></i>
+        </div>
+        <p class="text-sm text-gray-400 mb-3">Leaderboard データがありません</p>
+        <button hx-post="/leaderboard/refresh"
+                hx-target="#leaderboard-card"
+                hx-swap="outerHTML"
+                hx-indicator="#lb-spinner"
+                class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-full px-4 py-2 transition-colors cursor-pointer">
+            <i class="fa-solid fa-download text-[10px]"></i>
+            取得する
+        </button>
+    </div>
+    {% endif %}
+</div>

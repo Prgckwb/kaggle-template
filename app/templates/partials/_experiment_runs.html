@@ -1,0 +1,85 @@
+{% from "components/_badge.html" import badge %}
+{% from "components/_empty_state.html" import empty_state %}
+
+{% if runs %}
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-200">
+                    <th class="w-8 px-2 py-3"></th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Run</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Config</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Checkpoints</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">OOF</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Output</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for run in runs %}
+                <tr class="hover:bg-gray-50 transition-colors cursor-pointer"
+                    onclick="toggleRunDetail('{{ loop.index }}', '{{ exp_name }}', '{{ run.name }}')">
+                    <td class="px-2 py-3 text-center">
+                        <i id="run-chevron-{{ loop.index }}" class="fa-solid fa-chevron-right text-xs text-gray-400 transition-transform duration-200"></i>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="font-bold text-gray-800">{{ run.name }}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded">{{ run.config_file }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if run.checkpoint_count > 0 %}
+                        {{ badge(run.checkpoint_count ~ " ckpt", color="sky", icon="fa-weight-hanging") }}
+                        {% else %}
+                        <span class="text-xs text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if run.has_oof %}
+                        {{ badge("OOF", color="emerald", icon="fa-check") }}
+                        {% else %}
+                        <span class="text-xs text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if run.has_output %}
+                        <i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i>
+                        {% else %}
+                        <i class="fa-solid fa-circle-xmark text-gray-300 text-xs"></i>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr id="run-detail-row-{{ loop.index }}" class="hidden">
+                    <td colspan="6" class="p-0">
+                        <div id="run-detail-{{ loop.index }}"></div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function toggleRunDetail(idx, expName, runName) {
+    var row = document.getElementById('run-detail-row-' + idx);
+    var content = document.getElementById('run-detail-' + idx);
+    var chevron = document.getElementById('run-chevron-' + idx);
+    var isOpen = !row.classList.contains('hidden');
+
+    if (isOpen) {
+        row.classList.add('hidden');
+        chevron.classList.remove('rotate-90');
+    } else {
+        row.classList.remove('hidden');
+        chevron.classList.add('rotate-90');
+        if (content.children.length === 0) {
+            htmx.ajax('GET', '/experiments/' + expName + '/_run_config/' + runName, {target: content, swap: 'innerHTML'});
+        }
+    }
+}
+</script>
+{% else %}
+{{ empty_state("No runs found. Add a run config to config/ directory.", "fa-flask") }}
+{% endif %}

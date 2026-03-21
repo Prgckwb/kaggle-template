@@ -65,20 +65,6 @@ def get_file_info(path: Path, base: Path) -> dict:
     }
 
 
-def read_csv_preview(path: Path, n_rows: int = 50) -> dict | None:
-    """polars で CSV を先頭 N 行読み込み。"""
-    if not path.exists():
-        return None
-    import polars as pl
-
-    df = pl.scan_csv(path).head(n_rows).collect()
-    total = pl.scan_csv(path).select(pl.len()).collect().item()
-    return {
-        "columns": df.columns,
-        "rows": df.to_dicts(),
-        "total_rows": total,
-    }
-
 
 def get_csv_preview_and_stats(
     path: Path, preview_rows: int = 50, stats_rows: int = 10000
@@ -113,29 +99,6 @@ def get_csv_preview_and_stats(
     except Exception:
         return None
 
-
-def get_csv_statistics(path: Path) -> dict | None:
-    """polars でデータの統計情報を返す。"""
-    if not path.exists():
-        return None
-    import polars as pl
-
-    try:
-        df = pl.read_csv(path, n_rows=10000)
-        total = pl.scan_csv(path).select(pl.len()).collect().item()
-        describe = df.describe()
-        null_counts = {col: df[col].null_count() for col in df.columns}
-
-        return {
-            "total_rows": total,
-            "total_cols": len(df.columns),
-            "dtypes": {col: str(df[col].dtype) for col in df.columns},
-            "null_counts": null_counts,
-            "describe_columns": describe.columns,
-            "describe_rows": describe.to_dicts(),
-        }
-    except Exception:
-        return None
 
 
 def list_directory_images(directory: str, base: Path) -> list[dict]:

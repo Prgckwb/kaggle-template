@@ -63,6 +63,93 @@ Nunito (wght 400/600/700/800)。Duolingo 風の丸みのあるフレンドリー
 
 FontAwesome 6 Free (`fa-solid` 系) を使用。絵文字は使わない。
 
+## レイアウトパターン
+
+### サイドバー
+
+- 固定幅 `w-64`、左端固定
+- トグルボタンで非表示切替（`-translate-x-full` + `ml-0`）
+- `localStorage('sidebar-collapsed')` で状態永続化
+- Experiments, Data はシンプルリンク（サブアイテムなし）
+- Knowledge のみ折りたたみ可能なサブアイテム（Official / Insights / Discussion）
+  - ラベル（`<a>` でページ遷移）+ シェブロンボタン（展開/折りたたみ）
+  - 展開状態は `localStorage('subnav-{id}')` で永続化
+  - Knowledge ページにいるときは自動展開
+  - サブアイテムに `active_subpage` による active 状態表示
+- ナビ部分のみ `overflow-y-auto` でスクロール
+- フッターなし（不要な情報を排除）
+
+### メインコンテンツ
+
+- `ml-64`（サイドバー表示時）/ `ml-0`（非表示時）
+- CSS transition で滑らかに切替
+
+### ページ幅の使い分け
+
+`{% block content_width %}` で調整。デフォルトは `max-w-7xl mx-auto`。
+
+| ページ種別 | `content_width` | 理由 |
+|-----------|-----------------|------|
+| Home | `max-w-4xl mx-auto` | コンパクトなダッシュボード |
+| カード一覧（Knowledge トップ等） | `max-w-5xl mx-auto` | 3カラムカードに適した幅 |
+| ドキュメント閲覧 | `max-w-4xl mx-auto` | 読みやすい散文幅 |
+| テーブル・データ | `max-w-7xl mx-auto` | 全幅活用 |
+| ファイルブラウザ（Data） | （デフォルト） | ページ内2カラム |
+
+### 禁止パターン
+
+- **2重サイドバー**: サイドバー内にさらにサイドバーを配置しない。Data ページのファイルツリーのようなページ固有の UI は例外。
+
+## ナビゲーションパターン
+
+### サイドバーのアクティブ状態
+
+テンプレートに `active_page` 変数を渡し、サイドバーで条件分岐:
+```jinja2
+{% if active_page == 'experiments' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 ...{% endif %}
+```
+
+### パンくずナビ
+
+階層の深いページ（Knowledge のドキュメント詳細等）ではパンくずナビを表示:
+```html
+<nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+    <a href="/knowledge" class="hover:text-emerald-500 font-semibold">Knowledge</a>
+    <i class="fa-solid fa-chevron-right text-xs text-gray-300"></i>
+    <span class="font-semibold text-gray-800">Current Page</span>
+</nav>
+```
+
+## ページ構造パターン
+
+### 階層遷移パターン（Knowledge）
+
+トップ → カテゴリ → 詳細 の3階層:
+- `/knowledge` — カテゴリカード表示
+- `/knowledge/{category}` — ドキュメント一覧
+- `/knowledge/{category}/{filename}` — ドキュメント全幅表示
+
+カテゴリは `VALID_CATEGORIES` + `CATEGORY_META` で管理。
+
+### ページ内2カラムパターン（Data）
+
+左にファイルツリー + 右にプレビュー:
+- ファイルツリーのディレクトリは htmx で遅延展開
+- ファイルクリックで右パネルにプレビューを表示
+
+### htmx 遅延読み込みパターン
+
+ディレクトリやリストの遅延展開:
+```html
+<button hx-get="/data/tree/{{ path }}"
+        hx-target="next ul"
+        hx-swap="innerHTML"
+        hx-trigger="click once">
+    <i class="fa-solid fa-chevron-right"></i>
+</button>
+<ul></ul>
+```
+
 ## ディレクトリ構成
 
 ```
@@ -70,7 +157,6 @@ app/
 ├── README.md           # このファイル
 ├── main.py             # FastAPI アプリ本体、Router 登録、エラーハンドリング
 ├── template_env.py     # 共有 Jinja2 テンプレート環境（単一インスタンス）
-├── utils.py            # 再エクスポートファサード
 ├── services/           # ビジネスロジック
 │   ├── helpers.py      # 汎用ヘルパー（パス検証、サイズ変換等）
 │   ├── experiments.py  # 実験管理（一覧、詳細、OOF、スコア）
@@ -81,10 +167,8 @@ app/
 │   └── js/             # htmx, highlight.js, Chart.js
 ├── pages/              # 各ページの APIRouter
 │   ├── experiments.py  # 実験一覧 + 詳細 + OOF + スコア
-│   ├── discussions.py  # Discussion 閲覧
-│   ├── knowledge.py    # 知識ベース（official / insights）
-│   ├── data.py         # データ閲覧（input/ 配下）
-│   └── notebooks.py    # Notebook 一覧
+│   ├── knowledge.py    # 知識ベース（official / insights / discussion）
+│   └── data.py         # データ閲覧（input/ 配下）
 └── templates/
     ├── base.html           # 共通レイアウト（サイドバー + メイン）
     ├── error.html          # エラーページ
@@ -92,9 +176,7 @@ app/
     ├── components/         # 再利用可能な Jinja2 マクロ
     ├── partials/           # htmx 差し替え用パーシャル
     ├── experiments/        # 実験ページ
-    ├── discussions/        # Discussion ページ
-    ├── knowledge/          # 知識ベースページ
-    ├── notebooks/          # Notebook ページ
+    ├── knowledge/          # 知識ベースページ（index / category / document）
     └── data/               # データ閲覧ページ
 ```
 
@@ -106,7 +188,7 @@ app/
 
 ### サービス層
 
-`app/services/` にビジネスロジックを分離。`app/utils.py` は後方互換のための再エクスポートファサード。
+`app/services/` にビジネスロジックを分離。各ページモジュールは `app.services.*` から直接インポートする。
 
 ### エンドポイント定義
 
@@ -119,7 +201,7 @@ app/
 `HX-Request` ヘッダーの有無で、同一エンドポイントから full page か partial を返す:
 
 ```python
-from app.utils import is_htmx
+from app.services.helpers import is_htmx
 
 @router.get("/experiments")
 def experiment_list(request: Request):
@@ -152,10 +234,15 @@ def experiment_list(request: Request):
 
 ## 新しいページの追加方法
 
+**まずサブページとして追加できないか検討する**（詳細は `.claude/skills/kaggle-add-app-page/SKILL.md` を参照）。
+
+新規トップレベルページが必要な場合:
+
 1. `app/pages/xxx.py` に `APIRouter` を作成
 2. `app/templates/xxx/` にテンプレートを配置
 3. `app/main.py` で `app.include_router(xxx.router)` を追加
-4. `base.html` のサイドバーにナビリンクを追加
+4. `base.html` のサイドバーに折りたたみナビアイテムを追加
+5. `index.html` の Home カードグリッドにカードを追加
 
 ## Jinja2 コンポーネントの使い方
 

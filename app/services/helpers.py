@@ -84,20 +84,43 @@ def timeago(dt: datetime) -> str:
     return f"{days // 365}年前"
 
 
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".svg"}
+VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
+AUDIO_EXTENSIONS = {".ogg", ".wav", ".mp3", ".flac", ".m4a", ".aac", ".wma"}
+BINARY_EXTENSIONS = {".ckpt", ".bin", ".pt", ".pth", ".pkl", ".pyc", ".so", ".o", ".a"}
+
+
 def _file_type(suffix: str) -> str:
     """File extension to type category."""
+    s = suffix.lower()
     mapping = {
         ".py": "python",
         ".yaml": "yaml",
         ".yml": "yaml",
         ".md": "markdown",
         ".csv": "csv",
-        ".ckpt": "checkpoint",
         ".ipynb": "notebook",
         ".json": "json",
+        ".jsonl": "json",
         ".txt": "text",
+        ".log": "text",
+        ".cfg": "text",
+        ".ini": "text",
+        ".toml": "text",
+        ".sh": "bash",
+        ".bash": "bash",
     }
-    return mapping.get(suffix.lower(), "other")
+    if s in mapping:
+        return mapping[s]
+    if s in IMAGE_EXTENSIONS:
+        return "image"
+    if s in VIDEO_EXTENSIONS:
+        return "video"
+    if s in AUDIO_EXTENSIONS:
+        return "audio"
+    if s in BINARY_EXTENSIONS:
+        return "binary"
+    return "other"
 
 
 def file_icon(file_type: str) -> str:
@@ -107,10 +130,14 @@ def file_icon(file_type: str) -> str:
         "yaml": "fa-file-code",
         "markdown": "fa-file-lines",
         "csv": "fa-file-csv",
-        "checkpoint": "fa-weight-hanging",
+        "binary": "fa-weight-hanging",
         "notebook": "fa-book",
         "json": "fa-file-code",
-        "text": "fa-file",
+        "text": "fa-file-lines",
+        "bash": "fa-terminal",
+        "image": "fa-image",
+        "video": "fa-film",
+        "audio": "fa-music",
         "other": "fa-file",
     }
     icon = mapping.get(file_type, "fa-file")

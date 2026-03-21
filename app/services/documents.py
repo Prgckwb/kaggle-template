@@ -62,6 +62,15 @@ def list_knowledge_docs() -> dict:
     }
 
 
+def list_all_knowledge_docs() -> dict:
+    """Knowledge ページ用: official + insights + discussion を返す。"""
+    return {
+        "official": _list_docs_for_category("official"),
+        "insights": _list_docs_for_category("insights"),
+        "discussion": _list_docs_for_category("discussion"),
+    }
+
+
 def get_competition_overview() -> dict | None:
     """README.md からコンペ概要を抽出する。"""
     readme = PROJECT_ROOT / "README.md"

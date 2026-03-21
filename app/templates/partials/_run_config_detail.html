@@ -1,0 +1,11 @@
+<div class="p-4 bg-gray-50 border-t border-gray-100">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+            <i class="fa-solid fa-gear text-gray-400 text-xs"></i>
+            <span class="text-xs font-bold text-gray-500">{{ run_name }}</span>
+        </div>
+        <div class="overflow-x-auto max-h-80 overflow-y-auto">
+            <pre class="p-3 text-sm"><code class="language-yaml">{{ config | toyaml }}</code></pre>
+        </div>
+    </div>
+</div>

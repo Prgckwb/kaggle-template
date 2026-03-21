@@ -42,6 +42,10 @@
     <script src="/static/js/highlight-json.min.js"></script>
     <script src="/static/js/highlight-bash.min.js"></script>
 
+    <!-- Mermaid (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({ startOnLoad: false, theme: 'neutral' });</script>
+
     <style>
         body { font-family: 'Nunito', system-ui, sans-serif; }
         .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
@@ -56,6 +60,10 @@
         .hljs-comment { color: #9ca3af; font-style: italic; }
         .hljs-literal { color: #059669; }
         .hljs-attr { color: #6d28d9; }
+
+        /* Sidebar transitions */
+        #sidebar { transition: transform 300ms ease-in-out; }
+        #main-content { transition: margin-left 300ms ease-in-out; }
     </style>
 
     {% block head %}{% endblock %}
@@ -70,61 +78,118 @@
     <div class="flex min-h-screen">
 
         <!-- Sidebar -->
-        <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col z-10">
-            <!-- Brand -->
-            <div class="px-5 py-5">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col z-10">
+            <!-- Brand + Toggle -->
+            <div class="px-5 py-5 flex items-center justify-between">
                 <a href="/" class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
                         <i class="fa-solid fa-trophy text-white text-lg"></i>
                     </div>
                     <span class="text-lg font-extrabold text-gray-800">Kaggle</span>
                 </a>
+                <button onclick="toggleSidebar()" class="text-gray-400 hover:text-gray-600 transition-colors p-1 cursor-pointer" title="サイドバーを閉じる">
+                    <i class="fa-solid fa-chevron-left text-sm"></i>
+                </button>
             </div>
 
-            <!-- Navigation -->
-            <nav class="flex-1 px-3 flex flex-col gap-1">
+            <!-- Global Search -->
+            <div class="px-3 mb-2 relative" id="search-container">
+                <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                    <i class="fa-solid fa-magnifying-glass text-gray-400 text-xs"></i>
+                    <input type="search"
+                           id="global-search-input"
+                           name="q"
+                           placeholder="検索..."
+                           autocomplete="off"
+                           hx-get="/search"
+                           hx-trigger="keyup changed delay:300ms, search"
+                           hx-target="#global-search-results"
+                           hx-push-url="false"
+                           onfocus="openSearch()"
+                           oninput="if(!this.value) closeSearch()"
+                           class="flex-1 bg-transparent outline-none text-xs text-gray-800 placeholder-gray-400 min-w-0">
+                </div>
+                <div id="global-search-results"
+                     class="hidden absolute left-3 right-3 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+                </div>
+            </div>
+
+            <!-- Navigation (scrollable) -->
+            <nav class="flex-1 px-3 flex flex-col gap-1 overflow-y-auto">
+                <!-- Home -->
                 <a href="/"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
                           {% if active_page == 'home' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
                     <i class="fa-solid fa-house w-5 text-center"></i>
                     Home
                 </a>
+
+                <!-- Experiments (simple link, no sub-items) -->
                 <a href="/experiments"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
                           {% if active_page == 'experiments' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
                     <i class="fa-solid fa-flask w-5 text-center"></i>
                     Experiments
                 </a>
+
+                <!-- Data (no sub-items) -->
                 <a href="/data"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
                           {% if active_page == 'data' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
                     <i class="fa-solid fa-database w-5 text-center"></i>
                     Data
                 </a>
-                <a href="/discussions"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
-                          {% if active_page == 'discussions' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
-                    <i class="fa-solid fa-comments w-5 text-center"></i>
-                    Discussions
-                </a>
-                <a href="/knowledge"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
-                          {% if active_page == 'knowledge' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
-                    <i class="fa-solid fa-book w-5 text-center"></i>
-                    Knowledge
-                </a>
+
+                <!-- Knowledge (with collapsible sub-items) -->
+                <div>
+                    <div class="flex items-center">
+                        <a href="/knowledge"
+                           class="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
+                                  {% if active_page == 'knowledge' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                            <i class="fa-solid fa-book w-5 text-center"></i>
+                            Knowledge
+                        </a>
+                        <button onclick="toggleSubnav('knowledge-sub', this)"
+                                class="px-2 py-2.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
+                            <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
+                        </button>
+                    </div>
+                    <div id="knowledge-sub" class="hidden ml-8 mt-0.5">
+                        <a href="/knowledge/official"
+                           class="block px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                                  {% if active_subpage is defined and active_subpage == 'official' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                            <i class="fa-solid fa-building-columns w-4 text-center mr-1"></i>
+                            Official
+                        </a>
+                        <a href="/knowledge/insights"
+                           class="block px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                                  {% if active_subpage is defined and active_subpage == 'insights' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                            <i class="fa-solid fa-lightbulb w-4 text-center mr-1"></i>
+                            Insights
+                        </a>
+                        <a href="/knowledge/discussion"
+                           class="block px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                                  {% if active_subpage is defined and active_subpage == 'discussion' %}bg-emerald-50 text-emerald-600{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-800{% endif %}">
+                            <i class="fa-solid fa-comments w-4 text-center mr-1"></i>
+                            Discussion
+                        </a>
+                    </div>
+                </div>
+
                 {% block sidebar_nav %}{% endblock %}
             </nav>
-
-            <!-- Footer -->
-            <div class="px-4 py-4 border-t border-gray-100">
-                <p class="text-xs text-gray-400 text-center">Kaggle Competition Dashboard</p>
-            </div>
         </aside>
 
+        <!-- Sidebar open button (shown when sidebar is hidden) -->
+        <button onclick="toggleSidebar()" id="sidebar-open-btn"
+                class="fixed top-4 left-4 z-20 w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-200 items-center justify-center text-gray-500 hover:text-gray-800 transition-all hidden cursor-pointer"
+                title="サイドバーを開く">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+
         <!-- Main Content -->
-        <main class="ml-64 flex-1 px-8 py-8">
-            <div class="{% block content_width %}max-w-7xl mx-auto{% endblock %}">
+        <main id="main-content" class="ml-64 flex-1 px-8 py-8">
+            <div class="{% block content_width %}max-w-5xl mx-auto{% endblock %}">
                 {% block content %}{% endblock %}
             </div>
         </main>
@@ -132,11 +197,116 @@
     </div>
 
     <script>
+        // Sidebar toggle with localStorage persistence
+        (function() {
+            var collapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            if (collapsed) {
+                document.getElementById('sidebar').style.transform = 'translateX(-100%)';
+                document.getElementById('main-content').style.marginLeft = '0';
+                document.getElementById('sidebar-open-btn').style.display = 'flex';
+            }
+
+            // Restore subnav expand state
+            document.querySelectorAll('[id$="-sub"]').forEach(function(el) {
+                var key = 'subnav-' + el.id;
+                if (localStorage.getItem(key) === 'open') {
+                    el.classList.remove('hidden');
+                    var btn = el.previousElementSibling
+                        ? el.previousElementSibling.querySelector('button i.fa-chevron-down')
+                        : null;
+                    if (btn) btn.classList.add('rotate-180');
+                }
+            });
+
+            // Auto-expand Knowledge subnav when on a knowledge page
+            var activePage = '{{ active_page | default("") }}';
+            if (activePage === 'knowledge') {
+                var knowledgeSub = document.getElementById('knowledge-sub');
+                if (knowledgeSub && knowledgeSub.classList.contains('hidden')) {
+                    knowledgeSub.classList.remove('hidden');
+                    var btn = knowledgeSub.previousElementSibling
+                        ? knowledgeSub.previousElementSibling.querySelector('button i.fa-chevron-down')
+                        : null;
+                    if (btn) btn.classList.add('rotate-180');
+                    localStorage.setItem('subnav-knowledge-sub', 'open');
+                }
+            }
+        })();
+
+        function toggleSidebar() {
+            var sidebar = document.getElementById('sidebar');
+            var main = document.getElementById('main-content');
+            var openBtn = document.getElementById('sidebar-open-btn');
+            var isCollapsed = sidebar.style.transform === 'translateX(-100%)';
+
+            if (isCollapsed) {
+                sidebar.style.transform = '';
+                main.style.marginLeft = '';
+                openBtn.style.display = 'none';
+                localStorage.setItem('sidebar-collapsed', 'false');
+            } else {
+                sidebar.style.transform = 'translateX(-100%)';
+                main.style.marginLeft = '0';
+                openBtn.style.display = 'flex';
+                localStorage.setItem('sidebar-collapsed', 'true');
+            }
+        }
+
+        // Global search
+        function openSearch() {
+            var results = document.getElementById('global-search-results');
+            if (document.getElementById('global-search-input').value.trim()) {
+                results.classList.remove('hidden');
+            }
+        }
+        function closeSearch() {
+            document.getElementById('global-search-results').classList.add('hidden');
+        }
+        document.addEventListener('click', function(e) {
+            var container = document.getElementById('search-container');
+            if (container && !container.contains(e.target)) {
+                closeSearch();
+            }
+        });
+        document.body.addEventListener('htmx:afterSwap', function(e) {
+            if (e.detail.target.id === 'global-search-results') {
+                var results = document.getElementById('global-search-results');
+                results.classList.toggle('hidden', !results.innerHTML.trim());
+            }
+        }, true);
+
+        function toggleSubnav(id, btn) {
+            var el = document.getElementById(id);
+            var isHidden = el.classList.contains('hidden');
+            el.classList.toggle('hidden');
+            btn.querySelector('i').classList.toggle('rotate-180');
+            localStorage.setItem('subnav-' + id, isHidden ? 'open' : 'closed');
+        }
+
+        // highlight.js + mermaid rendering
+        function renderMermaidBlocks(root) {
+            root.querySelectorAll('pre code.language-mermaid').forEach(function(codeEl) {
+                var pre = codeEl.parentElement;
+                var container = document.createElement('div');
+                container.className = 'mermaid';
+                container.textContent = codeEl.textContent;
+                pre.replaceWith(container);
+            });
+            if (root.querySelectorAll('.mermaid').length > 0) {
+                mermaid.run({ nodes: root.querySelectorAll('.mermaid') });
+            }
+        }
+
         hljs.highlightAll();
+        renderMermaidBlocks(document);
+
         document.body.addEventListener('htmx:afterSwap', function(event) {
             event.detail.target.querySelectorAll('pre code').forEach(function(el) {
-                hljs.highlightElement(el);
+                if (!el.classList.contains('language-mermaid')) {
+                    hljs.highlightElement(el);
+                }
             });
+            renderMermaidBlocks(event.detail.target);
         });
     </script>
 </body>
