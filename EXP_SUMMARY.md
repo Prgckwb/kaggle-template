@@ -1,5 +1,13 @@
 # Experiments
 
+## Validation Strategy
+
+> 検証データの作り方をここに記載
+>
+> - どのようにデータを分割するか
+> - 学習データとの分布の違い
+> - リークの有無の確認方法
+
 ## Experiments Table
 
 | Exp | Name | Split | Key Change | CV | LB |

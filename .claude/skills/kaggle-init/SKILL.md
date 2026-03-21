@@ -20,7 +20,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 | 3 | `input/` にデータがダウンロード済み | `input/` に `.gitkeep` 以外のファイルがあること |
 | 4 | `docs/official/overview.md` が記入済み | テンプレートのプレースホルダーでないこと |
 | 5 | `docs/official/data.md` が記入済み | テンプレートのプレースホルダーでないこと |
-| 6 | Validation Strategy が記載済み | README.md の該当セクションがプレースホルダーでないこと |
+| 6 | Validation Strategy が記載済み | EXP_SUMMARY.md の該当セクションがプレースホルダーでないこと |
 | 7 | `app/config.py` の `COMPETITION_ID` が設定済み | デフォルト値でないこと |
 
 ## フェーズ 1: 現在の状態を診断
@@ -31,7 +31,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    - `input/` の内容を Glob で確認
    - `docs/official/overview.md` の内容を Read し、プレースホルダー（`- **Competition Name**:` が空）か確認
    - `docs/official/data.md` の内容を Read し、プレースホルダーか確認
-   - `README.md` の Validation Strategy セクションがプレースホルダーか確認
+   - `EXP_SUMMARY.md` の Validation Strategy セクションがプレースホルダーか確認
 
 2. 結果をサマリーとして表示:
    ```
@@ -113,7 +113,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
 1. データの特性（件数、ターゲットの分布、時系列かどうか等）を確認
 2. ユーザーと議論しながら分割戦略を決定
-3. `README.md` の Validation Strategy セクションに記載
+3. `EXP_SUMMARY.md` の Validation Strategy セクションに記載
 
 ## フェーズ 3: 完了チェック
 

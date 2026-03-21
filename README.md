@@ -71,14 +71,6 @@ uv run python -m src.exp001-xxx.train --config-name=run001-yyy run_mode=debug
 4. `run_mode=full` で全 fold 実行・CV スコア算出
 5. `/kaggle:record-result` で結果を記録
 
-## Validation Strategy
-
-> 検証データの作り方をここに記載
->
-> - どのようにデータを分割するか
-> - 学習データとの分布の違い
-> - リークの有無の確認方法
-
 ## Experiments
 
 実験の記録は [EXP_SUMMARY.md](EXP_SUMMARY.md) を参照。
