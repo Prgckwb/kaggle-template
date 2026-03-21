@@ -32,6 +32,8 @@ def resolve_run_config(cfg: DictConfig) -> dict:
             "epochs": cfg.debug.epochs,
             "n_folds": cfg.debug.n_folds,
             "max_samples": cfg.debug.samples,
+            "limit_train_batches": cfg.debug.limit_train_batches,
+            "limit_val_batches": cfg.debug.limit_val_batches,
             "wandb_mode": "disabled",
             "folds_to_run": [0],
         }
@@ -40,6 +42,8 @@ def resolve_run_config(cfg: DictConfig) -> dict:
             "epochs": cfg.training.epochs,
             "n_folds": cfg.data.n_folds,
             "max_samples": None,
+            "limit_train_batches": 1.0,
+            "limit_val_batches": 1.0,
             "wandb_mode": cfg.wandb.mode,
             "folds_to_run": [0],
         }
@@ -48,6 +52,8 @@ def resolve_run_config(cfg: DictConfig) -> dict:
             "epochs": cfg.training.epochs,
             "n_folds": cfg.data.n_folds,
             "max_samples": None,
+            "limit_train_batches": 1.0,
+            "limit_val_batches": 1.0,
             "wandb_mode": cfg.wandb.mode,
             "folds_to_run": list(range(cfg.data.n_folds)),
         }

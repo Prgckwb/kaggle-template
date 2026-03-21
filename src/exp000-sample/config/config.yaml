@@ -8,15 +8,17 @@ run_name: run000-base
 seed: 42
 
 # Run mode: debug / fold0 / full
-# - debug: パイプライン確認（少データ・少エポック・1fold・wandb disabled）
+# - debug: パイプライン確認（少数データ・少数バッチ・1エポック・1fold・wandb disabled）
 # - fold0: fold0 のみ実行（デフォルト）
 # - full: 全 fold 実行
 run_mode: fold0
 
 # Debug settings (run_mode=debug 時に適用)
 debug:
-  epochs: 2
+  epochs: 1
   samples: 100
+  limit_train_batches: 2
+  limit_val_batches: 2
   n_folds: 1
 
 # Data
