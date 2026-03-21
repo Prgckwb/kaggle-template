@@ -12,6 +12,15 @@ import nh3
 from app.services.helpers import PROJECT_ROOT
 
 
+_OFFICIAL_ORDER = ["overview.md", "data.md"]
+
+
+def _sort_key(category: str, filename: str) -> tuple[int, str]:
+    if category == "official" and filename in _OFFICIAL_ORDER:
+        return (_OFFICIAL_ORDER.index(filename), filename)
+    return (len(_OFFICIAL_ORDER), filename)
+
+
 def list_docs() -> dict:
     """docs/ 配下を分類して返す。"""
     result: dict[str, list[dict]] = {"official": [], "discussion": [], "insights": []}
@@ -19,7 +28,7 @@ def list_docs() -> dict:
         d = PROJECT_ROOT / "docs" / category
         if not d.exists():
             continue
-        for f in sorted(d.glob("*.md")):
+        for f in sorted(d.glob("*.md"), key=lambda f: _sort_key(category, f.name)):
             result[category].append(
                 {
                     "name": f.stem,
@@ -45,7 +54,7 @@ def _list_docs_for_category(category: str) -> list[dict]:
             "category": category,
             "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc),
         }
-        for f in sorted(d.glob("*.md"))
+        for f in sorted(d.glob("*.md"), key=lambda f: _sort_key(category, f.name))
     ]
 
 
