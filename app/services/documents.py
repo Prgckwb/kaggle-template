@@ -128,8 +128,21 @@ def get_validation_strategy() -> str | None:
     return _sanitize_html(html)
 
 
-def read_markdown_file(path: Path) -> dict:
-    """Markdown -> HTML 変換（サニタイズ済み）。"""
+_markdown_cache: dict[str, tuple[float, dict]] = {}
+
+
+def read_markdown_file(path: Path) -> dict | None:
+    """Markdown -> HTML 変換（サニタイズ済み）。mtime ベースキャッシュ付き。"""
+    key = str(path)
+    try:
+        mtime = path.stat().st_mtime
+    except FileNotFoundError:
+        return None
+
+    cached = _markdown_cache.get(key)
+    if cached is not None and cached[0] == mtime:
+        return cached[1]
+
     raw = path.read_text()
     html = markdown.markdown(
         raw,
@@ -137,11 +150,13 @@ def read_markdown_file(path: Path) -> dict:
         extension_configs={"fenced_code": {"lang_prefix": "language-"}},
     )
     title_match = re.search(r"^#\s+(.+)", raw, re.MULTILINE)
-    return {
+    result = {
         "raw": raw,
         "html": _sanitize_html(html),
         "title": title_match.group(1) if title_match else path.stem,
     }
+    _markdown_cache[key] = (mtime, result)
+    return result
 
 
 def _sanitize_html(html: str) -> str:

@@ -5,7 +5,7 @@
             <span class="text-xs font-bold text-gray-500">{{ run_name }}</span>
         </div>
         <div class="overflow-x-auto max-h-80 overflow-y-auto">
-            <pre class="p-3 text-sm"><code class="language-yaml">{{ config | toyaml }}</code></pre>
+            <pre class="p-3 text-sm"><code class="language-yaml">{{ config | yaml_dump }}</code></pre>
         </div>
     </div>
 </div>

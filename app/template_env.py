@@ -15,9 +15,6 @@ templates.env.filters["filesize"] = human_filesize
 templates.env.filters["timeago"] = timeago
 templates.env.filters["yaml_dump"] = lambda d: yaml.dump(
     d, default_flow_style=False, allow_unicode=True, sort_keys=False
-)
-templates.env.filters["toyaml"] = lambda d: yaml.dump(
-    d, default_flow_style=False, allow_unicode=True, sort_keys=False
 ).rstrip()
 
 # Globals

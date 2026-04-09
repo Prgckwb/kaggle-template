@@ -11,6 +11,13 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 このスキルはユーザーと対話しながら実験結果を確認し、記録する。
 機械的に記録するのではなく、ユーザーから学びを引き出す対話を行う。
 
+## best run の決定ルール
+
+大実験の best run = **最高 LB（LB がなければ最高 CV）の run**。
+
+EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコアを記載する。
+複数 run がある場合、LB スコアが最も高い run を best とする。LB が未提出の run しかない場合は CV スコアで判定する。
+
 ## フェーズ 1: 実験の特定と状況確認
 
 1. **対象実験を特定する**
@@ -98,7 +105,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 
 ### 4-2. EXP_SUMMARY.md の更新
 
-1. **Experiments テーブル**: 該当行の Split, CV, LB を更新（大実験の best run のスコアを記載）
+1. **Experiments テーブル**: 該当行の Split, CV, LB を更新（大実験の best run = 最高 LB、LB なしなら最高 CV の run のスコアを記載）
 2. **Experiment Tree**: ノードにスコアを追加し、クラスを更新
    - スコアが入ったら `wip` → `good`（青）に変更
    - 全実験中で最高 LB なら `best`（緑）に変更

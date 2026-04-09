@@ -22,6 +22,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 | 5 | `docs/official/data.md` が記入済み | テンプレートのプレースホルダーでないこと |
 | 6 | Validation Strategy が記載済み | EXP_SUMMARY.md の該当セクションがプレースホルダーでないこと |
 | 7 | `app/config.py` の `COMPETITION_ID` が設定済み | デフォルト値でないこと |
+| 8 | 評価指標名が CLAUDE.md の wandb テーブルに反映済み | `{評価指標名}` プレースホルダーが実際の指標名に置換されていること |
 
 ## フェーズ 1: 現在の状態を診断
 
@@ -109,7 +110,23 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    - Columns テーブル（各カラムの型・説明）
    - Notes
 
-### 2-4. Validation Strategy
+### 2-4. 評価指標名の設定
+
+1. **指標名の確認**
+   - `docs/official/overview.md` の Evaluation セクションから評価指標を確認
+   - ユーザーに確認: 「メトリクスキー名を決めてください（例: `auc`, `f1`, `accuracy`, `map`, `rmse`）。wandb ログやチェックポイント名に使われます」
+   - 短い英小文字の名前を推奨
+
+2. **CLAUDE.md の更新**
+   - wandb メトリクスキー名規則テーブルの `{評価指標名}` を実際の指標名に一括置換
+   - コードサンプル内の `{評価指標名}` も同様に置換
+   - チェックポイントファイル名パターンの `val_{評価指標名}` を置換（例: `val_auc`）
+   - `wandb.summary` のキー名も置換
+
+3. **確認**
+   - 置換後のテーブルをユーザーに提示して確認を得る
+
+### 2-5. Validation Strategy
 
 1. データの特性（件数、ターゲットの分布、時系列かどうか等）を確認
 2. ユーザーと議論しながら分割戦略を決定

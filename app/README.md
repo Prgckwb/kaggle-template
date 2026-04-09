@@ -63,6 +63,24 @@ Nunito (wght 400/600/700/800)。Duolingo 風の丸みのあるフレンドリー
 
 FontAwesome 6 Free (`fa-solid` 系) を使用。絵文字は使わない。
 
+### ダークモード対応マッピング
+
+現在はライトテーマのみ。ダークモード追加時は以下の Tailwind クラスマッピングに従う:
+
+| 用途 | Light | Dark |
+|------|-------|------|
+| ページ背景 | `bg-gray-50` | `dark:bg-gray-900` |
+| カード/サイドバー | `bg-white` | `dark:bg-gray-800` |
+| テキスト（主） | `text-gray-800` | `dark:text-gray-100` |
+| テキスト（副） | `text-gray-500` | `dark:text-gray-400` |
+| テキスト（ミュート） | `text-gray-400` | `dark:text-gray-500` |
+| ボーダー | `border-gray-200` | `dark:border-gray-700` |
+| ホバー背景 | `hover:bg-gray-50` | `dark:hover:bg-gray-700` |
+| アクセント薄背景 | `bg-emerald-50` | `dark:bg-emerald-900/30` |
+| 入力フィールド背景 | `bg-gray-50` | `dark:bg-gray-700` |
+| コードブロック背景 | `bg-gray-50` | `dark:bg-gray-900` |
+| 影 | `shadow-sm` | `dark:shadow-gray-900/20` |
+
 ## レイアウトパターン
 
 ### サイドバー
@@ -129,7 +147,40 @@ FontAwesome 6 Free (`fa-solid` 系) を使用。絵文字は使わない。
 - `/knowledge/{category}` — ドキュメント一覧
 - `/knowledge/{category}/{filename}` — ドキュメント全幅表示
 
-カテゴリは `VALID_CATEGORIES` + `CATEGORY_META` で管理。
+カテゴリは `KNOWLEDGE_PAGES` レジストリ辞書で一元管理。
+
+### Knowledge サブページ追加パターン
+
+Knowledge 配下にカスタムサブページ（EDA 可視化、ガイド等）を追加する手順:
+
+1. `app/pages/knowledge.py` の `KNOWLEDGE_PAGES` 辞書に `type: "special"` で追加
+2. テンプレートを作成: `app/templates/knowledge/{page}.html` + `app/templates/partials/_{page}_content.html`
+3. サイドバーは `KNOWLEDGE_PAGES` から自動生成されるため、base.html の編集は不要
+
+```python
+# knowledge.py に追加（例: EDA ページ）
+KNOWLEDGE_PAGES["eda"] = {
+    "type": "special",
+    "label": "EDA",
+    "icon": "fa-chart-bar",
+    "color": "emerald",
+    "description": "探索的データ分析",
+}
+```
+
+**⚠️ FastAPI ルート定義順序の注意（全ページ共通）**: 固定パスのルートは**必ずパスパラメータ付きルートより前に定義**すること。違反すると固定パスが path parameter にマッチし 404 になる。
+
+```python
+# ✅ 正しい順序
+@router.get("/experiments/_scores")    # 固定パス（先）
+@router.get("/experiments/{name}")     # パスパラメータ（後）
+
+# ❌ 間違い — /experiments/_scores が {name} にマッチしてしまう
+@router.get("/experiments/{name}")     # パスパラメータ（先）
+@router.get("/experiments/_scores")    # 到達不能
+```
+
+Knowledge ページはレジストリパターンを使っているため、この問題は発生しない。
 
 ### ページ内2カラムパターン（Data）
 
@@ -194,6 +245,20 @@ app/
 
 全エンドポイントは `def`（非 `async`）で定義。FastAPI が自動でスレッドプールで実行するため、同期 I/O（ファイル操作、Polars、YAML パース等）がイベントループをブロックしない。
 
+### 静的ファイルのマウント
+
+`app/static/` の単一 StaticFiles マウントのみ使用。別途 StaticFiles マウントを追加しない。静的ファイルは必ず `app/static/` 配下に配置し、`/static/...` パスで参照する。
+
+### 画像モーダル
+
+分析画像のクリック拡大用に `openImageModal()` が `base.html` に組み込み済み。画像に `onclick` を付与するだけで利用可能:
+
+```html
+<img src="/static/analysis/eda/distribution.png" alt="分布"
+     class="rounded-xl cursor-pointer hover:shadow-md transition-shadow"
+     onclick="openImageModal(this.src, this.alt)">
+```
+
 ## htmx パターン
 
 ### Full page vs Partial 出し分け
@@ -243,6 +308,95 @@ def experiment_list(request: Request):
 3. `app/main.py` で `app.include_router(xxx.router)` を追加
 4. `base.html` のサイドバーに折りたたみナビアイテムを追加
 5. `index.html` の Home カードグリッドにカードを追加
+
+## 構造化ガイドデザインパターン
+
+Knowledge 配下のガイドページ（ドメイン知識の入門等）で使う、Markdown ではなく Tailwind HTML で作る構造化コンテンツのパターン。
+
+### パターン 1: セクションナビゲーション
+
+ページ冒頭にピルボタンでセクションジャンプ。各セクションに固有の色テーマを割り当てる。
+
+**色テーマプリセット**: emerald(導入/背景), blue(タスク概要), amber(評価指標), red(チャレンジ), violet(戦略), sky(用語集)
+
+```html
+<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-8">
+    <div class="flex flex-wrap gap-2">
+        <a href="#section-1"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold
+                  bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400
+                  hover:bg-emerald-100 transition-colors">
+            <i class="fa-solid fa-satellite-dish"></i>1. セクション名
+        </a>
+        <!-- 各セクション分繰り返し、色を変える -->
+    </div>
+</div>
+```
+
+### パターン 2: セクションカード
+
+各セクションは独立したカードで、ヘッダー（アイコン + タイトル）+ コンテンツ領域で構成。`scroll-mt-4` でピルナビからのジャンプ時にヘッダーの背後に隠れない。
+
+```html
+<div id="section-1" class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 scroll-mt-4">
+    <div class="flex items-center gap-3 p-5 border-b border-gray-100 dark:border-gray-800">
+        <div class="w-9 h-9 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-satellite-dish text-emerald-500"></i>
+        </div>
+        <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">1. セクション名</h2>
+    </div>
+    <div class="p-5 space-y-6">
+        <div class="flex gap-3">
+            <div class="w-8 h-8 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <i class="fa-solid fa-microphone text-emerald-500 text-sm"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-1">サブトピック名</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">説明文。</p>
+            </div>
+        </div>
+    </div>
+</div>
+```
+
+### パターン 3: パイプライン可視化
+
+処理フローを「カラーバッジ + 矢印」で表現。
+
+```html
+<div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+    <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+        <span class="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg">ステップ1</span>
+        <i class="fa-solid fa-arrow-right text-gray-400"></i>
+        <span class="bg-violet-100 text-violet-700 px-2.5 py-1 rounded-lg">ステップ2</span>
+        <i class="fa-solid fa-arrow-right text-gray-400"></i>
+        <span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg">ステップ3</span>
+    </div>
+</div>
+```
+
+### パターン 4: 用語集テーブル
+
+最終セクションに配置。カード形式ではなくテーブルで効率的に参照可能。
+
+```html
+<div class="overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-gray-200 dark:border-gray-700">
+                <th class="text-left py-2 px-3 font-bold text-gray-800 dark:text-gray-100 w-1/4">用語</th>
+                <th class="text-left py-2 px-3 font-bold text-gray-800 dark:text-gray-100">説明</th>
+            </tr>
+        </thead>
+        <tbody class="text-gray-600 dark:text-gray-300">
+            <tr class="border-b border-gray-100 dark:border-gray-800">
+                <td class="py-2.5 px-3 font-semibold text-gray-700 dark:text-gray-200">用語名</td>
+                <td class="py-2.5 px-3">説明文</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+```
 
 ## Jinja2 コンポーネントの使い方
 

@@ -16,6 +16,11 @@ def is_htmx(request: Request) -> bool:
     return request.headers.get("HX-Request") == "true"
 
 
+def page_context(request: Request, page: str, subpage: str = "", **kwargs) -> dict:
+    """テンプレート用コンテキストを構築する。active_page/active_subpage の設定忘れを防止。"""
+    return {"request": request, "active_page": page, "active_subpage": subpage, **kwargs}
+
+
 def error_response(
     request: Request,
     templates,

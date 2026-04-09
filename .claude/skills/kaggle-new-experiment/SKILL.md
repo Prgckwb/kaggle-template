@@ -12,7 +12,7 @@ allowed-tools: Bash, Read, Write, Glob, Edit
 
 ## 実験の階層構造
 
-- **大実験（exp）**: アプローチ・アーキテクチャ・データパイプラインが根本的に異なる実験。`src/exp{NNN}-{subtitle}/` ディレクトリを新規作成する。
+- **大実験（exp）**: アプローチ・アーキテクチャ・データパイプライン・バリデーション戦略が根本的に異なる実験。`src/exp{NNN}-{subtitle}/` ディレクトリを新規作成する。
 - **小実験（run）**: 既存大実験の範囲内でモデル名・ハイパーパラメータ・前処理の細かな変更を行う実験。`config/run{NNN}-{subtitle}.yaml` を追加する。
 
 ## フェーズ 1: コンテキスト収集
@@ -49,6 +49,7 @@ allowed-tools: Bash, Read, Write, Glob, Edit
 ### 大実験にすべきケース
 - 新しいモデルアーキテクチャやフレームワークを導入する
 - データパイプラインや前処理が大幅に異なる
+- バリデーション戦略（分割方法・fold 数）を変更する
 - 既存のどの大実験にも属さない独立したアプローチ
 - train.py や model.py 等のコード変更が必要
 
@@ -92,6 +93,12 @@ allowed-tools: Bash, Read, Write, Glob, Edit
    - `run_name: run000-base` を確認（デフォルト値）
    - debug モードの設定を確認
    - 他のパラメータはコピー元のフォーマットを維持し、一貫性を保つ
+
+   **config コピー後チェックリスト**（必ず確認）:
+   - [ ] `config.yaml` の `exp_name` が新しい実験名（例: `exp002-xxx`）に更新されているか
+   - [ ] `output_dir` のパスが新しい実験ディレクトリを参照しているか（`${exp_name}` 変数経由なら自動で正しくなる）
+   - [ ] `logs_dir` のパスが新しい実験ディレクトリを参照しているか（同上）
+   - [ ] `wandb.project` がデフォルト値（`kaggle-competition`）でないか（`/kaggle:init` 済みなら OK）
 
 4. **実験 README.md を作成**（目的・仮説はフェーズ 2 の議論を反映）
 

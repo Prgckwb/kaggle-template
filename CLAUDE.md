@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 AI エージェントがこのリポジトリで作業する際のガイドライン。
 
 ## プロジェクト概要
@@ -19,8 +21,9 @@ kaggle-template/
 │   └── insights/   # 実験知見（YYYY-MM-DD_topic.md）
 └── src/            # 実験ディレクトリ
     └── exp000-sample/
-        ├── config/         # ベース config + 小実験 config
-        └── output/         # 学習出力（gitignore）
+        ├── config/                   # ベース config + 小実験 config
+        ├── inference_notebook.ipynb  # Kaggle 推論 notebook
+        └── output/                   # 学習出力（gitignore）
 ```
 
 ## 技術スタック
@@ -53,6 +56,7 @@ src/exp001-xxx/
 ├── README.md       # 目的・仮説・結果・Runs テーブル・考察
 ├── train.py        # 学習スクリプト
 ├── inference.py    # 推論スクリプト
+├── inference_notebook.ipynb  # Kaggle 推論 notebook（/kaggle:create-inference-notebook で生成）
 ├── model.py        # モデル定義
 ├── data.py         # データ処理
 ├── config/
@@ -61,12 +65,12 @@ src/exp001-xxx/
 │   └── run002-zzz.yaml       # 小実験2
 ├── logs/                     # 学習メトリクスログ（gitignore、自動生成）
 │   └── run000-base/
-│       ├── fold0_metrics.csv # epoch ごとの train_loss, val_loss 等
+│       ├── fold0_metrics.csv # epoch ごとの train/loss, val/loss 等
 │       └── run_summary.json  # CV スコア、各 fold のベスト、config snapshot
 └── output/                   # gitignore
     ├── run000-base/          # ベース config の出力
     │   ├── fold0/
-    │   │   ├── {exp_name}-val_score={score}.ckpt
+    │   │   ├── {exp_name}-val_{評価指標名}={score}.ckpt
     │   │   ├── train.csv
     │   │   └── val.csv
     │   └── oof_predictions.csv
@@ -78,7 +82,7 @@ src/exp001-xxx/
 
 大実験の範囲内でモデル名・ハイパーパラメータ・前処理の細かな変更を行う場合は、小実験（Run）として `config/run{NNN}-{subtitle}.yaml` を追加する。
 
-- **大実験の基準**: アプローチ・アーキテクチャ・データパイプラインが根本的に異なる場合に新規作成
+- **大実験の基準**: アプローチ・アーキテクチャ・データパイプライン・バリデーション戦略が根本的に異なる場合に新規作成
 - **小実験の基準**: 既存大実験のコードを共有し、config の差分のみで表現できる変更
 
 **小実験 config の形式**（差分のみ記述、ベース config を Hydra defaults で継承）:
@@ -166,24 +170,24 @@ wandb.init(
     name="summary",
     job_type="summary",
 )
-wandb.summary["cv/{metric}"] = cv_mean
-wandb.summary["cv/{metric}_std"] = cv_std
+wandb.summary["cv/{評価指標名}"] = cv_mean
+wandb.summary["cv/{評価指標名}_std"] = cv_std
 wandb.finish()
 ```
 
 - `WandbLogger(experiment=wandb.run)` を Trainer に渡し、PL の `self.log()` を現在の fold run に記録
 
-**メトリクスキー名規則**: `{split}/{metric}` 形式。全実験で統一し、表記揺れ（`acc` vs `accuracy`、`valid` vs `val`）を避ける。`{metric}` はプロジェクト初回の実験で決定し、以降変更しない。
+**メトリクスキー名規則**: `{split}/{metric}` 形式。全実験で統一し、表記揺れ（`acc` vs `accuracy`、`valid` vs `val`）を避ける。`{評価指標名}` は `/kaggle:init` 実行時にユーザーに確認し、実際のメトリクス名（例: `auc`, `f1`, `accuracy`）に置換する。以降変更しない。
 
 | キー名 | 意味 | 記録場所 |
 |--------|------|----------|
 | `train/loss` | 学習ロス（epoch 平均） | fold run |
-| `train/{metric}` | 学習メトリクス | fold run |
+| `train/{評価指標名}` | 学習メトリクス（← `/kaggle:init` で置換） | fold run |
 | `val/loss` | 検証ロス（epoch 平均） | fold run |
-| `val/{metric}` | 検証メトリクス | fold run |
-| `cv/{metric}` | 全 fold の best `val/{metric}` の平均 | summary run の `wandb.summary` |
-| `cv/{metric}_std` | 同標準偏差 | summary run の `wandb.summary` |
-| `fold{i}/best_val_{metric}` | 各 fold の best `val/{metric}` | summary run の `wandb.summary` |
+| `val/{評価指標名}` | 検証メトリクス（← `/kaggle:init` で置換） | fold run |
+| `cv/{評価指標名}` | 全 fold の best `val/{評価指標名}` の平均 | summary run の `wandb.summary` |
+| `cv/{評価指標名}_std` | 同標準偏差 | summary run の `wandb.summary` |
+| `fold{i}/best_val_{評価指標名}` | 各 fold の best `val/{評価指標名}` | summary run の `wandb.summary` |
 
 **ライフサイクル**:
 
@@ -195,7 +199,7 @@ for fold_idx in folds:
 
 # full モードのみ
 wandb.init(...)              # summary run 開始
-wandb.summary["cv/{metric}"] = ...
+wandb.summary["cv/{評価指標名}"] = ...
 wandb.finish()               # summary run 終了
 ```
 
@@ -237,7 +241,7 @@ from src.utils.metrics_logger import MetricsLogger
 metrics_logger = MetricsLogger(cfg)
 
 # 各 epoch で wandb.log() と併用
-metrics_logger.log_epoch(fold_idx, {"epoch": epoch, "train_loss": train_loss, "val_loss": val_loss})
+metrics_logger.log_epoch(fold_idx, {"epoch": epoch, "train/loss": train_loss, "val/loss": val_loss})
 
 # 学習完了時（wandb.finish() の前）
 metrics_logger.finish()
@@ -322,6 +326,22 @@ LLM は過去の実験結果に引きずられ、探索空間を狭めてしま�
 
 AI Agent が検証用スクリプトを実行するディレクトリ。gitignore される。
 
+### sandbox → app/static パイプライン
+
+sandbox/ で生成した EDA 画像や分析結果をダッシュボードで表示するためのパターン。
+
+1. sandbox/ 内のスクリプトで画像・データを生成
+2. 成果物を `app/static/analysis/` にコピー（例: `app/static/analysis/eda/`）
+3. ダッシュボードのテンプレートから `/static/analysis/...` パスで参照
+
+```html
+<!-- テンプレートでの参照例 -->
+<img src="/static/analysis/eda/target_distribution.png" alt="Target Distribution"
+     onclick="openImageModal(this.src, this.alt)">
+```
+
+**注意**: `app/static/` は単一の StaticFiles マウントで提供される。別途 StaticFiles マウントを追加しないこと。
+
 ## Git 規則
 
 - **ブランチ**: `main`（デフォルト）、`exp/{番号}-{subtitle}`、`feature/{名前}`、`fix/{内容}`
@@ -332,7 +352,11 @@ AI Agent が検証用スクリプトを実行するディレクトリ。gitignor
 
 ```bash
 uv sync                        # 依存関係インストール
-just app                       # Web アプリ起動
+just app                       # Web アプリ起動（http://localhost:8000）
+
+# Lint / Format
+uv run ruff check src/ app/    # Lint
+uv run ruff format src/ app/   # Format
 
 # 大実験のベース config で実行
 uv run python -m src.exp001-baseline.train                  # fold0 のみで学習（デフォルト）
@@ -343,3 +367,16 @@ uv run python -m src.exp001-baseline.train run_mode=full    # 全 fold で学習
 uv run python -m src.exp001-baseline.train --config-name=run001-bert
 uv run python -m src.exp001-baseline.train --config-name=run001-bert run_mode=debug
 ```
+
+## Skills（Claude Code スキル）
+
+| スキル | 説明 |
+|--------|------|
+| `/kaggle:init` | テンプレート初期化（コンペ名・データ・docs セットアップ） |
+| `/kaggle:new-experiment` | 新しい実験を対話的に設計・作成 |
+| `/kaggle:record-result` | 実験結果を記録（README・EXP_SUMMARY・insights 更新） |
+| `/kaggle:commit` | 変更を論理単位でコミット＆プッシュ |
+| `/kaggle:check-commands` | 実行コマンドの確認 |
+| `/kaggle:add-app-page` | ダッシュボードに新ページ追加 |
+| `/kaggle:upload-checkpoints` | チェックポイントを Kaggle Datasets にアップロード |
+| `/kaggle:create-inference-notebook` | 推論ノートブックを作成 |
