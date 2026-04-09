@@ -52,8 +52,9 @@ def search(request: Request, q: str = ""):
     results = global_search(q)
     total = sum(len(v) for v in results.values())
     return templates.TemplateResponse(
+        request,
         "partials/_search_results.html",
-        {"request": request, "results": results, "query": q, "total": total},
+        {"results": results, "query": q, "total": total},
     )
 
 
@@ -61,8 +62,9 @@ def search(request: Request, q: str = ""):
 def leaderboard_refresh(request: Request):
     leaderboard = get_leaderboard_summary(force_refresh=True)
     return templates.TemplateResponse(
+        request,
         "partials/_leaderboard_card.html",
-        {"request": request, "leaderboard": leaderboard, "lb_is_default": is_default_competition()},
+        {"leaderboard": leaderboard, "lb_is_default": is_default_competition()},
     )
 
 
@@ -85,9 +87,9 @@ def index(request: Request):
     leaderboard = get_leaderboard_summary()
 
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "title": "Dashboard",
             "active_page": "home",
             "experiments": list_experiments(),

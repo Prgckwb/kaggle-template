@@ -55,6 +55,7 @@ def knowledge_index(request: Request):
     all_docs = list_all_knowledge_docs()
     overview = get_competition_overview()
     return templates.TemplateResponse(
+        request,
         "knowledge/index.html",
         page_context(
             request, "knowledge",
@@ -98,8 +99,8 @@ def knowledge_detail(request: Request, category: str, filename: str):
     )
 
     if is_htmx(request):
-        return templates.TemplateResponse("partials/_doc_content.html", ctx)
-    return templates.TemplateResponse("knowledge/document.html", ctx)
+        return templates.TemplateResponse(request, "partials/_doc_content.html", ctx)
+    return templates.TemplateResponse(request, "knowledge/document.html", ctx)
 
 
 def _render_category(request: Request, category: str, meta: dict) -> HTMLResponse:
@@ -125,6 +126,7 @@ def _render_category(request: Request, category: str, meta: dict) -> HTMLRespons
                 break
 
         return templates.TemplateResponse(
+            request,
             "knowledge/official_tabbed.html",
             page_context(
                 request, "knowledge", category,
@@ -133,6 +135,7 @@ def _render_category(request: Request, category: str, meta: dict) -> HTMLRespons
         )
 
     return templates.TemplateResponse(
+        request,
         "knowledge/category.html",
         page_context(request, "knowledge", category, category=category, meta=meta, docs=docs),
     )
@@ -146,5 +149,5 @@ def _render_special_page(request: Request, page: str, meta: dict) -> HTMLRespons
     ctx = page_context(request, "knowledge", page, meta=meta)
 
     if is_htmx(request):
-        return templates.TemplateResponse(partial_name, ctx)
-    return templates.TemplateResponse(template_name, ctx)
+        return templates.TemplateResponse(request, partial_name, ctx)
+    return templates.TemplateResponse(request, template_name, ctx)

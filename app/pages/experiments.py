@@ -33,15 +33,14 @@ def experiment_list(request: Request, q: str = "", source: str = ""):
     exps = list_experiments(query=q)
     mermaid_source = parse_mermaid_tree()
     ctx = {
-        "request": request,
         "experiments": exps,
         "query": q,
         "active_page": "experiments",
         "mermaid_source": mermaid_source,
     }
     if is_htmx(request):
-        return templates.TemplateResponse("partials/_experiment_list.html", ctx)
-    return templates.TemplateResponse("experiments/list.html", ctx)
+        return templates.TemplateResponse(request, "partials/_experiment_list.html", ctx)
+    return templates.TemplateResponse(request, "experiments/list.html", ctx)
 
 
 
@@ -49,8 +48,9 @@ def experiment_list(request: Request, q: str = "", source: str = ""):
 def experiment_scores(request: Request):
     scores = get_all_experiment_scores()
     return templates.TemplateResponse(
+        request,
         "partials/_experiment_scores.html",
-        {"request": request, "scores": scores},
+        {"scores": scores},
     )
 
 
@@ -65,8 +65,9 @@ def experiment_detail(request: Request, name: str):
     if detail is None:
         return HTMLResponse("<p>Experiment not found</p>", status_code=404)
     return templates.TemplateResponse(
+        request,
         "experiments/detail.html",
-        {"request": request, "exp": detail, "active_page": "experiments"},
+        {"exp": detail, "active_page": "experiments"},
     )
 
 
@@ -76,8 +77,9 @@ def experiment_readme(request: Request, name: str):
     if detail is None:
         return HTMLResponse("<p>Not found</p>", status_code=404)
     return templates.TemplateResponse(
+        request,
         "partials/_experiment_readme.html",
-        {"request": request, "exp": detail},
+        {"exp": detail},
     )
 
 
@@ -87,8 +89,9 @@ def experiment_config(request: Request, name: str):
     if detail is None:
         return HTMLResponse("<p>Not found</p>", status_code=404)
     return templates.TemplateResponse(
+        request,
         "partials/_experiment_config.html",
-        {"request": request, "exp": detail},
+        {"exp": detail},
     )
 
 
@@ -98,8 +101,9 @@ def experiment_files(request: Request, name: str):
     if detail is None:
         return HTMLResponse("<p>Not found</p>", status_code=404)
     return templates.TemplateResponse(
+        request,
         "partials/_experiment_files.html",
-        {"request": request, "exp": detail},
+        {"exp": detail},
     )
 
 
@@ -107,8 +111,9 @@ def experiment_files(request: Request, name: str):
 def experiment_runs(request: Request, name: str):
     runs = list_runs(name)
     return templates.TemplateResponse(
+        request,
         "partials/_experiment_runs.html",
-        {"request": request, "runs": runs, "exp_name": name},
+        {"runs": runs, "exp_name": name},
     )
 
 
@@ -118,8 +123,9 @@ def experiment_oof(request: Request, name: str, run: str = ""):
     runs = list_runs(name)
     oof_runs = [r for r in runs if r["has_oof"]]
     return templates.TemplateResponse(
+        request,
         "partials/_experiment_oof.html",
-        {"request": request, "oof": analysis, "exp_name": name, "oof_runs": oof_runs, "selected_run": run},
+        {"oof": analysis, "exp_name": name, "oof_runs": oof_runs, "selected_run": run},
     )
 
 
@@ -127,8 +133,9 @@ def experiment_oof(request: Request, name: str, run: str = ""):
 def experiment_logs(request: Request, name: str):
     logs = list_run_logs(name)
     return templates.TemplateResponse(
+        request,
         "partials/_experiment_logs.html",
-        {"request": request, "logs": logs, "exp_name": name},
+        {"logs": logs, "exp_name": name},
     )
 
 
@@ -142,9 +149,9 @@ def experiment_log_detail(request: Request, name: str, run_name: str, fold: int 
         for f in logs_dir.glob("fold*_metrics.csv")
     ) if logs_dir.exists() else []
     return templates.TemplateResponse(
+        request,
         "partials/_experiment_log_detail.html",
         {
-            "request": request,
             "metrics": metrics,
             "summary": summary,
             "exp_name": name,
@@ -161,8 +168,9 @@ def experiment_file_content(request: Request, name: str, file_path: str):
     if content is None:
         return HTMLResponse("<p>File not found</p>", status_code=404)
     return templates.TemplateResponse(
+        request,
         "partials/_experiment_file_preview.html",
-        {"request": request, "file": content, "exp_name": name},
+        {"file": content, "exp_name": name},
     )
 
 
@@ -181,6 +189,7 @@ def experiment_run_config(request: Request, name: str, run_name: str):
     if config is None:
         return HTMLResponse("<p>Config not found</p>", status_code=404)
     return templates.TemplateResponse(
+        request,
         "partials/_run_config_detail.html",
-        {"request": request, "config": config, "run_name": run_name, "exp_name": name},
+        {"config": config, "run_name": run_name, "exp_name": name},
     )

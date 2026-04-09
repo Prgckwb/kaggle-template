@@ -18,7 +18,7 @@ def is_htmx(request: Request) -> bool:
 
 def page_context(request: Request, page: str, subpage: str = "", **kwargs) -> dict:
     """テンプレート用コンテキストを構築する。active_page/active_subpage の設定忘れを防止。"""
-    return {"request": request, "active_page": page, "active_subpage": subpage, **kwargs}
+    return {"active_page": page, "active_subpage": subpage, **kwargs}
 
 
 def error_response(
@@ -30,18 +30,18 @@ def error_response(
     """htmx-aware なエラーレスポンスを返す。"""
     if is_htmx(request):
         return templates.TemplateResponse(
+            request,
             "partials/_error.html",
             {
-                "request": request,
                 "error_title": f"Error {status_code}",
                 "error_message": message,
             },
             status_code=status_code,
         )
     return templates.TemplateResponse(
+        request,
         "error.html",
         {
-            "request": request,
             "active_page": "",
             "status_code": status_code,
             "message": message,
