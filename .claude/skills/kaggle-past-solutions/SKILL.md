@@ -16,9 +16,8 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch
 
 1. **MCP 接続確認**
    - `claude mcp list | grep kaggle` で `✓ Connected` を確認
-   - 未接続なら以下を案内して終了:
-     - `claude mcp add --transport http kaggle https://www.kaggle.com/mcp`
-     - 起動後 `/mcp` で `kaggle` を選択し、ブラウザ認証を Approve
+   - サーバ定義は `.mcp.json`（同梱）にあるので追加不要
+   - `Needs authentication` と出ていれば `/mcp` → `kaggle` を選択しブラウザ認証を Approve するよう案内
 
 2. **Kaggle MCP ツールが利用可能かを確認**
    - `mcp__kaggle__*` プレフィックスのツールがツールリストにあるはず

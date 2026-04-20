@@ -39,7 +39,7 @@ kaggle-template/
 
 Kaggle の公式情報・Discussion・Leaderboard・Dataset などを取得する際は、**Kaggle 公式 MCP サーバー (`https://www.kaggle.com/mcp`) を優先的に使用する**。Web 検索や WebFetch より最新かつ正確。ツールの詳細は MCP 利用時にその都度参照すればよい。
 
-未設定なら `claude mcp add --transport http kaggle https://www.kaggle.com/mcp` 後、`/mcp` からブラウザ認証。
+サーバ定義は `.mcp.json`（リポジトリ同梱）に入っているので、Claude Code 起動時に有効化を承認 → `/mcp` で `kaggle` を選択してブラウザ認証するだけで使える。
 
 ### 運用ルール
 
