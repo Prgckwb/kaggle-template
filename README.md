@@ -61,6 +61,7 @@ uv run python -m src.exp001-xxx.train --config-name=run001-yyy run_mode=debug
 | `/kaggle:commit` | 変更を論理単位でコミット＆プッシュ |
 | `/kaggle:check-commands` | 実行コマンドの確認 |
 | `/kaggle:add-app-page` | ダッシュボードに新ページ追加 |
+| `/kaggle:past-solutions` | Kaggle MCP 経由で類似過去コンペの上位解法を `docs/insights/past_solutions_{slug}.md` に収集 |
 
 ## Experiment Workflow
 
