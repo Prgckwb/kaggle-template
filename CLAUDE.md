@@ -35,6 +35,24 @@ kaggle-template/
   - MPS / CUDA / CPU を想定（`pin_memory` は GPU 時のみ有効化、`accelerator="auto"` を使用）
 - **Web アプリ**: FastAPI, htmx, Jinja2
 
+## Kaggle 情報の取得（MCP 経由）
+
+Kaggle の公式情報・Discussion・Leaderboard・Dataset などを取得する際は、**Kaggle 公式 MCP サーバー (`https://www.kaggle.com/mcp`) を優先的に使用する**。Web 検索や WebFetch より最新かつ正確。ツールの詳細は MCP 利用時にその都度参照すればよい。
+
+未設定なら `claude mcp add --transport http kaggle https://www.kaggle.com/mcp` 後、`/mcp` からブラウザ認証。
+
+### 運用ルール
+
+- **一次情報は MCP から取得**: コンペ概要・ルール・評価指標・データ仕様・Discussion・リーダーボード等は MCP 経由で取得する
+- **生データを貼らず整理して保存**: 取得結果は要点をまとめ、`docs/official/` または `docs/discussion/YYYY-MM-DD_topic.md` に保存する
+- **ダウンロード物の保存先**: データセット等の実ファイルは `input/` または `sandbox/` 配下に置く（いずれも gitignore）
+- **提出系ツール（`submit_to_competition` 等）は明示的な指示があるまで呼ばない**
+- **MCP 不通時のフォールバック**: `kagglesdk`（`pyproject.toml` の dev 依存に同梱）→ それでも取れない forum / writeup 系は `WebFetch` の順で試す
+
+### 関連スキル
+
+- **`/kaggle:past-solutions {slug}`**: 類似過去コンペの上位解法を MCP で収集し、`docs/insights/past_solutions_{slug}.md` を生成。新コンペ開始時の初期仮説づくりに使う
+
 ## Web アプリ（ダッシュボード）の実装方針
 
 - **ナビゲーション構造**: サイドバーのトップレベルは Experiments / Data / Knowledge の3つ。新ページはまず既存セクションのサブページとして追加を検討し、どこにも属さない場合のみトップレベルに追加する
