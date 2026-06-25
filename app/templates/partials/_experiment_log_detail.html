@@ -3,14 +3,14 @@
 {% from "components/_empty_state.html" import empty_state %}
 
 <!-- Back to logs list -->
-<button class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-violet-500 font-semibold mb-4 transition-colors"
+<button class="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-violet-500 font-semibold mb-4 transition-colors"
         hx-get="/experiments/{{ exp_name }}/_logs"
         hx-target="#tab-content">
     <i class="fa-solid fa-arrow-left text-xs"></i>
     Back to Logs
 </button>
 
-<h3 class="text-lg font-extrabold text-gray-800 mb-4">{{ run_name }}</h3>
+<h3 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-4">{{ run_name }}</h3>
 
 {% if summary %}
 <!-- Summary cards -->
@@ -22,29 +22,29 @@
 
 <!-- Per-fold best scores -->
 {% if summary.folds %}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
-    <h4 class="text-sm font-bold text-gray-800 mb-3">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+    <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-3">
         <i class="fa-solid fa-trophy text-amber-500 mr-2"></i>Per-Fold Best Scores
     </h4>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-gray-50 border-b border-gray-200">
-                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Fold</th>
-                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Best Epoch</th>
-                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Best Val Loss</th>
-                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Best Val Score</th>
-                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Total Epochs</th>
+                <tr class="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Fold</th>
+                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Best Epoch</th>
+                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Best Val Loss</th>
+                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Best Val Score</th>
+                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Total Epochs</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                 {% for fold_name, fold_data in summary.folds.items() %}
-                <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-2 font-bold text-gray-800">{{ fold_name }}</td>
-                    <td class="px-4 py-2 text-center text-gray-600">{{ fold_data.best_epoch if fold_data.best_epoch is defined else "-" }}</td>
-                    <td class="px-4 py-2 text-center text-gray-600">{{ "%.4f" | format(fold_data.best_val_loss) if fold_data.best_val_loss is defined else "-" }}</td>
-                    <td class="px-4 py-2 text-center text-gray-600">{{ "%.4f" | format(fold_data.best_val_score) if fold_data.best_val_score is defined else "-" }}</td>
-                    <td class="px-4 py-2 text-center text-gray-600">{{ fold_data.total_epochs if fold_data.total_epochs is defined else "-" }}</td>
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td class="px-4 py-2 font-bold text-gray-800 dark:text-gray-100">{{ fold_name }}</td>
+                    <td class="px-4 py-2 text-center text-gray-600 dark:text-gray-300">{{ fold_data.best_epoch if fold_data.best_epoch is defined else "-" }}</td>
+                    <td class="px-4 py-2 text-center text-gray-600 dark:text-gray-300">{{ "%.4f" | format(fold_data.best_val_loss) if fold_data.best_val_loss is defined else "-" }}</td>
+                    <td class="px-4 py-2 text-center text-gray-600 dark:text-gray-300">{{ "%.4f" | format(fold_data.best_val_score) if fold_data.best_val_score is defined else "-" }}</td>
+                    <td class="px-4 py-2 text-center text-gray-600 dark:text-gray-300">{{ fold_data.total_epochs if fold_data.total_epochs is defined else "-" }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -60,7 +60,7 @@
 <div class="flex gap-2 mb-4">
     {% for f in available_folds %}
     <button class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all
-        {% if f == fold %}bg-violet-500 text-white{% else %}bg-gray-100 text-gray-500 hover:bg-gray-200{% endif %}"
+        {% if f == fold %}bg-violet-500 text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}"
         hx-get="/experiments/{{ exp_name }}/_logs/{{ run_name }}?fold={{ f }}"
         hx-target="#tab-content">
         Fold {{ f }}
@@ -70,32 +70,32 @@
 {% endif %}
 
 <!-- Learning curves chart -->
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-6">
-    <h4 class="text-sm font-bold text-gray-800 mb-4">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+    <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-4">
         <i class="fa-solid fa-chart-line text-violet-500 mr-2"></i>Learning Curves — Fold {{ fold }}
     </h4>
     <canvas id="learning-curves-chart" height="100"></canvas>
 </div>
 
 <!-- Metrics table -->
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-    <h4 class="text-sm font-bold text-gray-800 mb-4">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-4">
         <i class="fa-solid fa-table text-sky-500 mr-2"></i>Epoch Metrics
     </h4>
     <div class="overflow-x-auto max-h-96">
         <table class="w-full text-xs">
             <thead class="sticky top-0">
-                <tr class="bg-gray-50">
+                <tr class="bg-gray-50 dark:bg-gray-900">
                     {% for col in metrics.columns %}
-                    <th class="px-3 py-2 text-left text-gray-500 font-semibold whitespace-nowrap">{{ col }}</th>
+                    <th class="px-3 py-2 text-left text-gray-500 dark:text-gray-400 font-semibold whitespace-nowrap">{{ col }}</th>
                     {% endfor %}
                 </tr>
             </thead>
             <tbody>
                 {% for row in metrics.rows %}
-                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                <tr class="border-t border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                     {% for col in metrics.columns %}
-                    <td class="px-3 py-1.5 whitespace-nowrap text-gray-600 font-mono">
+                    <td class="px-3 py-1.5 whitespace-nowrap text-gray-600 dark:text-gray-300 font-mono">
                         {% if row[col] is number and row[col] is not integer %}{{ "%.6f" | format(row[col]) }}{% else %}{{ row[col] }}{% endif %}
                     </td>
                     {% endfor %}

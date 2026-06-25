@@ -1,38 +1,38 @@
 <div class="space-y-4">
     <!-- File info header -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 flex items-center justify-between">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+            <div class="w-10 h-10 bg-amber-50 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
                 <i class="fa-solid {{ data_file_icon(file.type) }} text-amber-500"></i>
             </div>
             <div>
-                <h2 class="font-bold text-gray-800">{{ file.name }}</h2>
-                <p class="text-xs text-gray-400">{{ file.size | filesize }} | {{ file.suffix }}</p>
+                <h2 class="font-bold text-gray-800 dark:text-gray-100">{{ file.name }}</h2>
+                <p class="text-xs text-gray-400 dark:text-gray-500">{{ file.size | filesize }} | {{ file.suffix }}</p>
             </div>
         </div>
     </div>
 
     {% if file.type == "tabular" and preview %}
     <!-- Data preview table -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-            <i class="fa-solid fa-table text-gray-400"></i>
-            <span class="text-sm font-bold text-gray-600">Preview ({{ preview.rows|length }} / {{ preview.total_rows }} rows, {{ preview.total_cols }} cols)</span>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-table text-gray-400 dark:text-gray-500"></i>
+            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">Preview ({{ preview.rows|length }} / {{ preview.total_rows }} rows, {{ preview.total_cols }} cols)</span>
         </div>
         <div class="overflow-x-auto max-h-96">
             <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
+                <thead class="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0">
                     <tr>
                         {% for col in preview.columns %}
-                        <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 whitespace-nowrap">{{ col }}</th>
+                        <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ col }}</th>
                         {% endfor %}
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                     {% for row in preview.rows %}
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                         {% for col in preview.columns %}
-                        <td class="px-3 py-2 text-gray-700 whitespace-nowrap max-w-xs truncate">{{ row[col] if row[col] is not none else '' }}</td>
+                        <td class="px-3 py-2 text-gray-700 dark:text-gray-200 whitespace-nowrap max-w-xs truncate">{{ row[col] if row[col] is not none else '' }}</td>
                         {% endfor %}
                     </tr>
                     {% endfor %}
@@ -46,20 +46,20 @@
         <button hx-get="/data/stats/{{ file.path }}"
                 hx-target="#csv-stats-container"
                 hx-swap="innerHTML"
-                class="w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors cursor-pointer">
+                class="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer">
             <i class="fa-solid fa-chart-bar mr-2"></i>統計情報を表示
         </button>
     </div>
 
     {% elif file.type == "tabular" and not preview %}
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
-        <i class="fa-solid fa-table text-gray-300 text-4xl mb-3"></i>
-        <p class="text-gray-500 font-semibold">プレビューを読み込めませんでした</p>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+        <i class="fa-solid fa-table text-gray-300 dark:text-gray-500 text-4xl mb-3"></i>
+        <p class="text-gray-500 dark:text-gray-400 font-semibold">プレビューを読み込めませんでした</p>
     </div>
 
     {% elif file.type == "image" %}
     <!-- Image preview -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <img src="/data/raw/{{ file.path }}" alt="{{ file.name }}"
              class="max-w-full max-h-[600px] mx-auto rounded-xl shadow-sm"
              id="image-preview">
@@ -68,12 +68,12 @@
         <!-- Navigation -->
         <div class="flex items-center justify-center gap-4 mt-4">
             <button id="prev-btn"
-                    class="w-10 h-10 bg-gray-100 hover:bg-emerald-50 rounded-full flex items-center justify-center text-gray-500 hover:text-emerald-500 transition-all">
+                    class="w-10 h-10 bg-gray-100 dark:bg-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-emerald-500 transition-all">
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
-            <span id="image-counter" class="text-sm text-gray-500 font-semibold"></span>
+            <span id="image-counter" class="text-sm text-gray-500 dark:text-gray-400 font-semibold"></span>
             <button id="next-btn"
-                    class="w-10 h-10 bg-gray-100 hover:bg-emerald-50 rounded-full flex items-center justify-center text-gray-500 hover:text-emerald-500 transition-all">
+                    class="w-10 h-10 bg-gray-100 dark:bg-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-emerald-500 transition-all">
                 <i class="fa-solid fa-chevron-right"></i>
             </button>
         </div>
@@ -81,7 +81,7 @@
         <script>
         (function() {
             var images = {{ sibling_images | tojson }};
-            var currentPath = '{{ file.path }}';
+            var currentPath = {{ file.path | tojson }};
             var currentIdx = images.findIndex(function(img) { return img.path === currentPath; });
             if (currentIdx < 0) currentIdx = 0;
 
@@ -117,10 +117,10 @@
 
     {% if sibling_images|length > 1 %}
     <!-- Thumbnail grid -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <div class="flex items-center gap-2 mb-3">
-            <i class="fa-solid fa-images text-gray-400"></i>
-            <span class="text-sm font-bold text-gray-600">Gallery ({{ sibling_images|length }} images)</span>
+            <i class="fa-solid fa-images text-gray-400 dark:text-gray-500"></i>
+            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">Gallery ({{ sibling_images|length }} images)</span>
         </div>
         <div class="grid grid-cols-6 gap-2">
             {% for img in sibling_images %}
@@ -128,7 +128,7 @@
                hx-get="/data/preview/{{ img.path }}"
                hx-target="#data-content"
                hx-push-url="true"
-               class="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-emerald-400 transition-all
+               class="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-emerald-400 transition-all
                       {% if file.path == img.path %}ring-2 ring-emerald-500{% endif %}">
                 <img src="/data/raw/{{ img.path }}" alt="{{ img.name }}"
                      loading="lazy"
@@ -141,7 +141,7 @@
 
     {% elif file.type == "video" %}
     <!-- Video preview -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <video controls class="max-w-full mx-auto rounded-xl">
             <source src="/data/raw/{{ file.path }}">
             Your browser does not support the video tag.
@@ -150,11 +150,11 @@
 
     {% elif file.type == "audio" %}
     <!-- Audio preview (WaveSurfer) -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div id="waveform" class="mb-4 rounded-xl overflow-hidden"></div>
 
         <!-- Time display -->
-        <div class="flex justify-between text-xs text-gray-400 font-mono mb-4 px-1">
+        <div class="flex justify-between text-xs text-gray-400 dark:text-gray-500 font-mono mb-4 px-1">
             <span id="ws-current">0:00</span>
             <span id="ws-duration">0:00</span>
         </div>
@@ -163,7 +163,7 @@
         <div class="flex items-center justify-center gap-3">
             <!-- Skip back -->
             <button onclick="wsSkip(-5)"
-                    class="w-10 h-10 bg-gray-100 hover:bg-violet-50 rounded-full flex items-center justify-center text-gray-500 hover:text-violet-500 transition-all">
+                    class="w-10 h-10 bg-gray-100 dark:bg-gray-700 hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-violet-500 transition-all">
                 <i class="fa-solid fa-backward text-sm"></i>
             </button>
 
@@ -175,13 +175,13 @@
 
             <!-- Skip forward -->
             <button onclick="wsSkip(5)"
-                    class="w-10 h-10 bg-gray-100 hover:bg-violet-50 rounded-full flex items-center justify-center text-gray-500 hover:text-violet-500 transition-all">
+                    class="w-10 h-10 bg-gray-100 dark:bg-gray-700 hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-violet-500 transition-all">
                 <i class="fa-solid fa-forward text-sm"></i>
             </button>
 
             <!-- Speed control -->
             <select id="ws-speed" onchange="wsSetSpeed(this.value)"
-                    class="ml-4 text-xs font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1.5 border-0 cursor-pointer transition-colors">
+                    class="ml-4 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg px-2 py-1.5 border-0 cursor-pointer transition-colors">
                 <option value="0.5">0.5x</option>
                 <option value="0.75">0.75x</option>
                 <option value="1" selected>1.0x</option>
@@ -204,7 +204,7 @@
             barRadius: 2,
             barGap: 1,
             height: 80,
-            url: '/data/raw/{{ file.path }}'
+            url: '/data/raw/' + {{ file.path | tojson }}
         });
 
         function fmt(sec) {
@@ -237,10 +237,10 @@
 
     {% elif file.type == "json" and text_content %}
     <!-- JSON preview -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-            <i class="fa-solid fa-file-code text-gray-400"></i>
-            <span class="text-sm font-bold text-gray-600">JSON</span>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-file-code text-gray-400 dark:text-gray-500"></i>
+            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">JSON</span>
         </div>
         <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
             <pre class="p-4 text-sm"><code class="language-json">{{ text_content }}</code></pre>
@@ -249,10 +249,10 @@
 
     {% elif file.type == "text" and text_content %}
     <!-- Text preview -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-            <i class="fa-solid fa-file-lines text-gray-400"></i>
-            <span class="text-sm font-bold text-gray-600">Text</span>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-file-lines text-gray-400 dark:text-gray-500"></i>
+            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">Text</span>
         </div>
         <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
             <pre class="p-4 text-sm"><code>{{ text_content }}</code></pre>
@@ -261,12 +261,12 @@
 
     {% else %}
     <!-- Generic file info -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-            <i class="fa-solid {{ data_file_icon(file.type) }} text-gray-400 text-2xl"></i>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
+            <i class="fa-solid {{ data_file_icon(file.type) }} text-gray-400 dark:text-gray-500 text-2xl"></i>
         </div>
-        <p class="text-gray-500 font-semibold">このファイル形式のプレビューは対応していません</p>
-        <p class="text-xs text-gray-400 mt-1">{{ file.name }} ({{ file.size | filesize }})</p>
+        <p class="text-gray-500 dark:text-gray-400 font-semibold">このファイル形式のプレビューは対応していません</p>
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">{{ file.name }} ({{ file.size | filesize }})</p>
     </div>
     {% endif %}
 </div>

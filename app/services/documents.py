@@ -115,9 +115,7 @@ def get_validation_strategy() -> str | None:
         return None
 
     text = readme.read_text()
-    match = re.search(
-        r"## Validation Strategy\s*\n(.*?)(?=\n## |\Z)", text, re.DOTALL
-    )
+    match = re.search(r"## Validation Strategy\s*\n(.*?)(?=\n## |\Z)", text, re.DOTALL)
     if not match:
         return None
 
@@ -164,14 +162,38 @@ def _sanitize_html(html: str) -> str:
     return nh3.clean(
         html,
         tags={
-            "h1", "h2", "h3", "h4", "h5", "h6",
-            "p", "br", "hr",
-            "ul", "ol", "li",
-            "a", "strong", "em", "code", "pre", "blockquote",
-            "table", "thead", "tbody", "tr", "th", "td",
-            "img", "div", "span",
-            "dl", "dt", "dd",
-            "sup", "sub",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "p",
+            "br",
+            "hr",
+            "ul",
+            "ol",
+            "li",
+            "a",
+            "strong",
+            "em",
+            "code",
+            "pre",
+            "blockquote",
+            "table",
+            "thead",
+            "tbody",
+            "tr",
+            "th",
+            "td",
+            "img",
+            "div",
+            "span",
+            "dl",
+            "dt",
+            "dd",
+            "sup",
+            "sub",
         },
         attributes={
             "*": {"class", "id"},

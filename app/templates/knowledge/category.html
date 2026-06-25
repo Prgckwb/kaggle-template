@@ -8,21 +8,28 @@
 {% block content %}
 
 <!-- Breadcrumb -->
-<nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+<nav class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
     <a href="/knowledge" class="hover:text-emerald-500 font-semibold transition-colors">Knowledge</a>
-    <i class="fa-solid fa-chevron-right text-xs text-gray-300"></i>
-    <span class="font-semibold text-gray-800">{{ meta.label }}</span>
+    <i class="fa-solid fa-chevron-right text-xs text-gray-300 dark:text-gray-500"></i>
+    <span class="font-semibold text-gray-800 dark:text-gray-100">{{ meta.label }}</span>
 </nav>
 
 <!-- Header -->
 <div class="flex items-center justify-between mb-6">
     <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-{{ meta.color }}-50 rounded-xl flex items-center justify-center">
+        <div class="w-10 h-10 bg-{{ meta.color }}-50 dark:bg-{{ meta.color }}-900/30 rounded-xl flex items-center justify-center">
             <i class="fa-solid {{ meta.icon }} text-{{ meta.color }}-500"></i>
         </div>
-        <h1 class="text-3xl font-extrabold text-gray-800">{{ meta.label }}</h1>
+        <h1 class="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{{ meta.label }}</h1>
     </div>
-    {{ badge(docs|length ~ " 件", color=meta.color, icon="fa-file-lines") }}
+    <div class="flex items-center gap-3">
+        {{ badge(docs|length ~ " 件", color=meta.color, icon="fa-file-lines") }}
+        <button onclick="window.print()"
+                class="no-print inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+                title="PDF出力">
+            <i class="fa-solid fa-file-pdf"></i> PDF
+        </button>
+    </div>
 </div>
 
 <!-- Document list -->
@@ -30,13 +37,13 @@
 <div class="space-y-2">
     {% for doc in docs %}
     <a href="/knowledge/{{ category }}/{{ doc.filename }}"
-       class="block bg-white rounded-2xl p-5 shadow-sm border border-gray-200 hover:shadow-md transition-all group">
+       class="block bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all group">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <i class="fa-solid fa-file-lines text-gray-400 group-hover:text-{{ meta.color }}-500 transition-colors"></i>
-                <span class="font-bold text-gray-800 group-hover:text-{{ meta.color }}-600 transition-colors">{{ doc.name }}</span>
+                <i class="fa-solid fa-file-lines text-gray-400 dark:text-gray-500 group-hover:text-{{ meta.color }}-500 transition-colors"></i>
+                <span class="font-bold text-gray-800 dark:text-gray-100 group-hover:text-{{ meta.color }}-600 transition-colors">{{ doc.name }}</span>
             </div>
-            <span class="text-xs text-gray-400">{{ doc.modified | timeago }}</span>
+            <span class="text-xs text-gray-400 dark:text-gray-500">{{ doc.modified | timeago }}</span>
         </div>
     </a>
     {% endfor %}

@@ -75,9 +75,7 @@ class MetricsLogger:
             "run_mode": self.run_mode,
             "started_at": self._started_at,
             "finished_at": datetime.now(timezone.utc).isoformat(),
-            "folds": {
-                f"fold{k}": v for k, v in sorted(self._fold_best.items())
-            },
+            "folds": {f"fold{k}": v for k, v in sorted(self._fold_best.items())},
             "cv_score": cv_score,
             "config_snapshot": self._config_snapshot,
         }
@@ -102,17 +100,19 @@ class MetricsLogger:
     def _update_best(self, fold_idx: int, metrics: dict[str, Any]) -> None:
         best = self._fold_best[fold_idx]
 
-        # Track best val_score (higher is better)
-        if "val_score" in metrics and metrics["val_score"] is not None:
-            if not best or metrics["val_score"] > best.get("best_val_score", float("-inf")):
-                best["best_epoch"] = metrics.get("epoch", 0)
-                best["best_val_score"] = metrics["val_score"]
+        val_score = metrics.get("val/score") or metrics.get("val_score")
+        val_loss = metrics.get("val/loss") or metrics.get("val_loss")
+        epoch = metrics.get("epoch", 0)
 
-        # Track best val_loss (lower is better)
-        if "val_loss" in metrics and metrics["val_loss"] is not None:
-            if "best_val_loss" not in best or metrics["val_loss"] < best["best_val_loss"]:
-                best["best_val_loss"] = metrics["val_loss"]
-                if "val_score" not in metrics:
-                    best["best_epoch"] = metrics.get("epoch", 0)
+        if val_score is not None:
+            if not best or val_score > best.get("best_val_score", float("-inf")):
+                best["best_epoch"] = epoch
+                best["best_val_score"] = val_score
 
-        best["total_epochs"] = metrics.get("epoch", 0) + 1
+        if val_loss is not None:
+            if "best_val_loss" not in best or val_loss < best["best_val_loss"]:
+                best["best_val_loss"] = val_loss
+                if val_score is None:
+                    best["best_epoch"] = epoch
+
+        best["total_epochs"] = epoch + 1

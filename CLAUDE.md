@@ -20,7 +20,7 @@ kaggle-template/
 │   ├── discussion/ # Discussion 情報（YYYY-MM-DD_topic.md）
 │   └── insights/   # 実験知見（YYYY-MM-DD_topic.md）
 └── src/            # 実験ディレクトリ
-    └── exp000-sample/
+    └── exp000_sample/
         ├── config/                   # ベース config + 小実験 config
         ├── inference_notebook.ipynb  # Kaggle 推論 notebook
         └── output/                   # 学習出力（gitignore）
@@ -67,10 +67,10 @@ Kaggle の公式情報・Discussion・Leaderboard・Dataset などを取得す�
 
 ### 命名・構成
 
-`exp{番号}-{subtitle}` 形式（大実験）。各実験は独立し、他の実験に依存しない。共通コードが必要な場合はコピーする。
+`exp{番号}_{subtitle}` 形式（大実験）。各実験は独立し、他の実験に依存しない。共通コードが必要な場合はコピーする。
 
 ```
-src/exp001-xxx/
+src/exp001_xxx/
 ├── README.md       # 目的・仮説・結果・Runs テーブル・考察
 ├── train.py        # 学習スクリプト
 ├── inference.py    # 推論スクリプト
@@ -123,13 +123,13 @@ training:
 
 ```bash
 # ベース config で実行
-uv run python -m src.exp001-xxx.train
+uv run python -m src.exp001_xxx.train
 
 # 小実験を指定して実行
-uv run python -m src.exp001-xxx.train --config-name=run001-bert
+uv run python -m src.exp001_xxx.train --config-name=run001-bert
 
 # run_mode も指定可能
-uv run python -m src.exp001-xxx.train --config-name=run001-bert run_mode=debug
+uv run python -m src.exp001_xxx.train --config-name=run001-bert run_mode=debug
 ```
 
 ### 推論スクリプト
@@ -150,84 +150,12 @@ uv run python -m src.exp001-xxx.train --config-name=run001-bert run_mode=debug
 
 ### wandb の k-fold ログ方針
 
-**基本原則**: fold ごとに独立した wandb run を作成し、`group` で束ねる。
+詳細は `docs/wandb-spec.md` を参照。要点のみ:
 
-**run 構造**（例: `run_mode=full`, 5-fold）:
-
-```
-Group: {exp_name}/{run_name}_{run_mode}
-
-├── fold_0  (job_type: "train")  ← 各 fold の学習曲線を記録
-├── fold_1  (job_type: "train")
-├── ...
-├── fold_4  (job_type: "train")
-└── summary (job_type: "summary") ← CV スコアのみ記録（学習曲線なし）
-```
-
-- `fold0` モードでは `fold_0` の run のみ作成。summary run は作成しない
-- `debug` モードでは wandb 自体が disabled
-
-**wandb.init パラメータ**:
-
-```python
-# fold run（各 fold の学習用）
-wandb.init(
-    project=cfg.wandb.project,
-    entity=cfg.wandb.entity,
-    group=f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}",
-    name=f"fold_{fold_idx}",
-    job_type="train",
-    config=OmegaConf.to_container(cfg, resolve=True),
-    mode=run_cfg["wandb_mode"],
-    reinit=True,  # 同一プロセスで複数回 init するために必須
-)
-
-# summary run（full モード && wandb 有効 && fold≥2 の場合のみ）
-wandb.init(
-    ...,
-    name="summary",
-    job_type="summary",
-)
-wandb.summary["cv/{評価指標名}"] = cv_mean
-wandb.summary["cv/{評価指標名}_std"] = cv_std
-wandb.finish()
-```
-
-- `WandbLogger(experiment=wandb.run)` を Trainer に渡し、PL の `self.log()` を現在の fold run に記録
-
-**メトリクスキー名規則**: `{split}/{metric}` 形式。全実験で統一し、表記揺れ（`acc` vs `accuracy`、`valid` vs `val`）を避ける。`{評価指標名}` は `/kaggle:init` 実行時にユーザーに確認し、実際のメトリクス名（例: `auc`, `f1`, `accuracy`）に置換する。以降変更しない。
-
-| キー名 | 意味 | 記録場所 |
-|--------|------|----------|
-| `train/loss` | 学習ロス（epoch 平均） | fold run |
-| `train/{評価指標名}` | 学習メトリクス（← `/kaggle:init` で置換） | fold run |
-| `val/loss` | 検証ロス（epoch 平均） | fold run |
-| `val/{評価指標名}` | 検証メトリクス（← `/kaggle:init` で置換） | fold run |
-| `cv/{評価指標名}` | 全 fold の best `val/{評価指標名}` の平均 | summary run の `wandb.summary` |
-| `cv/{評価指標名}_std` | 同標準偏差 | summary run の `wandb.summary` |
-| `fold{i}/best_val_{評価指標名}` | 各 fold の best `val/{評価指標名}` | summary run の `wandb.summary` |
-
-**ライフサイクル**:
-
-```python
-for fold_idx in folds:
-    wandb.init(...)          # fold run 開始
-    trainer.fit(...)         # PL が self.log() → WandbLogger 経由で記録
-    wandb.finish()           # fold run 終了
-
-# full モードのみ
-wandb.init(...)              # summary run 開始
-wandb.summary["cv/{評価指標名}"] = ...
-wandb.finish()               # summary run 終了
-```
-
-**run_mode ごとの挙動**:
-
-| run_mode | wandb_mode | fold 数 | 作成される run | summary run |
-|----------|------------|---------|---------------|-------------|
-| `debug` | disabled | 1 | なし | なし |
-| `fold0` | online | 1 | `fold_0` のみ | なし |
-| `full` | online | N | `fold_0` 〜 `fold_{N-1}` | あり |
+- fold ごとに独立した wandb run を作成し、`group` で束ねる
+- メトリクスキー名は `{split}/{metric}` 形式（例: `train/loss`, `val/auc`）。全実験で統一する
+- `{評価指標名}` は `/kaggle:init` 実行時にユーザーに確認し、実際のメトリクス名に置換する
+- `debug` モードでは wandb disabled、`fold0` では fold_0 のみ、`full` では全 fold + summary run
 
 ### チェックポイントと出力
 
@@ -275,7 +203,7 @@ metrics_logger.finish()
 
 1. **各実験の README.md**: 目的・仮説（開始時）、結果・Runs テーブル・考察（完了時）
 2. **EXP_SUMMARY.md**: Experiments テーブルと Experiment Tree を更新（大実験の best run のスコアを記載）
-3. **docs/insights/**: `YYYY-MM-DD_exp{番号}-{subtitle}.md` で知見を記録
+3. **docs/insights/**: `YYYY-MM-DD_exp{番号}_{subtitle}.md` で知見を記録
 
 **Experiments テーブルのフォーマット:**
 
@@ -296,19 +224,21 @@ metrics_logger.finish()
   - `good`（青 `#3b82f6`）= 完了した実験
   - `base`（灰 `#64748b`）= ベースライン
   - `wip`（黄 `#f59e0b`、破線）= 進行中の実験
+  - `dead`（赤 `#ef4444`）= 行き止まりの実験
 
 例:
 
 ```mermaid
 graph TD
-    A["exp001-baseline<br/>5-Fold SKF | CV: 0.850 | LB: 0.841"]
-    B["exp002-augment<br/>5-Fold SKF | CV: 0.872 | LB: 0.865"]
+    A["exp001_baseline<br/>5-Fold SKF | CV: 0.850 | LB: 0.841"]
+    B["exp002_augment<br/>5-Fold SKF | CV: 0.872 | LB: 0.865"]
     A -- "データ拡張追加" --> B
 
     classDef best fill:#10b981,stroke:#059669,color:#fff,stroke-width:3px
     classDef good fill:#3b82f6,stroke:#2563eb,color:#fff
     classDef base fill:#64748b,stroke:#475569,color:#fff
     classDef wip fill:#f59e0b,stroke:#d97706,color:#fff,stroke-dasharray:5 5
+    classDef dead fill:#ef4444,stroke:#dc2626,color:#fff
 
     class A base
     class B best
@@ -331,6 +261,81 @@ LLM は過去の実験結果に引きずられ、探索空間を狭めてしま�
 - 探索範囲の絞り込み
 
 **新しい実験では:** 問題の本質・データの特性・ドメイン知識から仮説をゼロベースで立てる。
+
+## セッション管理
+
+セッション終了時は `docs/SESSION_NOTES.md` を更新し、次のセッションに引き継ぐべきコンテキストを記録する。記録すべき内容:
+- 現在の作業フォーカス
+- 直近の判断とその理由
+- 未解決の疑問点
+- 次のステップ
+
+## シミュレーション・最適化コンペへの対応
+
+コンペティションタイプが `simulation` または `optimization` の場合、通常の train/predict/submit パイプラインは適用されない。`/kaggle:init` 実行時にタイプを選択する。
+
+### コンペティションタイプ
+
+| タイプ | 説明 | パイプライン |
+|--------|------|-------------|
+| `supervised`（デフォルト） | 予測コンペ | train → predict → submit CSV |
+| `optimization` | 反復最適化コンペ | スコアがイテレーションごとに改善、train/test 分割なし |
+| `simulation` | エージェント/RL コンペ | ゲームやシステムを制御するエージェントを作成 |
+
+### simulation タイプの実験構成
+
+`model.py` の代わりに `agent.py` を作成する。`BaseAgent` を継承し、`act(observation)` を実装する。
+
+```
+src/exp001_xxx/
+├── agent.py        # エージェント定義（model.py の代わり）
+├── env.py          # 環境ラッパー（必要に応じて）
+├── train.py        # 学習・評価ループ
+├── data.py         # リプレイデータ等の処理
+├── config/
+│   └── config.yaml
+└── output/
+```
+
+- **トラッキング**: エピソード報酬（episode reward）で評価
+- **評価方法**: セルフプレイまたはアリーナ形式
+
+### optimization タイプの実験構成
+
+通常の `model.py` + `train.py` を使うが、fold/CV の概念がない。スコアをイテレーションごとに記録する。
+
+```
+src/exp001_xxx/
+├── solver.py       # 最適化ソルバー（model.py の代わり）
+├── train.py        # 最適化ループ
+├── config/
+│   └── config.yaml
+└── output/
+```
+
+- **トラッキング**: イテレーションごとのスコア改善
+- **評価方法**: テストケースに対するスコア
+
+### 実行モードの対応
+
+`run_mode` は全タイプで有効だが、名称の解釈が変わる:
+
+| run_mode | supervised | simulation / optimization |
+|----------|-----------|--------------------------|
+| `debug` | 少数データ・1epoch・1fold | 少数エピソード/イテレーション・短時間で動作確認 |
+| `fold0` | fold0 のみ学習 | `eval_once`: 単一評価（1エピソード or 1テストケース） |
+| `full` | 全 fold 学習 | `eval_full`: 完全評価（全エピソード or 全テストケース） |
+
+config 上は `run_mode` のまま統一し、コード内で解釈を切り替える。
+
+### wandb ログの適応
+
+| supervised | simulation | optimization |
+|-----------|-----------|-------------|
+| epoch | episode | iteration |
+| train/loss, val/loss | episode/reward, episode/length | iteration/score, iteration/best_score |
+| cv/{metric} | mean_reward | best_score |
+| fold ごとの run | 単一 run（長期学習） | 単一 run |
 
 ## 疑問点の確認（AI エージェントへの注意）
 
@@ -362,8 +367,8 @@ sandbox/ で生成した EDA 画像や分析結果をダッシュボードで表
 
 ## Git 規則
 
-- **ブランチ**: `main`（デフォルト）、`exp/{番号}-{subtitle}`、`feature/{名前}`、`fix/{内容}`
-- **コミット**: gitmoji + 日本語。1コミット = 1つの論理的な変更。例: `🧪 exp001-baseline を追加`
+- **ブランチ**: `main`（デフォルト）、`exp/{番号}_{subtitle}`、`feature/{名前}`、`fix/{内容}`
+- **コミット**: gitmoji + 日本語。1コミット = 1つの論理的な変更。例: `🧪 exp001_baseline を追加`
 - **push**: 作業の区切りごと、実験完了時に push
 
 ## コマンド
@@ -377,13 +382,13 @@ uv run ruff check src/ app/    # Lint
 uv run ruff format src/ app/   # Format
 
 # 大実験のベース config で実行
-uv run python -m src.exp001-baseline.train                  # fold0 のみで学習（デフォルト）
-uv run python -m src.exp001-baseline.train run_mode=debug   # デバッグモード
-uv run python -m src.exp001-baseline.train run_mode=full    # 全 fold で学習
+uv run python -m src.exp001_baseline.train                  # fold0 のみで学習（デフォルト）
+uv run python -m src.exp001_baseline.train run_mode=debug   # デバッグモード
+uv run python -m src.exp001_baseline.train run_mode=full    # 全 fold で学習
 
 # 小実験を指定して実行
-uv run python -m src.exp001-baseline.train --config-name=run001-bert
-uv run python -m src.exp001-baseline.train --config-name=run001-bert run_mode=debug
+uv run python -m src.exp001_baseline.train --config-name=run001-bert
+uv run python -m src.exp001_baseline.train --config-name=run001-bert run_mode=debug
 ```
 
 ## Skills（Claude Code スキル）
@@ -398,3 +403,5 @@ uv run python -m src.exp001-baseline.train --config-name=run001-bert run_mode=de
 | `/kaggle:add-app-page` | ダッシュボードに新ページ追加 |
 | `/kaggle:upload-checkpoints` | チェックポイントを Kaggle Datasets にアップロード |
 | `/kaggle:create-inference-notebook` | 推論ノートブックを作成 |
+| `/kaggle:review-strategy` | 実験ポートフォリオの俯瞰レビュー（探索多様性・停滞検出） |
+| `/kaggle:scout-approaches` | コンペタイプに応じた手法チェックリスト生成・探索率追跡 |

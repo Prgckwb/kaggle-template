@@ -15,40 +15,72 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
 | # | 項目 | 確認方法 |
 |---|------|---------|
-| 1 | コンペ名がドキュメント・アプリに反映済み | README.md のタイトルがデフォルト（`Competition Name`）でないこと |
-| 2 | `uv sync` が実行済み | `.venv/` ディレクトリが存在すること |
-| 3 | `input/` にデータがダウンロード済み | `input/` に `.gitkeep` 以外のファイルがあること |
-| 4 | `docs/official/overview.md` が記入済み | テンプレートのプレースホルダーでないこと |
-| 5 | `docs/official/data.md` が記入済み | テンプレートのプレースホルダーでないこと |
-| 6 | Validation Strategy が記載済み | EXP_SUMMARY.md の該当セクションがプレースホルダーでないこと |
-| 7 | `app/config.py` の `COMPETITION_ID` が設定済み | デフォルト値でないこと |
-| 8 | 評価指標名が CLAUDE.md の wandb テーブルに反映済み | `{評価指標名}` プレースホルダーが実際の指標名に置換されていること |
+| 1 | コンペティションタイプが選択済み | `EXP_SUMMARY.md` に `Competition Type: supervised/optimization/simulation` が記載されていること |
+| 2 | コンペ名がドキュメント・アプリに反映済み | README.md のタイトルがデフォルト（`Competition Name`）でないこと |
+| 3 | `uv sync` が実行済み | `.venv/` ディレクトリが存在すること |
+| 4 | `input/` にデータがダウンロード済み | `input/` に `.gitkeep` 以外のファイルがあること |
+| 5 | `docs/official/overview.md` が記入済み | テンプレートのプレースホルダーでないこと |
+| 6 | `docs/official/data.md` が記入済み | テンプレートのプレースホルダーでないこと |
+| 7 | Validation Strategy が記載済み（supervised のみ） | `supervised` タイプの場合、EXP_SUMMARY.md の該当セクションがプレースホルダーでないこと |
+| 8 | `app/config.py` の `COMPETITION_ID` が設定済み | デフォルト値でないこと |
+| 9 | 評価指標名が CLAUDE.md の wandb テーブルに反映済み | `{評価指標名}` プレースホルダーが実際の指標名に置換されていること |
 
 ## フェーズ 1: 現在の状態を診断
 
 1. 上記チェックリストの各項目を自動的に確認する:
+   - `EXP_SUMMARY.md` に `Competition Type:` の記載があるか確認
    - `README.md` の1行目を Read し、`Competition Name` のままか確認
    - `.venv/` の存在を Bash で確認
    - `input/` の内容を Glob で確認
    - `docs/official/overview.md` の内容を Read し、プレースホルダー（`- **Competition Name**:` が空）か確認
    - `docs/official/data.md` の内容を Read し、プレースホルダーか確認
-   - `EXP_SUMMARY.md` の Validation Strategy セクションがプレースホルダーか確認
+   - `EXP_SUMMARY.md` の Validation Strategy セクションがプレースホルダーか確認（`supervised` タイプのみ）
 
 2. 結果をサマリーとして表示:
    ```
    セットアップ状況:
+   ❌ コンペティションタイプ — 未選択
    ✅ uv sync — 完了
    ❌ コンペ名の反映 — 未完了
    ❌ input/ データ — 未完了
    ❌ docs/official/overview.md — 未完了
    ❌ docs/official/data.md — 未完了
-   ❌ Validation Strategy — 未完了
+   ❌ Validation Strategy — 未完了（supervised のみ）
    ```
 
 ## フェーズ 2: 未完了項目の実行
 
 未完了の項目を順番に対話的に進める。完了済みの項目はスキップする。
 ユーザーが「後でやる」と言った項目もスキップする。
+
+### 2-0. コンペティションタイプの選択
+
+**他の全ステップよりも先に実行する。** タイプによって以降のセットアップ内容が変わるため。
+
+1. ユーザーに質問:
+   ```
+   コンペティションのタイプを選んでください:
+   1. supervised（デフォルト）— 予測コンペ（train/predict/submit CSV）
+   2. optimization — 最適化コンペ（スコアがイテレーションで改善、train/test 分割なし）
+   3. simulation — エージェント/RL コンペ（ゲームやシステムを制御するエージェント）
+   ```
+
+2. 選択されたタイプを `EXP_SUMMARY.md` の先頭付近に記載:
+   ```markdown
+   **Competition Type**: `supervised` | `optimization` | `simulation`
+   ```
+
+3. タイプに応じて以降のステップを適応:
+   - **`supervised`**: 既存の動作と同じ（変更なし）
+   - **`optimization`**:
+     - 2-5 の Validation Strategy はスキップ（fold/CV の概念がないため）
+     - 評価指標名は `score` など最適化スコア名を推奨
+     - CLAUDE.md の wandb セクションは iteration ベースのログに適応
+   - **`simulation`**:
+     - 2-5 の Validation Strategy はスキップ（fold/CV の概念がないため）
+     - 評価指標名は `reward` などエピソード報酬名を推奨
+     - CLAUDE.md の wandb セクションは episode ベースのログに適応
+     - 実験テンプレートで `model.py` の代わりに `agent.py` を案内
 
 ### 2-1. コンペティション情報の収集と反映
 
@@ -126,7 +158,9 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 3. **確認**
    - 置換後のテーブルをユーザーに提示して確認を得る
 
-### 2-5. Validation Strategy
+### 2-5. Validation Strategy（supervised タイプのみ）
+
+**注意**: `optimization` / `simulation` タイプではこのステップをスキップする（fold/CV の概念がないため）。
 
 1. データの特性（件数、ターゲットの分布、時系列かどうか等）を確認
 2. ユーザーと議論しながら分割戦略を決定

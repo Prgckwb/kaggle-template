@@ -18,12 +18,13 @@
 
 ```mermaid
 graph TD
-    A["exp000-sample"]
+    A["exp000_sample"]
 
     classDef best fill:#10b981,stroke:#059669,color:#fff,stroke-width:3px
     classDef good fill:#3b82f6,stroke:#2563eb,color:#fff
     classDef base fill:#64748b,stroke:#475569,color:#fff
     classDef wip fill:#f59e0b,stroke:#d97706,color:#fff,stroke-dasharray:5 5
+    classDef dead fill:#ef4444,stroke:#dc2626,color:#fff
 
     class A base
 ```
@@ -37,4 +38,5 @@ graph TD
   - good(青 #3b82f6)=完了
   - base(灰 #64748b)=ベースライン
   - wip(黄 #f59e0b、破線)=進行中
+  - dead(赤 #ef4444)=行き詰まり（dead-end）
 -->

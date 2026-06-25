@@ -2,29 +2,29 @@
 {% from "components/_empty_state.html" import empty_state %}
 
 {% if experiments %}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
     <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b border-gray-200">
+        <thead class="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <tr>
-                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Exp</th>
-                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">CV</th>
-                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">LB</th>
-                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Description</th>
-                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Exp</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">CV</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">LB</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
             {% for exp in experiments %}
-            <tr class="hover:bg-gray-50 transition-colors cursor-pointer"
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                 onclick="window.location='/experiments/{{ exp.name }}'">
                 <td class="px-4 py-3">
-                    <a href="/experiments/{{ exp.name }}" class="font-bold text-gray-800 hover:text-emerald-500 transition-colors">
+                    <a href="/experiments/{{ exp.name }}" class="font-bold text-gray-800 dark:text-gray-100 hover:text-emerald-500 transition-colors">
                         {{ exp.name }}
                     </a>
                 </td>
-                <td class="px-4 py-3 font-semibold text-gray-700">{{ exp.cv }}</td>
-                <td class="px-4 py-3 font-semibold text-gray-700">{{ exp.lb }}</td>
-                <td class="px-4 py-3 text-gray-500">{{ exp.description }}</td>
+                <td class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">{{ exp.cv }}</td>
+                <td class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">{{ exp.lb }}</td>
+                <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ exp.description }}</td>
                 <td class="px-4 py-3">
                     {% if exp.has_inference %}
                         {{ badge("complete", color="emerald", icon="fa-check") }}

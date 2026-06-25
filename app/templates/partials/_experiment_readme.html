@@ -2,7 +2,7 @@
 {% from "components/_empty_state.html" import empty_state %}
 
 {% if exp.readme_html %}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
     {{ render_md(exp.readme_html) }}
 </div>
 {% else %}

@@ -7,16 +7,26 @@
 {% block content %}
 
 <!-- Breadcrumb -->
-<nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+<nav class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
     <a href="/knowledge" class="hover:text-emerald-500 font-semibold transition-colors">Knowledge</a>
-    <i class="fa-solid fa-chevron-right text-xs text-gray-300"></i>
+    <i class="fa-solid fa-chevron-right text-xs text-gray-300 dark:text-gray-500"></i>
     <a href="/knowledge/{{ category }}" class="hover:text-{{ meta.color }}-500 font-semibold transition-colors">{{ meta.label }}</a>
-    <i class="fa-solid fa-chevron-right text-xs text-gray-300"></i>
-    <span class="font-semibold text-gray-800">{{ doc.title }}</span>
+    <i class="fa-solid fa-chevron-right text-xs text-gray-300 dark:text-gray-500"></i>
+    <span class="font-semibold text-gray-800 dark:text-gray-100">{{ doc.title }}</span>
 </nav>
 
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100">{{ doc.title }}</h1>
+    <button onclick="window.print()"
+            class="no-print inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+            title="PDF出力">
+        <i class="fa-solid fa-file-pdf"></i> PDF
+    </button>
+</div>
+
 <!-- Document content -->
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
     {{ render_md(doc.html) }}
 </div>
 

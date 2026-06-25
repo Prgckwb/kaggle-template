@@ -39,9 +39,10 @@ def experiment_list(request: Request, q: str = "", source: str = ""):
         "mermaid_source": mermaid_source,
     }
     if is_htmx(request):
-        return templates.TemplateResponse(request, "partials/_experiment_list.html", ctx)
+        return templates.TemplateResponse(
+            request, "partials/_experiment_list.html", ctx
+        )
     return templates.TemplateResponse(request, "experiments/list.html", ctx)
-
 
 
 @router.get("/experiments/_scores", response_class=HTMLResponse)
@@ -73,6 +74,9 @@ def experiment_detail(request: Request, name: str):
 
 @router.get("/experiments/{name}/_readme", response_class=HTMLResponse)
 def experiment_readme(request: Request, name: str):
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
     detail = get_experiment_detail(name)
     if detail is None:
         return HTMLResponse("<p>Not found</p>", status_code=404)
@@ -85,6 +89,9 @@ def experiment_readme(request: Request, name: str):
 
 @router.get("/experiments/{name}/_config", response_class=HTMLResponse)
 def experiment_config(request: Request, name: str):
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
     detail = get_experiment_detail(name)
     if detail is None:
         return HTMLResponse("<p>Not found</p>", status_code=404)
@@ -97,6 +104,9 @@ def experiment_config(request: Request, name: str):
 
 @router.get("/experiments/{name}/_files", response_class=HTMLResponse)
 def experiment_files(request: Request, name: str):
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
     detail = get_experiment_detail(name)
     if detail is None:
         return HTMLResponse("<p>Not found</p>", status_code=404)
@@ -109,6 +119,9 @@ def experiment_files(request: Request, name: str):
 
 @router.get("/experiments/{name}/_runs", response_class=HTMLResponse)
 def experiment_runs(request: Request, name: str):
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
     runs = list_runs(name)
     return templates.TemplateResponse(
         request,
@@ -119,6 +132,11 @@ def experiment_runs(request: Request, name: str):
 
 @router.get("/experiments/{name}/_oof", response_class=HTMLResponse)
 def experiment_oof(request: Request, name: str, run: str = ""):
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
+    if run and safe_relative_path(run, src_dir / name / "output") is None:
+        return HTMLResponse("<p>Run not found</p>", status_code=404)
     analysis = get_oof_analysis(name, run_name=run or None)
     runs = list_runs(name)
     oof_runs = [r for r in runs if r["has_oof"]]
@@ -131,6 +149,9 @@ def experiment_oof(request: Request, name: str, run: str = ""):
 
 @router.get("/experiments/{name}/_logs", response_class=HTMLResponse)
 def experiment_logs(request: Request, name: str):
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
     logs = list_run_logs(name)
     return templates.TemplateResponse(
         request,
@@ -141,13 +162,22 @@ def experiment_logs(request: Request, name: str):
 
 @router.get("/experiments/{name}/_logs/{run_name}", response_class=HTMLResponse)
 def experiment_log_detail(request: Request, name: str, run_name: str, fold: int = 0):
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
+    if safe_relative_path(run_name, src_dir / name / "logs") is None:
+        return HTMLResponse("<p>Run not found</p>", status_code=404)
     metrics = get_run_metrics(name, run_name, fold_idx=fold)
     summary = get_run_summary(name, run_name)
     logs_dir = PROJECT_ROOT / "src" / name / "logs" / run_name
-    available_folds = sorted(
-        int(f.stem.replace("fold", "").replace("_metrics", ""))
-        for f in logs_dir.glob("fold*_metrics.csv")
-    ) if logs_dir.exists() else []
+    available_folds = (
+        sorted(
+            int(f.stem.replace("fold", "").replace("_metrics", ""))
+            for f in logs_dir.glob("fold*_metrics.csv")
+        )
+        if logs_dir.exists()
+        else []
+    )
     return templates.TemplateResponse(
         request,
         "partials/_experiment_log_detail.html",
@@ -162,8 +192,16 @@ def experiment_log_detail(request: Request, name: str, run_name: str, fold: int 
     )
 
 
-@router.get("/experiments/{name}/_file_content/{file_path:path}", response_class=HTMLResponse)
+@router.get(
+    "/experiments/{name}/_file_content/{file_path:path}", response_class=HTMLResponse
+)
 def experiment_file_content(request: Request, name: str, file_path: str):
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
+    exp_dir = src_dir / name
+    if safe_relative_path(file_path, exp_dir) is None:
+        return HTMLResponse("<p>File not found</p>", status_code=404)
     content = get_experiment_file_content(name, file_path)
     if content is None:
         return HTMLResponse("<p>File not found</p>", status_code=404)
@@ -176,7 +214,10 @@ def experiment_file_content(request: Request, name: str, file_path: str):
 
 @router.get("/experiments/{name}/_file_raw/{file_path:path}")
 def experiment_file_raw(request: Request, name: str, file_path: str):
-    exp_dir = PROJECT_ROOT / "src" / name
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
+    exp_dir = src_dir / name
     full_path = safe_relative_path(file_path, exp_dir)
     if full_path is None or not full_path.exists() or not full_path.is_file():
         return HTMLResponse("<p>File not found</p>", status_code=404)
@@ -185,6 +226,11 @@ def experiment_file_raw(request: Request, name: str, file_path: str):
 
 @router.get("/experiments/{name}/_run_config/{run_name}", response_class=HTMLResponse)
 def experiment_run_config(request: Request, name: str, run_name: str):
+    src_dir = PROJECT_ROOT / "src"
+    if safe_relative_path(name, src_dir) is None:
+        return HTMLResponse("<p>Experiment not found</p>", status_code=404)
+    if safe_relative_path(run_name, src_dir / name) is None:
+        return HTMLResponse("<p>Run not found</p>", status_code=404)
     config = get_run_config(name, run_name)
     if config is None:
         return HTMLResponse("<p>Config not found</p>", status_code=404)

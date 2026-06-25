@@ -1,9 +1,9 @@
 {% for f in files %}
 <li>
     {% if f.is_dir %}
-    <div class="flex items-center cursor-pointer hover:bg-gray-50 rounded-lg transition-colors"
+    <div class="flex items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
          onclick="clickDataDir(this)">
-        <span class="p-1 text-gray-400 hover:text-gray-600 transition-colors data-dir-btn"
+        <span class="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 transition-colors data-dir-btn"
               hx-get="/data/tree/{{ f.path }}"
               hx-target="next ul"
               hx-swap="innerHTML"
@@ -11,8 +11,8 @@
             <i class="fa-solid fa-chevron-right text-xs transition-transform duration-200"></i>
         </span>
         <i class="fa-solid fa-folder text-amber-400 w-4 text-center mx-1"></i>
-        <span class="text-sm font-semibold text-gray-700 truncate flex-1">{{ f.name }}</span>
-        <span class="text-xs text-gray-400 ml-auto mr-2">{{ f.child_count }}</span>
+        <span class="text-sm font-semibold text-gray-700 dark:text-gray-200 truncate flex-1">{{ f.name }}</span>
+        <span class="text-xs text-gray-400 dark:text-gray-500 ml-auto mr-2">{{ f.child_count }}</span>
     </div>
     <ul class="ml-4 hidden"></ul>
     {% else %}
@@ -20,10 +20,10 @@
        hx-get="/data/preview/{{ f.path }}"
        hx-target="#data-content"
        hx-push-url="true"
-       class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-all">
-        <i class="fa-solid {{ data_file_icon(f.type) }} w-4 text-center text-gray-400"></i>
+       class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-100 transition-all">
+        <i class="fa-solid {{ data_file_icon(f.type) }} w-4 text-center text-gray-400 dark:text-gray-500"></i>
         <span class="truncate flex-1">{{ f.name }}</span>
-        <span class="text-xs text-gray-400">{{ f.size | filesize }}</span>
+        <span class="text-xs text-gray-400 dark:text-gray-500">{{ f.size | filesize }}</span>
     </a>
     {% endif %}
 </li>

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 
 from app.services.data import list_input_files
 from app.services.documents import list_docs
@@ -37,13 +36,15 @@ def _search_experiments(q: str) -> list[dict]:
         name = exp.get("name", "")
         desc = exp.get("description", "") or ""
         if q in name.lower() or q in desc.lower():
-            hits.append({
-                "title": name,
-                "description": desc,
-                "url": f"/experiments/{name}",
-                "icon": "fa-flask",
-                "color": "emerald",
-            })
+            hits.append(
+                {
+                    "title": name,
+                    "description": desc,
+                    "url": f"/experiments/{name}",
+                    "icon": "fa-flask",
+                    "color": "emerald",
+                }
+            )
     return hits
 
 
@@ -53,13 +54,15 @@ def _search_runs(q: str) -> list[dict]:
     for exp in list_experiments():
         for run in list_runs(exp["name"]):
             if q in run["name"].lower():
-                hits.append({
-                    "title": run["name"],
-                    "description": exp["name"],
-                    "url": f"/experiments/{exp['name']}",
-                    "icon": "fa-vial",
-                    "color": "emerald",
-                })
+                hits.append(
+                    {
+                        "title": run["name"],
+                        "description": exp["name"],
+                        "url": f"/experiments/{exp['name']}",
+                        "icon": "fa-vial",
+                        "color": "emerald",
+                    }
+                )
     return hits
 
 
@@ -87,14 +90,16 @@ def _search_knowledge(q: str) -> list[dict]:
                         pass
 
             if name_match or body_match:
-                hits.append({
-                    "title": name,
-                    "description": _category_label(category),
-                    "url": f"/knowledge/{category}/{filename}",
-                    "icon": _category_icon(category),
-                    "color": _category_color(category),
-                    "match_type": "name" if name_match else "body",
-                })
+                hits.append(
+                    {
+                        "title": name,
+                        "description": _category_label(category),
+                        "url": f"/knowledge/{category}/{filename}",
+                        "icon": _category_icon(category),
+                        "color": _category_color(category),
+                        "match_type": "name" if name_match else "body",
+                    }
+                )
     return hits
 
 
@@ -111,19 +116,23 @@ def _search_data_recursive(q: str, directory: str, hits: list[dict]) -> None:
         if item["is_dir"]:
             _search_data_recursive(q, item["path"], hits)
         elif q in item["name"].lower():
-            hits.append({
-                "title": item["name"],
-                "description": item["path"],
-                "url": f"/data?file={item['path']}",
-                "icon": "fa-database",
-                "color": "amber",
-            })
+            hits.append(
+                {
+                    "title": item["name"],
+                    "description": item["path"],
+                    "url": f"/data?file={item['path']}",
+                    "icon": "fa-database",
+                    "color": "amber",
+                }
+            )
 
 
 def _category_label(category: str) -> str:
-    return {"official": "Official", "insights": "Insights", "discussion": "Discussion"}.get(
-        category, category
-    )
+    return {
+        "official": "Official",
+        "insights": "Insights",
+        "discussion": "Discussion",
+    }.get(category, category)
 
 
 def _category_icon(category: str) -> str:

@@ -88,13 +88,12 @@ def main(cfg: DictConfig) -> None:
     # from sklearn.model_selection import StratifiedKFold
     # skf = StratifiedKFold(n_splits=run_cfg["n_folds"], shuffle=True, random_state=cfg.seed)
 
-    oof_predictions = []
     fold_scores: dict[int, float] = {}
 
     for fold_idx in run_cfg["folds_to_run"]:
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"Fold {fold_idx}")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
 
         # Initialize wandb fold run
         wandb.init(
@@ -154,19 +153,26 @@ def main(cfg: DictConfig) -> None:
             val_loss = 1.1 / (epoch + 1)
             best_val_loss = min(best_val_loss, val_loss)
 
-            wandb.log({
-                "epoch": epoch,
-                "train/loss": train_loss,
-                "val/loss": val_loss,
-            })
+            wandb.log(
+                {
+                    "epoch": epoch,
+                    "train/loss": train_loss,
+                    "val/loss": val_loss,
+                }
+            )
 
-            metrics_logger.log_epoch(fold_idx, {
-                "epoch": epoch,
-                "train_loss": train_loss,
-                "val_loss": val_loss,
-            })
+            metrics_logger.log_epoch(
+                fold_idx,
+                {
+                    "epoch": epoch,
+                    "train/loss": train_loss,
+                    "val/loss": val_loss,
+                },
+            )
 
-            print(f"  Epoch {epoch}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}")
+            print(
+                f"  Epoch {epoch}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}"
+            )
 
         fold_scores[fold_idx] = best_val_loss
         wandb.finish()
@@ -191,7 +197,7 @@ def main(cfg: DictConfig) -> None:
         )
         scores = list(fold_scores.values())
         cv_mean = sum(scores) / len(scores)
-        cv_std = (sum((s - cv_mean) ** 2 for s in scores) / len(scores)) ** 0.5
+        cv_std = (sum((s - cv_mean) ** 2 for s in scores) / (len(scores) - 1)) ** 0.5
         # TODO: Replace "loss" with your competition metric (e.g., "auc", "f1")
         wandb.summary["cv/loss"] = cv_mean
         wandb.summary["cv/loss_std"] = cv_std

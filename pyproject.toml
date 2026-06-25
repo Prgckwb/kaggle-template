@@ -5,10 +5,26 @@ description = "Kaggle competition template"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "hydra-core",
+    "hydra-core>=1.3",
     "wandb",
     "polars",
     "pandas",
+]
+
+[project.optional-dependencies]
+torch = [
+    "torch>=2.0",
+    "lightning>=2.0",
+    "torchmetrics",
+    "scikit-learn",
+    "numpy",
+]
+tabular = [
+    "lightgbm",
+    "xgboost",
+    "catboost",
+    "scikit-learn",
+    "numpy",
 ]
 
 [dependency-groups]
@@ -16,6 +32,7 @@ dev = [
     "jupyter",
     "ruff",
     "ty",
+    "pre-commit",
     "fastapi",
     "uvicorn",
     "jinja2",

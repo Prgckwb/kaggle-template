@@ -1,23 +1,23 @@
 <div class="space-y-4">
     <!-- File info header -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 flex items-center justify-between">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+            <div class="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
                 <i class="{{ file_icon(file.type) }} text-emerald-500"></i>
             </div>
             <div>
-                <h2 class="font-bold text-gray-800">{{ file.name }}</h2>
-                <p class="text-xs text-gray-400">{{ file.path }} | {{ file.size | filesize }}</p>
+                <h2 class="font-bold text-gray-800 dark:text-gray-100">{{ file.name }}</h2>
+                <p class="text-xs text-gray-400 dark:text-gray-500">{{ file.path }} | {{ file.size | filesize }}</p>
             </div>
         </div>
     </div>
 
     {% if file.content_html is defined and file.content_html %}
     <!-- Markdown rendered -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-            <i class="fa-solid fa-file-lines text-gray-400"></i>
-            <span class="text-sm font-bold text-gray-600">Markdown</span>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-file-lines text-gray-400 dark:text-gray-500"></i>
+            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">Markdown</span>
         </div>
         <div class="p-6 prose prose-sm max-w-none">
             {{ file.content_html | safe }}
@@ -26,10 +26,10 @@
 
     {% elif file.content_text is defined and file.content_text is not none %}
     <!-- Code / text with syntax highlighting -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-            <i class="{{ file_icon(file.type) }} text-gray-400"></i>
-            <span class="text-sm font-bold text-gray-600">{{ file.name }}</span>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+            <i class="{{ file_icon(file.type) }} text-gray-400 dark:text-gray-500"></i>
+            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">{{ file.name }}</span>
         </div>
         <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
             <pre class="p-4 text-sm"><code{% if file.language %} class="language-{{ file.language }}"{% endif %}>{{ file.content_text }}</code></pre>
@@ -38,25 +38,25 @@
 
     {% elif file.csv_columns is defined %}
     <!-- CSV table preview -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-            <i class="fa-solid fa-file-csv text-gray-400"></i>
-            <span class="text-sm font-bold text-gray-600">Preview ({{ file.csv_rows|length }} / {{ file.csv_total }} rows)</span>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-file-csv text-gray-400 dark:text-gray-500"></i>
+            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">Preview ({{ file.csv_rows|length }} / {{ file.csv_total }} rows)</span>
         </div>
         <div class="overflow-x-auto max-h-96">
             <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
+                <thead class="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0">
                     <tr>
                         {% for col in file.csv_columns %}
-                        <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 whitespace-nowrap">{{ col }}</th>
+                        <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ col }}</th>
                         {% endfor %}
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                     {% for row in file.csv_rows %}
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                         {% for col in file.csv_columns %}
-                        <td class="px-3 py-2 text-gray-700 whitespace-nowrap max-w-xs truncate">{{ row[col] if row[col] is not none else '' }}</td>
+                        <td class="px-3 py-2 text-gray-700 dark:text-gray-200 whitespace-nowrap max-w-xs truncate">{{ row[col] if row[col] is not none else '' }}</td>
                         {% endfor %}
                     </tr>
                     {% endfor %}
@@ -67,14 +67,14 @@
 
     {% elif file.type == 'image' and file.media_url is defined %}
     <!-- Image preview -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <img src="{{ file.media_url }}" alt="{{ file.name }}"
              class="max-w-full max-h-[600px] mx-auto rounded-xl shadow-sm">
     </div>
 
     {% elif file.type == 'video' and file.media_url is defined %}
     <!-- Video preview -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <video controls class="max-w-full mx-auto rounded-xl">
             <source src="{{ file.media_url }}">
             Your browser does not support the video tag.
@@ -83,9 +83,9 @@
 
     {% elif file.type == 'audio' and file.media_url is defined %}
     <!-- Audio preview -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div class="flex items-center justify-center mb-4">
-            <div class="w-20 h-20 bg-violet-50 rounded-full flex items-center justify-center">
+            <div class="w-20 h-20 bg-violet-50 dark:bg-violet-900/30 rounded-full flex items-center justify-center">
                 <i class="fa-solid fa-music text-violet-500 text-3xl"></i>
             </div>
         </div>
@@ -97,22 +97,22 @@
 
     {% elif file.type == 'binary' %}
     <!-- Binary file -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-            <i class="fa-solid fa-file-zipper text-gray-400 text-2xl"></i>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
+            <i class="fa-solid fa-file-zipper text-gray-400 dark:text-gray-500 text-2xl"></i>
         </div>
-        <p class="text-gray-500 font-semibold">バイナリファイルのためプレビューできません</p>
-        <p class="text-xs text-gray-400 mt-1">{{ file.name }} ({{ file.size | filesize }})</p>
+        <p class="text-gray-500 dark:text-gray-400 font-semibold">バイナリファイルのためプレビューできません</p>
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">{{ file.name }} ({{ file.size | filesize }})</p>
     </div>
 
     {% else %}
     <!-- Unknown / no preview -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-            <i class="{{ file_icon(file.type) }} text-gray-400 text-2xl"></i>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
+            <i class="{{ file_icon(file.type) }} text-gray-400 dark:text-gray-500 text-2xl"></i>
         </div>
-        <p class="text-gray-500 font-semibold">このファイル形式のプレビューは対応していません</p>
-        <p class="text-xs text-gray-400 mt-1">{{ file.name }} ({{ file.size | filesize }})</p>
+        <p class="text-gray-500 dark:text-gray-400 font-semibold">このファイル形式のプレビューは対応していません</p>
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">{{ file.name }} ({{ file.size | filesize }})</p>
     </div>
     {% endif %}
 </div>

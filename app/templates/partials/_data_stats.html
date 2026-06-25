@@ -11,25 +11,25 @@
 
 <!-- Describe table -->
 {% if stats.describe_rows %}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mt-4">
-    <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-        <i class="fa-solid fa-chart-bar text-gray-400"></i>
-        <span class="text-sm font-bold text-gray-600">Statistics (describe)</span>
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-4">
+    <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+        <i class="fa-solid fa-chart-bar text-gray-400 dark:text-gray-500"></i>
+        <span class="text-sm font-bold text-gray-600 dark:text-gray-300">Statistics (describe)</span>
     </div>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
-            <thead class="bg-gray-50 border-b border-gray-200">
+            <thead class="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr>
                     {% for col in stats.describe_columns %}
-                    <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 whitespace-nowrap">{{ col }}</th>
+                    <th class="px-3 py-2 text-left text-xs font-bold text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ col }}</th>
                     {% endfor %}
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                 {% for row in stats.describe_rows %}
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                     {% for col in stats.describe_columns %}
-                    <td class="px-3 py-2 text-gray-700 whitespace-nowrap">{{ row[col] if row[col] is not none else '-' }}</td>
+                    <td class="px-3 py-2 text-gray-700 dark:text-gray-200 whitespace-nowrap">{{ row[col] if row[col] is not none else '-' }}</td>
                     {% endfor %}
                 </tr>
                 {% endfor %}
@@ -40,8 +40,8 @@
 {% endif %}
 
 {% else %}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
-    <i class="fa-solid fa-chart-bar text-gray-300 text-4xl mb-3"></i>
-    <p class="text-gray-500 font-semibold">統計情報を計算できませんでした</p>
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+    <i class="fa-solid fa-chart-bar text-gray-300 dark:text-gray-500 text-4xl mb-3"></i>
+    <p class="text-gray-500 dark:text-gray-400 font-semibold">統計情報を計算できませんでした</p>
 </div>
 {% endif %}

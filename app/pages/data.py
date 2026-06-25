@@ -14,7 +14,12 @@ from app.services.data import (
     read_json_preview,
     read_text_preview,
 )
-from app.services.helpers import PROJECT_ROOT, error_response, is_htmx, safe_relative_path
+from app.services.helpers import (
+    PROJECT_ROOT,
+    error_response,
+    is_htmx,
+    safe_relative_path,
+)
 from app.template_env import templates
 
 router = APIRouter()
@@ -23,7 +28,19 @@ INPUT_DIR = PROJECT_ROOT / "input"
 
 
 @router.get("/data", response_class=HTMLResponse)
-def data_index(request: Request, dir: str = ""):
+def data_index(request: Request, dir: str = "", file: str = ""):
+    # If a file is specified (e.g. from search results), redirect to the preview route
+    if file:
+        from starlette.responses import RedirectResponse
+
+        return RedirectResponse(url=f"/data/preview/{file}", status_code=302)
+
+    if dir:
+        safe_path = safe_relative_path(dir, INPUT_DIR)
+        if safe_path is None or not safe_path.is_dir():
+            return error_response(
+                request, templates, 404, "ディレクトリが見つかりません"
+            )
     files = list_input_files(dir)
     ctx = {
         "files": files,
@@ -105,6 +122,9 @@ def data_stats(request: Request, file_path: str):
 
 @router.get("/data/gallery/{dir_path:path}", response_class=HTMLResponse)
 def data_gallery(request: Request, dir_path: str):
+    safe_path = safe_relative_path(dir_path, INPUT_DIR)
+    if safe_path is None or not safe_path.is_dir():
+        return error_response(request, templates, 404, "ディレクトリが見つかりません")
     images = list_directory_images(dir_path, INPUT_DIR)
     ctx = {
         "images": images,

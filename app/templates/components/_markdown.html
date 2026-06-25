@@ -1,11 +1,11 @@
 {% macro render_md(html_content) %}
-<div class="prose prose-sm prose-gray max-w-none
-            prose-headings:font-extrabold prose-headings:text-gray-800
+<div class="prose prose-sm prose-gray dark:prose-invert max-w-none
+            prose-headings:font-extrabold prose-headings:text-gray-800 dark:prose-headings:text-gray-100
             prose-a:text-emerald-500 prose-a:no-underline hover:prose-a:underline
-            prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-lg prose-code:text-sm
-            prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:rounded-xl
-            prose-table:border prose-table:border-gray-200 prose-table:rounded-xl
-            prose-th:bg-gray-50 prose-th:px-3 prose-th:py-2
+            prose-code:bg-gray-100 dark:prose-code:bg-gray-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-lg prose-code:text-sm
+            prose-pre:bg-gray-50 dark:prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-200 dark:prose-pre:border-gray-700 prose-pre:rounded-xl
+            prose-table:border prose-table:border-gray-200 dark:prose-table:border-gray-700 prose-table:rounded-xl
+            prose-th:bg-gray-50 dark:prose-th:bg-gray-900 prose-th:px-3 prose-th:py-2
             prose-td:px-3 prose-td:py-2">
     {{ html_content | safe }}
 </div>

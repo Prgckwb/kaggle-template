@@ -1,4 +1,4 @@
-# exp000-sample
+# exp000_sample
 
 ## 目的
 

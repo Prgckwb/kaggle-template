@@ -27,7 +27,7 @@ kaggle-template/
 │   ├── discussion/ # Kaggle Discussion 情報
 │   └── insights/   # 実験から得た知見
 └── src/            # 実験ディレクトリ
-    └── exp000-sample/
+    └── exp000_sample/
         ├── config/     # ベース config + 小実験 config
         └── output/     # 学習出力（gitignore）
 ```

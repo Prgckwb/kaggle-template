@@ -1,6 +1,6 @@
 {% if scores %}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-    <h3 class="text-sm font-bold text-gray-800 mb-4">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-4">
         <i class="fa-solid fa-chart-line text-emerald-500 mr-2"></i>Score Comparison
     </h3>
     <canvas id="score-chart" height="200"></canvas>
@@ -57,5 +57,5 @@
     });
 </script>
 {% else %}
-<p class="text-sm text-gray-400 text-center py-8">No experiment scores available</p>
+<p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">No experiment scores available</p>
 {% endif %}

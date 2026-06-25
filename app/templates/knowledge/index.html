@@ -9,24 +9,24 @@
 <!-- Header -->
 <div class="flex items-center justify-between mb-6">
     <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center">
+        <div class="w-10 h-10 bg-rose-50 dark:bg-rose-900/30 rounded-xl flex items-center justify-center">
             <i class="fa-solid fa-book text-rose-500"></i>
         </div>
-        <h1 class="text-3xl font-extrabold text-gray-800">Knowledge</h1>
+        <h1 class="text-3xl font-extrabold text-gray-800 dark:text-gray-100">Knowledge</h1>
     </div>
 </div>
 
 <!-- Overview card -->
 {% if overview %}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
     <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+        <div class="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
             <i class="fa-solid fa-trophy text-emerald-500"></i>
         </div>
         <div>
-            <h2 class="text-lg font-bold text-gray-800">{{ overview.title }}</h2>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">{{ overview.title }}</h2>
             {% if overview.description %}
-            <p class="text-sm text-gray-500">{{ overview.description }}</p>
+            <p class="text-base text-gray-500 dark:text-gray-400">{{ overview.description }}</p>
             {% endif %}
         </div>
     </div>
@@ -37,15 +37,15 @@
 <div class="grid grid-cols-3 gap-5">
     {% for key, meta in categories.items() %}
     <a href="/knowledge/{{ key }}"
-       class="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all group block">
-        <div class="w-12 h-12 bg-{{ meta.color }}-50 rounded-xl flex items-center justify-center mb-4">
+       class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all group block">
+        <div class="w-12 h-12 bg-{{ meta.color }}-50 dark:bg-{{ meta.color }}-900/30 rounded-xl flex items-center justify-center mb-4">
             <i class="fa-solid {{ meta.icon }} text-{{ meta.color }}-500 text-xl"></i>
         </div>
-        <h2 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-{{ meta.color }}-600 transition-colors">
+        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-1 group-hover:text-{{ meta.color }}-600 transition-colors">
             {{ meta.label }}
         </h2>
-        <p class="text-gray-500 text-sm">{{ meta.description }}</p>
-        <div class="mt-4 inline-flex items-center gap-2 bg-{{ meta.color }}-50 text-{{ meta.color }}-600 rounded-full px-3 py-1 text-sm font-semibold">
+        <p class="text-gray-500 dark:text-gray-400 text-base">{{ meta.description }}</p>
+        <div class="mt-4 inline-flex items-center gap-2 bg-{{ meta.color }}-50 dark:bg-{{ meta.color }}-900/30 text-{{ meta.color }}-600 dark:text-{{ meta.color }}-400 rounded-full px-3 py-1 text-sm font-semibold">
             <i class="fa-solid fa-file-lines text-xs"></i>
             {{ docs[key]|length }} 件
         </div>

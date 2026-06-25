@@ -7,7 +7,7 @@
 {% block content %}
 
 <!-- Back link -->
-<a href="/experiments" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-500 font-semibold mb-4 transition-colors">
+<a href="/experiments" class="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-emerald-500 font-semibold mb-4 transition-colors">
     <i class="fa-solid fa-arrow-left text-xs"></i>
     Experiments
 </a>
@@ -15,10 +15,10 @@
 <!-- Header -->
 <div class="flex items-center justify-between mb-6">
     <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+        <div class="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
             <i class="fa-solid fa-flask text-emerald-500"></i>
         </div>
-        <h1 class="text-3xl font-extrabold text-gray-800">{{ exp.name }}</h1>
+        <h1 class="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{{ exp.name }}</h1>
     </div>
     <div class="flex items-center gap-2">
         {% if exp.runs %}
@@ -38,39 +38,39 @@
 </div>
 
 <!-- Tabs -->
-<div class="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+<div class="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1 mb-6">
     <button class="tab-btn active px-4 py-2 rounded-lg text-sm font-bold transition-all"
             hx-get="/experiments/{{ exp.name }}/_readme"
             hx-target="#tab-content"
             onclick="activateTab(this)">
         <i class="fa-solid fa-file-lines mr-1.5"></i>Overview
     </button>
-    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 dark:text-gray-400 transition-all"
             hx-get="/experiments/{{ exp.name }}/_config"
             hx-target="#tab-content"
             onclick="activateTab(this)">
         <i class="fa-solid fa-gear mr-1.5"></i>Config
     </button>
-    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 dark:text-gray-400 transition-all"
             hx-get="/experiments/{{ exp.name }}/_files"
             hx-target="#tab-content"
             onclick="activateTab(this)">
         <i class="fa-solid fa-folder-open mr-1.5"></i>Files
     </button>
-    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 dark:text-gray-400 transition-all"
             hx-get="/experiments/{{ exp.name }}/_runs"
             hx-target="#tab-content"
             onclick="activateTab(this)">
         <i class="fa-solid fa-flask mr-1.5"></i>Runs
-        {% if exp.runs %}<span class="ml-1 text-xs text-gray-400">({{ exp.runs|length }})</span>{% endif %}
+        {% if exp.runs %}<span class="ml-1 text-xs text-gray-400 dark:text-gray-500">({{ exp.runs|length }})</span>{% endif %}
     </button>
-    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 dark:text-gray-400 transition-all"
             hx-get="/experiments/{{ exp.name }}/_logs"
             hx-target="#tab-content"
             onclick="activateTab(this)">
         <i class="fa-solid fa-chart-line mr-1.5"></i>Logs
     </button>
-    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 transition-all"
+    <button class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-gray-500 dark:text-gray-400 transition-all"
             hx-get="/experiments/{{ exp.name }}/_oof"
             hx-target="#tab-content"
             onclick="activateTab(this)">

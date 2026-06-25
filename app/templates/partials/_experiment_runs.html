@@ -2,51 +2,51 @@
 {% from "components/_empty_state.html" import empty_state %}
 
 {% if runs %}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
-                <tr class="bg-gray-50 border-b border-gray-200">
+                <tr class="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                     <th class="w-8 px-2 py-3"></th>
-                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Run</th>
-                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Config</th>
-                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Checkpoints</th>
-                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">OOF</th>
-                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Output</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Run</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Config</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Checkpoints</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">OOF</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Output</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                 {% for run in runs %}
-                <tr class="hover:bg-gray-50 transition-colors cursor-pointer"
-                    onclick="toggleRunDetail('{{ loop.index }}', '{{ exp_name }}', '{{ run.name }}')">
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                    onclick="toggleRunDetail({{ loop.index | tojson }}, {{ exp_name | tojson }}, {{ run.name | tojson }})">
                     <td class="px-2 py-3 text-center">
-                        <i id="run-chevron-{{ loop.index }}" class="fa-solid fa-chevron-right text-xs text-gray-400 transition-transform duration-200"></i>
+                        <i id="run-chevron-{{ loop.index }}" class="fa-solid fa-chevron-right text-xs text-gray-400 dark:text-gray-500 transition-transform duration-200"></i>
                     </td>
                     <td class="px-4 py-3">
-                        <span class="font-bold text-gray-800">{{ run.name }}</span>
+                        <span class="font-bold text-gray-800 dark:text-gray-100">{{ run.name }}</span>
                     </td>
                     <td class="px-4 py-3">
-                        <span class="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded">{{ run.config_file }}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{{ run.config_file }}</span>
                     </td>
                     <td class="px-4 py-3 text-center">
                         {% if run.checkpoint_count > 0 %}
                         {{ badge(run.checkpoint_count ~ " ckpt", color="sky", icon="fa-weight-hanging") }}
                         {% else %}
-                        <span class="text-xs text-gray-400">-</span>
+                        <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
                         {% endif %}
                     </td>
                     <td class="px-4 py-3 text-center">
                         {% if run.has_oof %}
                         {{ badge("OOF", color="emerald", icon="fa-check") }}
                         {% else %}
-                        <span class="text-xs text-gray-400">-</span>
+                        <span class="text-xs text-gray-400 dark:text-gray-500">-</span>
                         {% endif %}
                     </td>
                     <td class="px-4 py-3 text-center">
                         {% if run.has_output %}
                         <i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i>
                         {% else %}
-                        <i class="fa-solid fa-circle-xmark text-gray-300 text-xs"></i>
+                        <i class="fa-solid fa-circle-xmark text-gray-300 dark:text-gray-500 text-xs"></i>
                         {% endif %}
                     </td>
                 </tr>

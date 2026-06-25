@@ -12,22 +12,22 @@ from app.services.documents import read_markdown_file
 from app.services.helpers import PROJECT_ROOT, _file_type
 
 # ---------------------------------------------------------------------------
-# README.md cache (mtime-based invalidation)
+# EXP_SUMMARY.md cache (mtime-based invalidation)
 # ---------------------------------------------------------------------------
 
-_readme_cache: dict[str, object] = {"mtime": 0.0, "data": []}
+_summary_cache: dict[str, object] = {"mtime": 0.0, "data": []}
 
 
 def _get_cached_experiments_table() -> list[dict]:
     """parse_experiments_table() の結果を mtime ベースでキャッシュする。"""
-    readme = PROJECT_ROOT / "README.md"
-    if not readme.exists():
+    summary_file = PROJECT_ROOT / "EXP_SUMMARY.md"
+    if not summary_file.exists():
         return []
-    current_mtime = readme.stat().st_mtime
-    if current_mtime != _readme_cache["mtime"]:
-        _readme_cache["data"] = _parse_experiments_table_impl()
-        _readme_cache["mtime"] = current_mtime
-    return _readme_cache["data"]  # type: ignore[return-value]
+    current_mtime = summary_file.stat().st_mtime
+    if current_mtime != _summary_cache["mtime"]:
+        _summary_cache["data"] = _parse_experiments_table_impl()
+        _summary_cache["mtime"] = current_mtime
+    return _summary_cache["data"]  # type: ignore[return-value]
 
 
 def list_experiments(query: str = "") -> list[dict]:
@@ -123,22 +123,26 @@ def _build_file_tree(directory: Path, root: Path) -> list[dict]:
                 continue
             children = _build_file_tree(entry, root)
             if children:  # 空ディレクトリはスキップ
-                items.append({
-                    "name": entry.name,
-                    "path": str(entry.relative_to(root)),
-                    "is_dir": True,
-                    "children": children,
-                })
+                items.append(
+                    {
+                        "name": entry.name,
+                        "path": str(entry.relative_to(root)),
+                        "is_dir": True,
+                        "children": children,
+                    }
+                )
         else:
             if entry.suffix.lower() in _EXCLUDED_SUFFIXES:
                 continue
-            items.append({
-                "name": entry.name,
-                "path": str(entry.relative_to(root)),
-                "is_dir": False,
-                "type": _file_type(entry.suffix),
-                "size": entry.stat().st_size,
-            })
+            items.append(
+                {
+                    "name": entry.name,
+                    "path": str(entry.relative_to(root)),
+                    "is_dir": False,
+                    "type": _file_type(entry.suffix),
+                    "size": entry.stat().st_size,
+                }
+            )
     return items
 
 
@@ -153,11 +157,13 @@ def list_experiment_files_flat(exp_dir: Path) -> list[dict]:
                 continue
             if f.suffix.lower() in _EXCLUDED_SUFFIXES:
                 continue
-            files.append({
-                "name": str(rel),
-                "type": _file_type(f.suffix),
-                "size": f.stat().st_size,
-            })
+            files.append(
+                {
+                    "name": str(rel),
+                    "type": _file_type(f.suffix),
+                    "size": f.stat().st_size,
+                }
+            )
     return files
 
 
@@ -207,12 +213,17 @@ def get_experiment_file_content(exp_name: str, file_path: str) -> dict | None:
     elif file_type == "csv":
         try:
             import polars as pl
+
             df = pl.read_csv(full_path, n_rows=50)
             result["csv_columns"] = df.columns
             result["csv_rows"] = df.to_dicts()
-            result["csv_total"] = pl.scan_csv(full_path).select(pl.len()).collect().item()
+            result["csv_total"] = (
+                pl.scan_csv(full_path).select(pl.len()).collect().item()
+            )
         except Exception:
-            result["content_text"] = full_path.read_text(encoding="utf-8", errors="replace")[:50_000]
+            result["content_text"] = full_path.read_text(
+                encoding="utf-8", errors="replace"
+            )[:50_000]
             result["language"] = ""
     elif file_type == "binary":
         pass  # No content, template will show binary message
@@ -236,12 +247,12 @@ def parse_experiments_table() -> list[dict]:
 
 
 def _parse_experiments_table_impl() -> list[dict]:
-    """Root README.md の Experiments テーブルを解析する。ヘッダーからカラム位置を動的検出。"""
-    readme = PROJECT_ROOT / "README.md"
-    if not readme.exists():
+    """EXP_SUMMARY.md の Experiments テーブルを解析する。ヘッダーからカラム位置を動的検出。"""
+    summary_file = PROJECT_ROOT / "EXP_SUMMARY.md"
+    if not summary_file.exists():
         return []
 
-    text = readme.read_text()
+    text = summary_file.read_text()
     rows = []
     headers: list[str] = []
     in_table = False
@@ -276,12 +287,12 @@ def _parse_experiments_table_impl() -> list[dict]:
 
 
 def parse_mermaid_tree() -> str | None:
-    """Root README.md から Mermaid コードブロックを抽出する。"""
-    readme = PROJECT_ROOT / "README.md"
-    if not readme.exists():
+    """EXP_SUMMARY.md から Mermaid コードブロックを抽出する。"""
+    summary_file = PROJECT_ROOT / "EXP_SUMMARY.md"
+    if not summary_file.exists():
         return None
 
-    text = readme.read_text()
+    text = summary_file.read_text()
     match = re.search(r"```mermaid\s*\n(.*?)```", text, re.DOTALL)
     if match:
         return match.group(1).strip()
@@ -305,14 +316,16 @@ def list_runs(exp_name: str) -> list[dict]:
         run_name = cfg.get("run_name", "run000-base")
         run_output = output_dir / run_name
         ckpts = list(run_output.glob("fold*/*.ckpt")) if run_output.exists() else []
-        runs.append({
-            "name": run_name,
-            "config_file": "config.yaml",
-            "has_output": run_output.exists(),
-            "checkpoint_count": len(ckpts),
-            "has_oof": (run_output / "oof_predictions.csv").exists(),
-            "has_logs": (logs_dir / run_name).exists(),
-        })
+        runs.append(
+            {
+                "name": run_name,
+                "config_file": "config.yaml",
+                "has_output": run_output.exists(),
+                "checkpoint_count": len(ckpts),
+                "has_oof": (run_output / "oof_predictions.csv").exists(),
+                "has_logs": (logs_dir / run_name).exists(),
+            }
+        )
 
     # 小実験 config (run*.yaml)
     if config_dir.exists():
@@ -321,14 +334,16 @@ def list_runs(exp_name: str) -> list[dict]:
             run_name = cfg.get("run_name", f.stem)
             run_output = output_dir / run_name
             ckpts = list(run_output.glob("fold*/*.ckpt")) if run_output.exists() else []
-            runs.append({
-                "name": run_name,
-                "config_file": f.name,
-                "has_output": run_output.exists(),
-                "checkpoint_count": len(ckpts),
-                "has_oof": (run_output / "oof_predictions.csv").exists(),
-                "has_logs": (logs_dir / run_name).exists(),
-            })
+            runs.append(
+                {
+                    "name": run_name,
+                    "config_file": f.name,
+                    "has_output": run_output.exists(),
+                    "checkpoint_count": len(ckpts),
+                    "has_oof": (run_output / "oof_predictions.csv").exists(),
+                    "has_logs": (logs_dir / run_name).exists(),
+                }
+            )
 
     return runs
 
@@ -362,19 +377,28 @@ def list_checkpoints(exp_name: str) -> list[dict]:
     results = []
     for f in sorted(out_dir.glob("*/fold*/*.ckpt")):
         run_name = f.parent.parent.name
-        results.append({
-            "run": run_name,
-            "filename": f"{f.parent.name}/{f.name}",
-            "size": f.stat().st_size,
-            "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc),
-        })
+        results.append(
+            {
+                "run": run_name,
+                "filename": f"{f.parent.name}/{f.name}",
+                "size": f.stat().st_size,
+                "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc),
+            }
+        )
     return results
 
 
 def get_oof_analysis(exp_name: str, run_name: str | None = None) -> dict | None:
     """OOF predictions の分析結果を返す。"""
     if run_name:
-        oof_path = PROJECT_ROOT / "src" / exp_name / "output" / run_name / "oof_predictions.csv"
+        oof_path = (
+            PROJECT_ROOT
+            / "src"
+            / exp_name
+            / "output"
+            / run_name
+            / "oof_predictions.csv"
+        )
     else:
         # run_name 未指定時は最初に見つかった OOF を返す
         out_dir = PROJECT_ROOT / "src" / exp_name / "output"
@@ -414,9 +438,11 @@ def get_oof_analysis(exp_name: str, run_name: str | None = None) -> dict | None:
                     ).height
                     row.append(count)
                 matrix.append(row)
-            accuracy = df.filter(pl.col("true_label") == pl.col("pred_label")).height / len(df)
+            accuracy = df.filter(
+                pl.col("true_label") == pl.col("pred_label")
+            ).height / len(df)
             result["confusion_matrix"] = {
-                "labels": [str(l) for l in labels],
+                "labels": [str(label) for label in labels],
                 "matrix": matrix,
             }
             result["accuracy"] = round(accuracy, 4)
@@ -457,12 +483,14 @@ def get_all_experiment_scores() -> list[dict]:
         except (ValueError, TypeError):
             lb_val = None
         if cv_val is not None or lb_val is not None:
-            scores.append({
-                "exp": row.get("exp", ""),
-                "name": row.get("name", ""),
-                "cv": cv_val,
-                "lb": lb_val,
-            })
+            scores.append(
+                {
+                    "exp": row.get("exp", ""),
+                    "name": row.get("name", ""),
+                    "cv": cv_val,
+                    "lb": lb_val,
+                }
+            )
     return scores
 
 
@@ -488,21 +516,28 @@ def list_run_logs(exp_name: str) -> list[dict]:
             with open(summary_path) as f:
                 summary = _json.load(f)
         fold_csvs = sorted(d.glob("fold*_metrics.csv"))
-        results.append({
-            "run_name": d.name,
-            "has_summary": summary is not None,
-            "cv_score": summary.get("cv_score") if summary else None,
-            "run_mode": summary.get("run_mode") if summary else None,
-            "fold_count": len(fold_csvs),
-            "finished_at": summary.get("finished_at") if summary else None,
-        })
+        results.append(
+            {
+                "run_name": d.name,
+                "has_summary": summary is not None,
+                "cv_score": summary.get("cv_score") if summary else None,
+                "run_mode": summary.get("run_mode") if summary else None,
+                "fold_count": len(fold_csvs),
+                "finished_at": summary.get("finished_at") if summary else None,
+            }
+        )
     return results
 
 
 def get_run_metrics(exp_name: str, run_name: str, fold_idx: int = 0) -> dict | None:
     """特定 run/fold の epoch メトリクスを返す。"""
     csv_path = (
-        PROJECT_ROOT / "src" / exp_name / "logs" / run_name / f"fold{fold_idx}_metrics.csv"
+        PROJECT_ROOT
+        / "src"
+        / exp_name
+        / "logs"
+        / run_name
+        / f"fold{fold_idx}_metrics.csv"
     )
     if not csv_path.exists():
         return None

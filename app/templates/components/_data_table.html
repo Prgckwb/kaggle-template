@@ -1,23 +1,23 @@
 {% macro data_table(columns, rows, empty_message="データがありません", empty_icon="fa-inbox") %}
 {% from "components/_empty_state.html" import empty_state %}
-<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
     {% if rows %}
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
-            <thead class="bg-gray-50 border-b border-gray-200">
+            <thead class="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                 <tr>
                     {% for col in columns %}
-                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         {{ col.label }}
                     </th>
                     {% endfor %}
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                 {% for row in rows %}
-                <tr class="hover:bg-gray-50 transition-colors">
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     {% for col in columns %}
-                    <td class="px-4 py-3 text-gray-700">
+                    <td class="px-4 py-3 text-gray-700 dark:text-gray-200">
                         {{ row[col.key] if row[col.key] is defined else '-' }}
                     </td>
                     {% endfor %}

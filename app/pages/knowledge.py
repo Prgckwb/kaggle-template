@@ -11,7 +11,13 @@ from app.services.documents import (
     list_all_knowledge_docs,
     read_markdown_file,
 )
-from app.services.helpers import PROJECT_ROOT, error_response, is_htmx, page_context, safe_relative_path
+from app.services.helpers import (
+    PROJECT_ROOT,
+    error_response,
+    is_htmx,
+    page_context,
+    safe_relative_path,
+)
 from app.template_env import templates
 
 router = APIRouter()
@@ -58,8 +64,11 @@ def knowledge_index(request: Request):
         request,
         "knowledge/index.html",
         page_context(
-            request, "knowledge",
-            docs=all_docs, overview=overview, categories=KNOWLEDGE_PAGES,
+            request,
+            "knowledge",
+            docs=all_docs,
+            overview=overview,
+            categories=KNOWLEDGE_PAGES,
         ),
     )
 
@@ -78,24 +87,35 @@ def knowledge_page(request: Request, page: str):
 
 @router.get("/knowledge/{category}/{filename}", response_class=HTMLResponse)
 def knowledge_detail(request: Request, category: str, filename: str):
-    if category not in KNOWLEDGE_PAGES or KNOWLEDGE_PAGES[category]["type"] != "category":
+    if (
+        category not in KNOWLEDGE_PAGES
+        or KNOWLEDGE_PAGES[category]["type"] != "category"
+    ):
         return error_response(request, templates, 404, "無効なカテゴリです")
 
     # Official docs use tabbed view — redirect to category page with tab param
     if category == "official":
-        return RedirectResponse(url=f"/knowledge/official?tab={filename}", status_code=302)
+        return RedirectResponse(
+            url=f"/knowledge/official?tab={filename}", status_code=302
+        )
 
     docs_dir = PROJECT_ROOT / "docs" / category
     path = safe_relative_path(filename, docs_dir)
     if path is None or not path.exists():
-        return error_response(request, templates, 404, "ドキュメントが見つかりませんでした")
+        return error_response(
+            request, templates, 404, "ドキュメントが見つかりませんでした"
+        )
 
     doc = read_markdown_file(path)
     meta = KNOWLEDGE_PAGES[category]
 
     ctx = page_context(
-        request, "knowledge", category,
-        category=category, meta=meta, doc={"filename": filename, **doc},
+        request,
+        "knowledge",
+        category,
+        category=category,
+        meta=meta,
+        doc={"filename": filename, **doc},
     )
 
     if is_htmx(request):
@@ -129,15 +149,22 @@ def _render_category(request: Request, category: str, meta: dict) -> HTMLRespons
             request,
             "knowledge/official_tabbed.html",
             page_context(
-                request, "knowledge", category,
-                category=category, meta=meta, doc_contents=doc_contents, active_tab=active_tab,
+                request,
+                "knowledge",
+                category,
+                category=category,
+                meta=meta,
+                doc_contents=doc_contents,
+                active_tab=active_tab,
             ),
         )
 
     return templates.TemplateResponse(
         request,
         "knowledge/category.html",
-        page_context(request, "knowledge", category, category=category, meta=meta, docs=docs),
+        page_context(
+            request, "knowledge", category, category=category, meta=meta, docs=docs
+        ),
     )
 
 

@@ -12,9 +12,30 @@ VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
 AUDIO_EXTENSIONS = {".ogg", ".wav", ".mp3", ".flac", ".m4a", ".aac", ".wma"}
 TABULAR_EXTENSIONS = {".csv", ".tsv", ".parquet"}
 TEXT_EXTENSIONS = {
-    ".txt", ".log", ".cfg", ".ini", ".md", ".py", ".sh", ".bash",
-    ".r", ".sql", ".yaml", ".yml", ".toml", ".xml", ".html", ".css",
-    ".js", ".ts", ".c", ".cpp", ".h", ".java", ".go", ".rs",
+    ".txt",
+    ".log",
+    ".cfg",
+    ".ini",
+    ".md",
+    ".py",
+    ".sh",
+    ".bash",
+    ".r",
+    ".sql",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".xml",
+    ".html",
+    ".css",
+    ".js",
+    ".ts",
+    ".c",
+    ".cpp",
+    ".h",
+    ".java",
+    ".go",
+    ".rs",
 }
 
 
@@ -65,7 +86,6 @@ def get_file_info(path: Path, base: Path) -> dict:
     }
 
 
-
 def get_csv_preview(path: Path, preview_rows: int = 5) -> dict | None:
     """CSV の先頭行プレビューを返す（軽量）。"""
     if not path.exists():
@@ -74,7 +94,12 @@ def get_csv_preview(path: Path, preview_rows: int = 5) -> dict | None:
 
     try:
         df = pl.read_csv(path, n_rows=preview_rows, infer_schema_length=10000)
-        total = pl.scan_csv(path, infer_schema_length=10000).select(pl.len()).collect().item()
+        total = (
+            pl.scan_csv(path, infer_schema_length=10000)
+            .select(pl.len())
+            .collect()
+            .item()
+        )
         return {
             "columns": df.columns,
             "rows": df.to_dicts(),
@@ -93,7 +118,12 @@ def get_csv_stats(path: Path, stats_rows: int = 10000) -> dict | None:
 
     try:
         df = pl.read_csv(path, n_rows=stats_rows, infer_schema_length=10000)
-        total = pl.scan_csv(path, infer_schema_length=10000).select(pl.len()).collect().item()
+        total = (
+            pl.scan_csv(path, infer_schema_length=10000)
+            .select(pl.len())
+            .collect()
+            .item()
+        )
         describe = df.describe()
         null_counts = {col: df[col].null_count() for col in df.columns}
 
@@ -107,7 +137,6 @@ def get_csv_stats(path: Path, stats_rows: int = 10000) -> dict | None:
         }
     except Exception:
         return None
-
 
 
 def list_directory_images(directory: str, base: Path) -> list[dict]:

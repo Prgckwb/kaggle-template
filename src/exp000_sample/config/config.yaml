@@ -3,7 +3,7 @@ defaults:
   - _self_
 
 # Experiment
-exp_name: exp000-sample
+exp_name: exp000_sample
 run_name: run000-base
 seed: 42
 
