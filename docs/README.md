@@ -37,4 +37,4 @@ Kaggle Discussion から得られた情報を記載します。
 
 **命名規則**: `YYYY-MM-DD_topic.md`
 
-**自動生成されるもの**: `past_solutions_{competition_slug}.md` は `/kaggle:past-solutions` スキルが Kaggle MCP（or kagglesdk フォールバック）経由で類似過去コンペの上位解法を収集して生成する。新コンペ開始時の初期仮説づくりに使う。
+**自動生成されるもの**: `past_solutions_{competition_slug}.md` は `/kaggle:past-solutions` スキルが Kaggle MCP（or `kaggle` パッケージによるフォールバック）経由で類似過去コンペの上位解法を収集して生成する。新コンペ開始時の初期仮説づくりに使う。

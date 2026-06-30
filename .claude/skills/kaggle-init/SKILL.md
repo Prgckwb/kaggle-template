@@ -23,7 +23,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 | 6 | `docs/official/data.md` が記入済み | テンプレートのプレースホルダーでないこと |
 | 7 | Validation Strategy が記載済み（supervised のみ） | `supervised` タイプの場合、EXP_SUMMARY.md の該当セクションがプレースホルダーでないこと |
 | 8 | `app/config.py` の `COMPETITION_ID` が設定済み | デフォルト値でないこと |
-| 9 | 評価指標名が CLAUDE.md の wandb テーブルに反映済み | `{評価指標名}` プレースホルダーが実際の指標名に置換されていること |
+| 9 | 評価指標名が CLAUDE.md と docs/wandb-spec.md に反映済み | `{評価指標名}` プレースホルダーが実際の指標名に置換されていること |
 
 ## フェーズ 1: 現在の状態を診断
 
@@ -149,10 +149,10 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    - ユーザーに確認: 「メトリクスキー名を決めてください（例: `auc`, `f1`, `accuracy`, `map`, `rmse`）。wandb ログやチェックポイント名に使われます」
    - 短い英小文字の名前を推奨
 
-2. **CLAUDE.md の更新**
-   - wandb メトリクスキー名規則テーブルの `{評価指標名}` を実際の指標名に一括置換
+2. **CLAUDE.md と docs/wandb-spec.md の更新**
+   - `CLAUDE.md` 内の `{評価指標名}` を実際の指標名に一括置換（チェックポイントパターン等）
+   - `docs/wandb-spec.md` の wandb メトリクスキー名規則テーブルの `{評価指標名}` を一括置換
    - コードサンプル内の `{評価指標名}` も同様に置換
-   - チェックポイントファイル名パターンの `val_{評価指標名}` を置換（例: `val_auc`）
    - `wandb.summary` のキー名も置換
 
 3. **確認**
