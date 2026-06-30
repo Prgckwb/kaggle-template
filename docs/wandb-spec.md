@@ -57,6 +57,37 @@ wandb.finish()
 | `cv/{評価指標名}_std` | 同標準偏差 | summary run の `wandb.summary` |
 | `fold{i}/best_val_{評価指標名}` | 各 fold の best `val/{評価指標名}` | summary run の `wandb.summary` |
 
+**パフォーマンスメトリクス（推奨）**:
+
+学習効率の把握と異なる実験間の比較のために、以下のスループット系メトリクスの記録を推奨する:
+
+| キー名 | 意味 | 記録タイミング |
+|--------|------|---------------|
+| `perf/steps_per_second` | 1秒あたりの学習ステップ数 | epoch 終了時 |
+| `perf/samples_per_second` | 1秒あたりの処理サンプル数 | epoch 終了時 |
+| `perf/tokens_per_second` | 1秒あたりの処理トークン数（NLP の場合） | epoch 終了時 |
+| `perf/gpu_memory_mb` | GPU メモリ使用量（MB） | epoch 終了時 |
+| `time/epoch_seconds` | epoch あたりの所要時間（秒） | epoch 終了時 |
+| `time/total_seconds` | 学習開始からの累計時間（秒） | epoch 終了時 |
+
+```python
+import time
+import torch
+
+epoch_start = time.perf_counter()
+# ... training loop ...
+epoch_seconds = time.perf_counter() - epoch_start
+
+perf_metrics = {
+    "perf/steps_per_second": num_steps / epoch_seconds,
+    "perf/samples_per_second": num_samples / epoch_seconds,
+    "time/epoch_seconds": epoch_seconds,
+}
+if torch.cuda.is_available():
+    perf_metrics["perf/gpu_memory_mb"] = torch.cuda.max_memory_allocated() / 1e6
+wandb.log(perf_metrics)
+```
+
 **ライフサイクル**:
 
 ```python
