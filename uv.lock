@@ -1416,19 +1416,17 @@ torch = [
 ]
 
 [package.dev-dependencies]
-app = [
+dev = [
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "jupyter" },
     { name = "kaggle" },
     { name = "markdown" },
     { name = "nh3" },
-    { name = "uvicorn" },
-]
-dev = [
-    { name = "jupyter" },
     { name = "pre-commit" },
     { name = "ruff" },
     { name = "ty" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
@@ -1451,19 +1449,17 @@ requires-dist = [
 provides-extras = ["torch", "tabular"]
 
 [package.metadata.requires-dev]
-app = [
+dev = [
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "jupyter" },
     { name = "kaggle" },
     { name = "markdown" },
     { name = "nh3" },
-    { name = "uvicorn" },
-]
-dev = [
-    { name = "jupyter" },
     { name = "pre-commit" },
     { name = "ruff" },
     { name = "ty" },
+    { name = "uvicorn" },
 ]
 
 [[package]]
