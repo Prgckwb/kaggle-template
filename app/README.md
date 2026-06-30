@@ -10,7 +10,7 @@ just app
 uv run uvicorn app.main:app --reload
 ```
 
-アクセス: http://localhost:8000
+アクセス: http://localhost:{port}（空きポートが自動選択される）
 
 ## 技術スタック
 
@@ -212,7 +212,9 @@ app/
 │   ├── helpers.py      # 汎用ヘルパー（パス検証、サイズ変換等）
 │   ├── experiments.py  # 実験管理（一覧、詳細、OOF、スコア）
 │   ├── documents.py    # ドキュメント・Markdown 処理
-│   └── data.py         # データファイル操作（CSV、画像等）
+│   ├── data.py         # データファイル操作（CSV、画像等）
+│   ├── leaderboard.py  # リーダーボードサマリー（キャッシュ付き）
+│   └── search.py       # グローバル検索（実験・ドキュメント横断）
 ├── static/             # ローカル静的ファイル
 │   ├── css/            # highlight.js CSS
 │   └── js/             # htmx, highlight.js, Chart.js
