@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import Request
@@ -72,7 +72,7 @@ def human_filesize(size: int | float) -> str:
 
 def timeago(dt: datetime) -> str:
     """datetime -> relative time string (Japanese)."""
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     diff = now - dt
     seconds = diff.total_seconds()
     if seconds < 60:

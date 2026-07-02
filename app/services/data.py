@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.services.helpers import PROJECT_ROOT
@@ -61,9 +61,7 @@ def list_input_files(directory: str = "") -> list[dict]:
                 {
                     "type": _data_file_type(f.suffix),
                     "size": f.stat().st_size,
-                    "modified": datetime.fromtimestamp(
-                        f.stat().st_mtime, tz=timezone.utc
-                    ),
+                    "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=UTC),
                 }
             )
         elif f.is_dir():
@@ -81,7 +79,7 @@ def get_file_info(path: Path, base: Path) -> dict:
         "path": str(path.relative_to(base)),
         "type": _data_file_type(path.suffix),
         "size": path.stat().st_size,
-        "modified": datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc),
+        "modified": datetime.fromtimestamp(path.stat().st_mtime, tz=UTC),
         "suffix": path.suffix.lower(),
     }
 
@@ -163,7 +161,7 @@ def read_text_preview(path: Path, max_bytes: int = 100_000) -> str | None:
     try:
         size = path.stat().st_size
         if size > max_bytes:
-            with open(path, "r", encoding="utf-8", errors="replace") as f:
+            with open(path, encoding="utf-8", errors="replace") as f:
                 return f.read(max_bytes) + "\n... (truncated)"
         return path.read_text(encoding="utf-8", errors="replace")
     except Exception:
@@ -176,6 +174,7 @@ def read_json_preview(path: Path, max_bytes: int = 100_000) -> str | None:
 
     if not path.exists():
         return None
+    raw = ""
     try:
         raw = path.read_text(encoding="utf-8", errors="replace")
         if path.suffix.lower() == ".jsonl":
