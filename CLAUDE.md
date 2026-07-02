@@ -8,6 +8,14 @@ AI エージェントがこのリポジトリで作業する際のガイドラ�
 
 Kaggle コンペティション用テンプレート。Hydra + Wandb で実験管理、FastAPI + htmx でダッシュボード。
 
+## コンペティションプロファイル（Single Source of Truth）
+
+コンペ固有の値は **`docs/competition-profile.yaml`** に一元管理する。`/kaggle:init` が書き込むのはこのファイル（+ 実験 config）であり、**CLAUDE.md やスキル定義はコンペごとに書き換えない**。
+
+- 本ドキュメントやスキル中の `{評価指標名}` は profile の `metric.name` を指す
+- スコアの「良い/悪い」「改善/停滞」の判断は必ず `metric.mode`（max/min）と `metric.meaningful_delta` に従う
+- ダッシュボード（`app/config.py`）も profile の `competition.slug` を読む
+
 ## 技術スタック
 
 - **パッケージ管理**: uv
@@ -19,7 +27,7 @@ Kaggle コンペティション用テンプレート。Hydra + Wandb で実験�
 - **Web アプリ**: FastAPI, htmx, Jinja2
 - **オプション依存**: `torch`（PyTorch + Lightning + scikit-learn）、`tabular`（LightGBM, XGBoost, CatBoost + scikit-learn）
   - `src/utils/cv.py` 等は scikit-learn に依存するため、実験前に `uv sync --extra torch` or `--extra tabular` が必要
-- **pre-commit**: ruff による lint/format を自動実行
+- **pre-commit**: ruff lint/format、大容量ファイル・秘密鍵チェック、notebook 出力除去（nbstripout）を自動実行
 
 ## コマンド
 
@@ -29,9 +37,12 @@ uv sync --extra torch          # PyTorch 系を含めてインストール
 uv sync --extra tabular        # GBDT 系を含めてインストール
 just app                       # Web アプリ起動（空きポート自動選択）
 
-# Lint / Format
-uv run ruff check src/ app/    # Lint
-uv run ruff format src/ app/   # Format
+# Lint / Format / Test
+just lint                      # ruff check
+just format                    # ruff format
+just fix                       # ruff check --fix + format
+just typecheck                 # ty check
+just test                      # pytest（src/utils の単体テスト）
 
 # 実験実行
 uv run python -m src.exp001_xxx.train                           # fold0（デフォルト）
@@ -48,12 +59,14 @@ kaggle-template/
 ├── sandbox/            # AI Agent 検証用スクリプト（gitignore）
 ├── app/                # Web アプリ → 詳細は app/README.md
 ├── docs/               # コンペ情報・知見・仕様
+│   ├── competition-profile.yaml  # コンペ固有設定（SSOT、/kaggle:init が書く）
 │   ├── official/       # Kaggle 公式情報
 │   ├── discussion/     # Discussion（YYYY-MM-DD_topic.md）
 │   └── insights/       # 実験知見（YYYY-MM-DD_topic.md）
 ├── src/
 │   ├── exp000_sample/  # サンプル実験（テンプレート）
 │   └── utils/          # 共有ユーティリティ
+├── tests/              # src/utils の単体テスト（just test）
 ├── .claude/
 │   ├── skills/         # Claude Code スキル
 │   └── agents/         # Claude Code エージェント
@@ -66,10 +79,11 @@ kaggle-template/
 |-----------|------|
 | `cv.py` | K-fold 分割（stratified, group, timeseries 等） |
 | `metrics_logger.py` | wandb 並行のローカルメトリクスログ |
-| `ensemble.py` | 予測のブレンド・ランク平均アンサンブル |
-| `postprocess.py` | クリッピング・閾値最適化 |
+| `ensemble.py` | 予測のブレンド・ランク平均アンサンブル（id 列でアライン） |
+| `postprocess.py` | クリッピング・閾値最適化・argmax・許容値スナップ |
 | `submission.py` | sample_submission.csv との形式バリデーション |
 | `seeding.py` | 再現性のためのシード固定（random, numpy, torch） |
+| `checkpoint.py` | チェックポイントの軽量化・重み読み込み |
 
 ## Kaggle 情報の取得
 
@@ -95,7 +109,7 @@ src/exp001_xxx/
 ├── data.py         # データ処理
 ├── inference_notebook.ipynb  # Kaggle 推論 notebook（/kaggle:create-inference-notebook で生成）
 ├── config/
-│   ├── config.yaml           # ベース設定（run_name: run000-base）
+│   ├── config.yaml           # ベース設定（run_name: run000-base、metric は profile と揃える）
 │   └── run001-yyy.yaml       # 小実験（defaults: [config] で継承、差分のみ）
 ├── logs/                     # ローカルメトリクスログ（gitignore）
 └── output/                   # 学習出力（gitignore）
@@ -134,7 +148,7 @@ training:
 
 - fold ごとに独立した wandb run を作成し、`group` で束ねる
 - メトリクスキー名は `{split}/{metric}` 形式（例: `train/loss`, `val/auc`）で全実験統一
-- `{評価指標名}` は `/kaggle:init` 実行時にユーザーに確認し、実際のメトリクス名に置換する
+- `{評価指標名}` = `docs/competition-profile.yaml` の `metric.name`。実験 config の `metric.name` / `metric.mode` も profile と揃える
 - `debug`: wandb disabled / `fold0`: fold_0 のみ / `full`: 全 fold + summary run
 
 ### MetricsLogger（ローカルメトリクスログ）
@@ -144,9 +158,12 @@ wandb と並行してローカルにメトリクスを保存。ダッシュボ�
 ```python
 from src.utils.metrics_logger import MetricsLogger
 metrics_logger = MetricsLogger(cfg)
-metrics_logger.log_epoch(fold_idx, {"epoch": epoch, "train/loss": train_loss, "val/loss": val_loss})
+metrics_logger.log_epoch(fold_idx, {"epoch": epoch, "train/loss": train_loss, f"val/{cfg.metric.name}": val_score})
 metrics_logger.finish()
 ```
+
+- best 値の追跡は `cfg.metric.name` / `cfg.metric.mode`（min/max）に従う
+- `run_mode=debug` のログは `logs/{run_name}-debug/` に書かれ、fold0/full のログを上書きしない
 
 ### チェックポイントと出力
 
@@ -163,6 +180,8 @@ src/{exp_name}/output/{run_name}/
 
 ### 実験後の更新（必須）
 
+`/kaggle:record-result` スキルの利用をユーザーに提案する。更新対象:
+
 1. 各実験の **README.md**: 目的・仮説（開始時）、結果・Runs テーブル・考察（完了時）
 2. **EXP_SUMMARY.md**: Experiments テーブルと Experiment Tree を更新 → フォーマットは `docs/experiment-formats.md`
 3. **docs/insights/**: `YYYY-MM-DD_exp{番号}_{subtitle}.md` で知見を記録
@@ -173,14 +192,14 @@ src/{exp_name}/output/{run_name}/
 
 ### 再現性
 
-シード固定（random, numpy, torch）、シード値は `config.yaml` に記録、環境は `uv.lock` で管理。
+シード固定は `src/utils/seeding.py` の `seed_everything` を使う（random, numpy, torch を自動検出）。シード値は `config.yaml` に記録、環境は `uv.lock` で管理。
 
 ## Web アプリ（ダッシュボード）
 
 - **ナビゲーション**: サイドバーは Home + Experiments / Data / Knowledge で構成
 - 新ページはまず既存セクションのサブページとして追加を検討し、トップレベル追加は最終手段
 - 2重サイドバー禁止（Data のファイルツリーは例外）
-- スタイル・コンポーネント・htmx パターンの詳細: `app/README.md`
+- スタイル・コンポーネント・htmx パターン・実験ディレクトリとの契約: `app/README.md`
 
 ### sandbox → app/static パイプライン
 
@@ -192,9 +211,10 @@ sandbox/ で生成した分析画像を `app/static/analysis/` にコピーし�
 - **コミット**: gitmoji + 日本語。1コミット = 1つの論理的な変更。例: `🧪 exp001_baseline を追加`
 - **push**: 作業の区切りごと、実験完了時
 
-## TDD 適用除外
+## テスト方針
 
-このプロジェクトでは TDD は適用しない。`run_mode=debug` でパイプライン全体の動作確認を行うことで代替する。
+- `src/utils/` の共有ユーティリティは `tests/` に単体テストを置く（`just test`）。ユーティリティを変更したらテストも更新する
+- 実験コード（`src/exp*`）には TDD を適用しない。`run_mode=debug` でパイプライン全体の動作確認を行うことで代替する
 
 ## AI エージェントへの注意
 
@@ -247,6 +267,8 @@ LLM は過去の実験結果に引きずられ探索空間を狭めがち。
 | `/wandb-primary` | W&B プロジェクト概要・Runs・Artifacts・Weave traces・Reports・Launch |
 | `/runpodctl` | RunPod CLI で GPU ワークロード管理 |
 | `/flash` | runpod-flash SDK で Serverless GPU/CPU にデプロイ |
+
+外部スキルは `.agents/skills/` にベンダーコピーされ、`.claude/skills/` から symlink されている。`skills-lock.json` が取得元リポジトリと内容ハッシュを記録する（コミット固定はないため、更新時は取得元から再取得して `computedHash` を更新する）。
 
 ### MCP サーバー
 
