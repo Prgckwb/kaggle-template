@@ -40,11 +40,44 @@ def optimize_threshold(
     for t in thresholds:
         preds = (y_pred >= t).astype(int)
         score = metric_fn(y_true, preds)
-        if greater_is_better and score > best_score:
-            best_score = score
-            best_threshold = t
-        elif not greater_is_better and score < best_score:
+        if (
+            greater_is_better
+            and score > best_score
+            or not greater_is_better
+            and score < best_score
+        ):
             best_score = score
             best_threshold = t
 
     return float(best_threshold), float(best_score)
+
+
+def probs_to_labels(
+    probs: np.ndarray,
+    class_labels: list | None = None,
+) -> np.ndarray:
+    """Convert multiclass probabilities (n_samples, n_classes) to labels via argmax."""
+    indices = np.asarray(probs).argmax(axis=1)
+    if class_labels is None:
+        return indices
+    return np.asarray(class_labels)[indices]
+
+
+def snap_to_values(
+    y_pred: np.ndarray,
+    allowed_values: np.ndarray | list,
+) -> np.ndarray:
+    """Snap continuous predictions to the nearest allowed value.
+
+    順序ラベル（QWK 等）や離散値しか許されない提出形式の後処理に使う。
+    """
+    allowed = np.sort(np.asarray(allowed_values, dtype=float))
+    pred = np.asarray(y_pred, dtype=float)
+    idx = np.searchsorted(allowed, pred)
+    idx = np.clip(idx, 1, len(allowed) - 1)
+    left = allowed[idx - 1]
+    right = allowed[idx]
+    snapped = np.where(pred - left <= right - pred, left, right)
+    # 範囲外は端に寄せる
+    snapped = np.clip(snapped, allowed[0], allowed[-1])
+    return snapped
