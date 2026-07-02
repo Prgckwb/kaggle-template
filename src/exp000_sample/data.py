@@ -34,11 +34,17 @@ def create_folds(
     target_col: str = "target",
     group_col: str | None = None,
 ) -> pd.DataFrame:
-    """Add a 'fold' column to the dataframe using src/utils/cv.py."""
+    """Add a 'fold' column to the dataframe using src/utils/cv.py.
+
+    Note: sklearn の splitter が返す val_idx は「位置」インデックスなので、
+    ラベルベースの .loc ではなく .iloc で代入する（行をフィルタした
+    DataFrame でも正しく動作させるため）。
+    """
     from src.utils.cv import create_folds as _create_folds
 
     df = df.copy()
     df["fold"] = -1
+    fold_col = df.columns.get_loc("fold")
     for fold_idx, (_, val_idx) in enumerate(
         _create_folds(
             df,
@@ -49,7 +55,7 @@ def create_folds(
             seed=seed,
         )
     ):
-        df.loc[val_idx, "fold"] = fold_idx
+        df.iloc[val_idx, fold_col] = fold_idx
     return df
 
 
