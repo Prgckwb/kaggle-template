@@ -22,7 +22,7 @@ allowed-tools: Bash, Read, Glob, Grep
 
 | gitmoji | 用途 | 例 |
 |---------|------|-----|
-| 🧪 | 実験の追加・変更 | `🧪 exp001-baseline を追加` |
+| 🧪 | 実験の追加・変更 | `🧪 exp001_baseline を追加` |
 | 🐛 | バグ修正 | `🐛 データローダーの index エラーを修正` |
 | ✨ | 新機能 | `✨ OOF 分析機能を追加` |
 | ♻️ | リファクタリング | `♻️ サイドバーを折りたたみ対応に改修` |
@@ -69,10 +69,10 @@ allowed-tools: Bash, Read, Glob, Grep
 分類結果を以下の形式で提示する:
 
 ```
-コミット 1: 🧪 exp001-baseline を追加
-  - src/exp001-baseline/train.py (new)
-  - src/exp001-baseline/config/config.yaml (new)
-  - src/exp001-baseline/README.md (new)
+コミット 1: 🧪 exp001_baseline を追加
+  - src/exp001_baseline/train.py (new)
+  - src/exp001_baseline/config/config.yaml (new)
+  - src/exp001_baseline/README.md (new)
 
 コミット 2: 📝 Experiments テーブルを更新
   - README.md (modified)

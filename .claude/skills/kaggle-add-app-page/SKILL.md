@@ -58,7 +58,7 @@ app/
 
 **サブページ優先**: 新しいコンテンツは、まず既存セクションのサブページとして追加を検討する。
 
-- **Knowledge**: カテゴリを追加（`app/pages/knowledge.py` の `VALID_CATEGORIES` と `CATEGORY_META` に追加）
+- **Knowledge**: カテゴリを追加（`app/pages/knowledge.py` の `KNOWLEDGE_PAGES` 辞書に `type: "category"` のエントリを1つ追加）
 - **Experiments**: 詳細ページのタブを追加
 - **Data**: ファイルタイプ別プレビューを追加
 
@@ -105,9 +105,9 @@ app/
 ### 既存ページのサブページとして追加する場合
 
 1. **Knowledge カテゴリ追加の場合**:
-   - `app/pages/knowledge.py` の `VALID_CATEGORIES` と `CATEGORY_META` に追加
+   - `app/pages/knowledge.py` の `KNOWLEDGE_PAGES` に `{"type": "category", "label": ..., "icon": ..., "color": ..., "description": ...}` 形式でエントリを追加
    - 対応する `docs/{category}/` ディレクトリを作成
-   - `base.html` のサイドバー Knowledge サブアイテムにリンクを追加
+   - サイドバーの Knowledge サブアイテムは `knowledge_subnav`（テンプレートグローバル）経由で自動反映される
 
 2. **既存ページにタブや機能を追加する場合**:
    - 既存の Router にエンドポイントを追加

@@ -22,8 +22,8 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 | 5 | `docs/official/overview.md` が記入済み | テンプレートのプレースホルダーでないこと |
 | 6 | `docs/official/data.md` が記入済み | テンプレートのプレースホルダーでないこと |
 | 7 | Validation Strategy が記載済み（supervised のみ） | `supervised` タイプの場合、EXP_SUMMARY.md の該当セクションがプレースホルダーでないこと |
-| 8 | `app/config.py` の `COMPETITION_ID` が設定済み | デフォルト値でないこと |
-| 9 | 評価指標名が CLAUDE.md と docs/wandb-spec.md に反映済み | `{評価指標名}` プレースホルダーが実際の指標名に置換されていること |
+| 8 | `docs/competition-profile.yaml` が設定済み | `competition.slug` と `metric.name` / `metric.mode` が空・デフォルトでないこと |
+| 9 | 実験 config の wandb project / metric が設定済み | `src/exp000_sample/config/config.yaml` の `wandb.project` が `kaggle-competition` のままでなく、`metric` が profile と一致すること |
 
 ## フェーズ 1: 現在の状態を診断
 
@@ -32,8 +32,9 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    - `README.md` の1行目を Read し、`Competition Name` のままか確認
    - `.venv/` の存在を Bash で確認
    - `input/` の内容を Glob で確認
-   - `docs/official/overview.md` の内容を Read し、プレースホルダー（`- **Competition Name**:` が空）か確認
+   - `docs/official/overview.md` の内容を Read し、プレースホルダー（`- **コンペ名**:` が空）か確認
    - `docs/official/data.md` の内容を Read し、プレースホルダーか確認
+   - `docs/competition-profile.yaml` を Read し、`competition.slug` / `metric.name` が設定済みか確認
    - `EXP_SUMMARY.md` の Validation Strategy セクションがプレースホルダーか確認（`supervised` タイプのみ）
 
 2. 結果をサマリーとして表示:
@@ -75,11 +76,11 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    - **`optimization`**:
      - 2-5 の Validation Strategy はスキップ（fold/CV の概念がないため）
      - 評価指標名は `score` など最適化スコア名を推奨
-     - CLAUDE.md の wandb セクションは iteration ベースのログに適応
+     - wandb ログは iteration ベースで解釈する（`docs/competition-types.md` 参照）
    - **`simulation`**:
      - 2-5 の Validation Strategy はスキップ（fold/CV の概念がないため）
      - 評価指標名は `reward` などエピソード報酬名を推奨
-     - CLAUDE.md の wandb セクションは episode ベースのログに適応
+     - wandb ログは episode ベースで解釈する（`docs/competition-types.md` 参照）
      - 実験テンプレートで `model.py` の代わりに `agent.py` を案内
 
 ### 2-1. コンペティション情報の収集と反映
@@ -91,7 +92,22 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    - 期間
    - ホスト
 
-2. **以下の箇所にコンペ名を反映する**:
+2. **`docs/competition-profile.yaml` に反映する**（コンペ固有値の Single Source of Truth）:
+
+   ```yaml
+   competition:
+     name: "{正式名称}"
+     slug: "{competition-slug}"
+     abbreviation: "{略称}"
+     url: "https://www.kaggle.com/competitions/{competition-slug}"
+     type: {2-0 で選択したタイプ}
+   wandb:
+     project: kaggle-{略称の小文字}
+   ```
+
+   ダッシュボード（`app/config.py`）は profile の `competition.slug` を自動で読むため、app 側の変更は不要。
+
+3. **以下の表示箇所にもコンペ名を反映する**:
 
    | ファイル | 変更箇所 | 変更内容 |
    |---------|---------|---------|
@@ -99,10 +115,12 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    | `pyproject.toml` | `name` | `kaggle-template` → `kaggle-{略称}` |
    | `app/main.py` | FastAPI `title` | `Kaggle Competition Dashboard` → `{略称} Dashboard` |
    | `app/templates/base.html` | サイドバー Brand | `Kaggle` → `{略称}` |
-   | `app/templates/base.html` | フッター | `Kaggle Competition Dashboard` → `{略称} Dashboard` |
    | `app/templates/index.html` | ヒーロータイトル | `Kaggle Dashboard` → `{略称} Dashboard` |
-   | `CLAUDE.md` | wandb project | `kaggle-competition` → `kaggle-{略称}` |
-   | `app/config.py` | `COMPETITION_ID` | `"titanic"` → `"{competition-slug}"` |
+   | `src/exp000_sample/config/config.yaml` | `wandb.project` | `kaggle-competition` → profile の `wandb.project` と同じ値 |
+
+   **注意**: CLAUDE.md・docs/wandb-spec.md・スキル定義はコンペごとに書き換えない（profile を参照する設計）。
+
+4. **ローカルキャッシュの掃除**: 前のコンペの残骸があれば `.cache/` ディレクトリを削除する（gitignore 済みのローカルキャッシュ）。
 
 ### 2-2. 環境セットアップ
 
@@ -126,11 +144,14 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    - 「Kaggle のコンペページの内容を貼り付けてもらえますか？（Overview, Evaluation, Timeline 等）」
    - または URL を提供してもらう
 
-2. 提供された情報を `docs/official/overview.md` のフォーマットに整形:
-   - Competition（名前、URL、期間、ホスト）
-   - Evaluation（指標、計算式）
-   - Rules
-   - Notes
+2. 提供された情報を `docs/official/overview.md` の既存テンプレート構造に沿って整形:
+   - コンペティション概要（名前、URL、期間、ホスト）
+   - タスク定義（タスクの種類、入力、出力、パイプライン概要図）
+   - 背景・ドメイン知識
+   - 評価指標（指標名、計算方法、最適化の考慮点）
+   - 提出形式
+   - コード要件（Code Competition かどうか、ランタイム制限等）
+   - タイムライン
 
 #### data.md
 
@@ -142,21 +163,29 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    - Columns テーブル（各カラムの型・説明）
    - Notes
 
-### 2-4. 評価指標名の設定
+### 2-4. 評価指標の設定
 
-1. **指標名の確認**
-   - `docs/official/overview.md` の Evaluation セクションから評価指標を確認
-   - ユーザーに確認: 「メトリクスキー名を決めてください（例: `auc`, `f1`, `accuracy`, `map`, `rmse`）。wandb ログやチェックポイント名に使われます」
-   - 短い英小文字の名前を推奨
+1. **指標名と方向の確認**
+   - `docs/official/overview.md` の評価指標セクションから評価指標を確認
+   - ユーザーに確認: 「メトリクスキー名を決めてください（例: `auc`, `f1`, `accuracy`, `map`, `rmse`）。wandb ログやチェックポイント名に使われます」（短い英小文字を推奨）
+   - **方向も必ず確認**: 大きいほど良い（`max`）か、小さいほど良い（`min`）か
+   - 可能なら「意味のある改善幅」（`meaningful_delta`）も確認する。停滞検出や best 判定の基準になる（例: AUC なら 0.001）。不明なら `null` のままでよい
 
-2. **CLAUDE.md と docs/wandb-spec.md の更新**
-   - `CLAUDE.md` 内の `{評価指標名}` を実際の指標名に一括置換（チェックポイントパターン等）
-   - `docs/wandb-spec.md` の wandb メトリクスキー名規則テーブルの `{評価指標名}` を一括置換
-   - コードサンプル内の `{評価指標名}` も同様に置換
-   - `wandb.summary` のキー名も置換
+2. **`docs/competition-profile.yaml` の `metric` セクションに記録**
 
-3. **確認**
-   - 置換後のテーブルをユーザーに提示して確認を得る
+   ```yaml
+   metric:
+     name: {指標名}
+     mode: {max|min}
+     meaningful_delta: {数値 or null}
+   ```
+
+3. **実験 config への反映**
+   - `src/exp000_sample/config/config.yaml` の `metric.name` / `metric.mode` を profile と同じ値に更新
+   - CLAUDE.md や docs/wandb-spec.md は置換しない（`{評価指標名}` は profile の `metric.name` を指す設計）
+
+4. **確認**
+   - 設定内容をユーザーに提示して確認を得る
 
 ### 2-5. Validation Strategy（supervised タイプのみ）
 
@@ -175,7 +204,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 🎉 セットアップが完了しました！
 
 次のステップ:
-1. `/new-experiment` で最初の実験を設計・作成する
+1. `/kaggle:new-experiment` で最初の実験を設計・作成する
 2. `run_mode=debug` でパイプラインの動作確認
 3. `run_mode=fold0` で性能確認
 ```
@@ -187,5 +216,5 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 ❌ input/ データ — `kaggle competitions download -c xxx -p input/` を実行してください
 ❌ Validation Strategy — データを確認してから記載してください
 
-準備ができたら再度 `/init` を実行してください。
+準備ができたら再度 `/kaggle:init` を実行してください。
 ```
