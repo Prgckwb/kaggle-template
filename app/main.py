@@ -13,7 +13,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.pages import data, experiments, knowledge
 from app.services.data import list_input_files
 from app.services.documents import get_competition_overview, list_docs
-from app.services.experiments import get_all_experiment_scores, list_experiments
+from app.services.experiments import (
+    get_all_experiment_scores,
+    list_experiments,
+    list_recent_runs,
+)
 from app.services.helpers import PROJECT_ROOT, error_response
 from app.services.leaderboard import get_leaderboard_summary, is_default_competition
 from app.services.search import global_search
@@ -161,6 +165,45 @@ def _get_best_score_fn():
     return _best_fn_cache["fn"]
 
 
+def _get_setup_status(input_file_count: int) -> dict:
+    """未セットアップ状態の Home に表示するチェックリストを組み立てる。"""
+    profile: dict = {}
+    profile_path = PROJECT_ROOT / "docs" / "competition-profile.yaml"
+    if profile_path.exists():
+        try:
+            profile = yaml.safe_load(profile_path.read_text()) or {}
+        except Exception:
+            profile = {}
+    comp = profile.get("competition") or {}
+    metric = profile.get("metric") or {}
+    wandb_cfg = profile.get("wandb") or {}
+
+    items = [
+        {
+            "label": "コンペ情報の設定（competition.slug）",
+            "done": bool(comp.get("slug")),
+        },
+        {
+            "label": "評価指標の設定（metric.name / mode）",
+            "done": bool(metric.get("name")) and metric.get("name") != "score",
+        },
+        {
+            "label": "input/ へのデータ配置",
+            "done": input_file_count > 0,
+        },
+        {
+            "label": "wandb project 名の設定",
+            "done": bool(wandb_cfg.get("project"))
+            and wandb_cfg.get("project") != "kaggle-competition",
+        },
+    ]
+    return {
+        "items": items,
+        "done_count": sum(1 for i in items if i["done"]),
+        "total": len(items),
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     all_docs = list_docs()
@@ -178,7 +221,10 @@ def index(request: Request):
         reverse=True,
     )[:5]
 
-    leaderboard = get_leaderboard_summary()
+    lb_is_default = is_default_competition()
+    # 未設定時は leaderboard の取得自体をスキップ（失敗が確定しているため）
+    leaderboard = None if lb_is_default else get_leaderboard_summary()
+    setup = _get_setup_status(len(input_files)) if lb_is_default else None
 
     return templates.TemplateResponse(
         request,
@@ -193,7 +239,9 @@ def index(request: Request):
             "best_cv": best_cv,
             "competition": competition,
             "recent_docs": recent_docs,
+            "recent_runs": list_recent_runs(),
             "leaderboard": leaderboard,
-            "lb_is_default": is_default_competition(),
+            "lb_is_default": lb_is_default,
+            "setup": setup,
         },
     )

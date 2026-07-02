@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import json
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -42,19 +44,61 @@ def list_experiments(query: str = "") -> list[dict]:
     for d in sorted(src.iterdir()):
         if not (d.is_dir() and d.name.startswith("exp")):
             continue
+        cv = score_map.get(d.name, {}).get("cv", "-")
+        lb = score_map.get(d.name, {}).get("lb", "-")
         info = {
             "name": d.name,
             "has_readme": (d / "README.md").exists(),
             "has_config": (d / "config" / "config.yaml").exists(),
             "has_inference": (d / "inference.py").exists(),
-            "cv": score_map.get(d.name, {}).get("cv", "-"),
-            "lb": score_map.get(d.name, {}).get("lb", "-"),
+            # 学習の実行痕跡（run_summary.json）があるか
+            "has_results": any((d / "logs").glob("*/run_summary.json")),
+            # スコアが EXP_SUMMARY.md に記録済みか
+            "has_scores": cv not in ("-", "") or lb not in ("-", ""),
+            "cv": cv,
+            "lb": lb,
             "description": score_map.get(d.name, {}).get("description", ""),
         }
         if query and query.lower() not in d.name.lower():
             continue
         exps.append(info)
     return exps
+
+
+def list_recent_runs(limit: int = 6) -> list[dict]:
+    """全実験の run_summary.json を新しい順に集めて返す（Home の直近 Run 表示用）。"""
+    src = PROJECT_ROOT / "src"
+    if not src.exists():
+        return []
+
+    entries = []
+    for summary_path in src.glob("exp*/logs/*/run_summary.json"):
+        try:
+            mtime = summary_path.stat().st_mtime
+            with open(summary_path) as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                continue
+        except Exception:
+            continue
+        finished_at = None
+        raw_finished = data.get("finished_at")
+        if isinstance(raw_finished, str):
+            with contextlib.suppress(ValueError):
+                finished_at = datetime.fromisoformat(raw_finished)
+        entries.append(
+            {
+                "exp_name": summary_path.parent.parent.parent.name,
+                "run_name": data.get("run_name", summary_path.parent.name),
+                "run_mode": data.get("run_mode", ""),
+                "cv_score": data.get("cv_score"),
+                "metric_name": data.get("metric_name", ""),
+                "finished_at": finished_at,
+                "mtime": mtime,
+            }
+        )
+    entries.sort(key=lambda e: e["mtime"], reverse=True)
+    return entries[:limit]
 
 
 def get_experiment_detail(exp_name: str) -> dict | None:
@@ -76,6 +120,15 @@ def get_experiment_detail(exp_name: str) -> dict | None:
     file_tree = list_experiment_files(exp_dir)
     checkpoints = list_checkpoints(exp_name)
 
+    # 最終更新（実験ディレクトリ直下ファイルの最新 mtime）
+    last_modified = None
+    try:
+        mtimes = [f.stat().st_mtime for f in exp_dir.rglob("*") if f.is_file()]
+        if mtimes:
+            last_modified = datetime.fromtimestamp(max(mtimes), tz=UTC)
+    except OSError:
+        pass
+
     score_map = {e["exp"]: e for e in _get_cached_experiments_table()}
     scores = score_map.get(exp_name, {})
 
@@ -89,6 +142,7 @@ def get_experiment_detail(exp_name: str) -> dict | None:
         "file_tree": file_tree,
         "checkpoints": checkpoints,
         "runs": runs,
+        "last_modified": last_modified,
         "cv": scores.get("cv", "-"),
         "lb": scores.get("lb", "-"),
     }

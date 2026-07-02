@@ -8,42 +8,72 @@
 
 {% block content %}
 
-<!-- Hero Section -->
-<div class="text-center py-6">
-    <div class="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
-        <i class="fa-solid fa-trophy text-emerald-500 text-2xl"></i>
-    </div>
-    <h1 class="text-3xl font-extrabold text-gray-800 dark:text-gray-100 mb-2">
-        Kaggle Dashboard
-    </h1>
-</div>
-
 <!-- Metrics Bar -->
 {% set total_knowledge = all_docs.get('official', [])|length + all_docs.get('insights', [])|length + all_docs.get('discussion', [])|length %}
-<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5">
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-5 mt-2">
     <div class="grid grid-cols-2 md:grid-cols-5 divide-x divide-gray-100 dark:divide-gray-700">
-        {% for label, value, icon, color, subtitle in [
-            ("Best LB", "%.4f"|format(best_lb) if best_lb is not none else "-", "fa-ranking-star", "emerald", "Leaderboard"),
-            ("Best CV", "%.4f"|format(best_cv) if best_cv is not none else "-", "fa-chart-line", "sky", "Cross Validation"),
-            ("Experiments", experiments|length, "fa-flask", "amber", ""),
-            ("Data", input_files|length ~ " files", "fa-database", "violet", ""),
-            ("Docs", total_knowledge ~ " docs", "fa-book", "rose", ""),
+        {% for label, value, icon, color, subtitle, href in [
+            ("Best LB", "%.4f"|format(best_lb) if best_lb is not none else "-", "fa-ranking-star", "emerald", "Leaderboard", none),
+            ("Best CV", "%.4f"|format(best_cv) if best_cv is not none else "-", "fa-chart-line", "sky", "Cross Validation", none),
+            ("Experiments", experiments|length, "fa-flask", "amber", "", "/experiments"),
+            ("Data", input_files|length ~ " files", "fa-database", "violet", "", "/data"),
+            ("Docs", total_knowledge ~ " docs", "fa-book", "rose", "", "/knowledge"),
         ] %}
-        <div class="px-4 py-4 flex items-center gap-3">
+        {% set inner %}
             <div class="w-9 h-9 bg-{{ color }}-50 dark:bg-{{ color }}-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
                 <i class="fa-solid {{ icon }} text-{{ color }}-500 text-sm"></i>
             </div>
             <div class="min-w-0">
-                <p class="text-xs font-semibold text-gray-400 dark:text-gray-500">{{ label }}</p>
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ label }}</p>
                 <p class="text-lg font-extrabold text-gray-800 dark:text-gray-100 leading-tight">{{ value if value and value != '-' else '-' }}</p>
                 {% if subtitle %}
-                <p class="text-xs text-gray-300 dark:text-gray-500">{{ subtitle }}</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500">{{ subtitle }}</p>
                 {% endif %}
             </div>
+        {% endset %}
+        {% if href %}
+        <a href="{{ href }}" class="px-4 py-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" aria-label="{{ label }} ページを開く">
+            {{ inner }}
+        </a>
+        {% else %}
+        <div class="px-4 py-4 flex items-center gap-3">
+            {{ inner }}
         </div>
+        {% endif %}
         {% endfor %}
     </div>
 </div>
+
+{% if setup %}
+<!-- セットアップ状況（コンペ未設定時のみ表示） -->
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
+    <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-emerald-500"></i>
+            <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100">セットアップ状況</h2>
+        </div>
+        <span class="text-xs font-bold text-gray-500 dark:text-gray-400">{{ setup.done_count }}/{{ setup.total }} 完了</span>
+    </div>
+    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+        このリポジトリはまだコンペ用にセットアップされていません。Claude Code で <code class="bg-gray-100 dark:bg-gray-700 rounded px-1.5 py-0.5 font-mono text-emerald-600 dark:text-emerald-400">/kaggle:init</code> を実行すると、以下がまとめて設定されます。
+    </p>
+    <ul class="space-y-2">
+        {% for item in setup["items"] %}
+        <li class="flex items-center gap-2.5 text-sm">
+            {% if item.done %}
+            <i class="fa-solid fa-circle-check text-emerald-500" aria-hidden="true"></i>
+            <span class="text-gray-700 dark:text-gray-200">{{ item.label }}</span>
+            <span class="sr-only">（完了）</span>
+            {% else %}
+            <i class="fa-solid fa-circle text-gray-200 dark:text-gray-600" aria-hidden="true"></i>
+            <span class="text-gray-500 dark:text-gray-400">{{ item.label }}</span>
+            <span class="sr-only">（未完了）</span>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
 
 <!-- Competition Overview -->
 {% if competition %}
@@ -59,8 +89,50 @@
 </div>
 {% endif %}
 
-<!-- Leaderboard -->
+{% if not lb_is_default %}
+<!-- Leaderboard（コンペ設定済みのときのみ表示） -->
 {% include "partials/_leaderboard_card.html" %}
+{% endif %}
+
+<!-- 直近の Run -->
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
+    <div class="flex items-center gap-2 mb-4">
+        <i class="fa-solid fa-clock text-violet-500"></i>
+        <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100">直近の Run</h2>
+    </div>
+    {% if recent_runs %}
+    <div class="space-y-1">
+        {% for run in recent_runs %}
+        <a href="/experiments/{{ run.exp_name }}"
+           class="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <div class="flex items-center gap-3 min-w-0">
+                <span class="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{{ run.exp_name }}</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ run.run_name }}</span>
+                {% if run.run_mode %}
+                <span class="text-xs rounded-full px-2 py-0.5 font-semibold
+                    {% if run.run_mode == 'full' %}bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400
+                    {% elif run.run_mode == 'debug' %}bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400
+                    {% else %}bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400{% endif %}">{{ run.run_mode }}</span>
+                {% endif %}
+            </div>
+            <div class="flex items-center gap-3 flex-shrink-0">
+                {% if run.cv_score is not none %}
+                <span class="text-sm font-bold text-gray-800 dark:text-gray-100">CV {{ "%.4f"|format(run.cv_score) }}</span>
+                {% endif %}
+                {% if run.finished_at %}
+                <span class="text-xs text-gray-400 dark:text-gray-500">{{ run.finished_at|timeago }}</span>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-4">
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">まだ学習の実行記録がありません</p>
+        <p class="text-xs text-gray-400 dark:text-gray-500"><code class="font-mono">uv run python -m src.exp000_sample.train run_mode=debug</code> でパイプラインを確認できます</p>
+    </div>
+    {% endif %}
+</div>
 
 <!-- Recently Updated Documents -->
 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
