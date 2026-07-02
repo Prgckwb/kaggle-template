@@ -3,12 +3,14 @@ name = "kaggle-template"
 version = "0.1.0"
 description = "Kaggle competition template"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "hydra-core>=1.3",
     "wandb",
     "polars",
     "pandas",
+    "numpy",
+    "pyyaml",
 ]
 
 [project.optional-dependencies]
@@ -17,14 +19,12 @@ torch = [
     "lightning>=2.0",
     "torchmetrics",
     "scikit-learn",
-    "numpy",
 ]
 tabular = [
     "lightgbm",
     "xgboost",
     "catboost",
     "scikit-learn",
-    "numpy",
 ]
 
 [dependency-groups]
@@ -39,4 +39,19 @@ dev = [
     "kaggle",
     "markdown",
     "nh3",
+    "pytest",
 ]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "NPY"]
+ignore = ["E501"]  # 行長は formatter に任せる
+
+[tool.ruff.lint.isort]
+known-first-party = ["src", "app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

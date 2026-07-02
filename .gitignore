@@ -19,6 +19,16 @@ src/*/logs/
 !input/.gitkeep
 !sandbox/.gitkeep
 
+# Logs
+*.log
+
+# Model checkpoints / large artifacts (safety net; expected dirs are already ignored)
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.h5
+
 # Jupyter
 .ipynb_checkpoints/
 
@@ -34,6 +44,9 @@ Thumbs.db
 
 # Cache (leaderboard etc.)
 .cache/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
 
 # Hydra outputs
 outputs/

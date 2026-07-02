@@ -14,7 +14,8 @@ def seed_everything(seed: int) -> None:
     try:
         import numpy as np
 
-        np.random.seed(seed)
+        # グローバルシード固定が目的なので legacy API を意図的に使用
+        np.random.seed(seed)  # noqa: NPY002
     except ImportError:
         pass
 
