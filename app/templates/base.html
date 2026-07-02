@@ -8,28 +8,10 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 
-    <!-- Google Fonts: Nunito -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- FontAwesome 6 Free (CDN — requires font files) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
-    <!-- Tailwind CSS CDN + Typography plugin -->
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        nunito: ['Nunito', 'system-ui', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
+    <!-- ローカル配信アセット（オフライン対応）: 再ビルドは app/static/build/README.md 参照 -->
+    <link rel="stylesheet" href="/static/css/fonts.css">
+    <link rel="stylesheet" href="/static/css/fontawesome.min.css">
+    <link rel="stylesheet" href="/static/css/app.css">
     <!-- Dark mode: apply immediately to prevent FOUC -->
     <script>
         (function() {
@@ -78,9 +60,32 @@
         .dark .hljs { background: #111827; }
         .dark .tab-btn.active { background: #1f2937; color: #f3f4f6; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
 
-        /* Sidebar transitions */
-        #sidebar { transition: transform 300ms ease-in-out; }
-        #main-content { transition: margin-left 300ms ease-in-out; }
+        /* --- サイドバーのレスポンシブ制御 --------------------------------
+           モバイル(<lg): ドロワー式（デフォルト非表示、body.sidebar-open で表示）
+           デスクトップ(lg+): デフォルト表示、body.sidebar-collapsed で非表示 */
+        #sidebar { transition: transform 300ms ease-in-out; transform: translateX(-100%); }
+        #main-content { transition: margin-left 300ms ease-in-out; margin-left: 0; }
+        #sidebar-open-btn { display: flex; }
+        #sidebar-backdrop { display: none; }
+        body.sidebar-open #sidebar { transform: none; }
+        body.sidebar-open #sidebar-open-btn { display: none; }
+        body.sidebar-open #sidebar-backdrop { display: block; }
+        @media (min-width: 1024px) {
+            #sidebar { transform: none; }
+            #main-content { margin-left: 16rem; }
+            #sidebar-open-btn { display: none; }
+            body.sidebar-open #sidebar-backdrop { display: none; }
+            body.sidebar-collapsed #sidebar { transform: translateX(-100%); }
+            body.sidebar-collapsed #main-content { margin-left: 0; }
+            body.sidebar-collapsed #sidebar-open-btn { display: flex; }
+        }
+
+        /* キーボード操作時のフォーカスリング */
+        a:focus-visible, button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+            outline: 2px solid #10b981;
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
 
         /* Print styles for PDF export */
         @media print {
@@ -127,6 +132,9 @@
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100" hx-indicator="#global-indicator">
 
+    <!-- キーボード操作用スキップリンク -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white dark:focus:bg-gray-800 focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-md text-sm font-bold text-emerald-600">メインコンテンツへスキップ</a>
+
     <!-- Global htmx loading indicator -->
     <div id="global-indicator" class="htmx-indicator fixed top-0 left-0 right-0 z-50">
         <div class="h-1 bg-emerald-500 rounded-full animate-pulse"></div>
@@ -134,8 +142,11 @@
 
     <div class="flex min-h-screen">
 
+        <!-- モバイルドロワー用バックドロップ -->
+        <div id="sidebar-backdrop" class="fixed inset-0 bg-black/40 z-20 lg:hidden" onclick="toggleSidebar()" aria-hidden="true"></div>
+
         <!-- Sidebar -->
-        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col z-10">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col z-30">
             <!-- Brand + Toggle -->
             <div class="px-5 py-5 flex items-center justify-between">
                 <a href="/" class="flex items-center gap-3">
@@ -144,8 +155,8 @@
                     </div>
                     <span class="text-lg font-extrabold text-gray-800 dark:text-gray-100">Kaggle</span>
                 </a>
-                <button onclick="toggleSidebar()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 cursor-pointer" title="サイドバーを閉じる">
-                    <i class="fa-solid fa-chevron-left text-sm"></i>
+                <button onclick="toggleSidebar()" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 cursor-pointer" title="サイドバーを閉じる" aria-label="サイドバーを閉じる">
+                    <i class="fa-solid fa-chevron-left text-sm" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -158,6 +169,10 @@
                            name="q"
                            placeholder="検索..."
                            autocomplete="off"
+                           aria-label="サイト内検索"
+                           role="combobox"
+                           aria-expanded="false"
+                           aria-controls="global-search-results"
                            hx-get="/search"
                            hx-trigger="keyup changed delay:300ms, search"
                            hx-target="#global-search-results"
@@ -167,6 +182,8 @@
                            class="flex-1 bg-transparent outline-none text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 min-w-0">
                 </div>
                 <div id="global-search-results"
+                     role="listbox"
+                     aria-label="検索結果"
                      class="hidden absolute left-3 right-3 top-full mt-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                 </div>
             </div>
@@ -207,8 +224,9 @@
                             Knowledge
                         </a>
                         <button onclick="toggleSubnav('knowledge-sub', this)"
-                                class="px-2 py-2.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer">
-                            <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
+                                class="px-2 py-2.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                                aria-label="Knowledge サブメニューを開閉">
+                            <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200" aria-hidden="true"></i>
                         </button>
                     </div>
                     <div id="knowledge-sub" class="hidden ml-8 mt-0.5">
@@ -230,21 +248,21 @@
             <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end">
                 <button onclick="toggleDarkMode()" id="dark-mode-toggle"
                         class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all cursor-pointer"
-                        title="ダークモード切替">
-                    <i id="dark-mode-icon" class="fa-solid fa-moon text-sm"></i>
+                        title="ダークモード切替" aria-label="ダークモード切替">
+                    <i id="dark-mode-icon" class="fa-solid fa-moon text-sm" aria-hidden="true"></i>
                 </button>
             </div>
         </aside>
 
-        <!-- Sidebar open button (shown when sidebar is hidden) -->
+        <!-- Sidebar open button (sidebar 非表示時に表示。表示制御は CSS 側) -->
         <button onclick="toggleSidebar()" id="sidebar-open-btn"
-                class="fixed top-4 left-4 z-20 w-10 h-10 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-all hidden cursor-pointer"
-                title="サイドバーを開く">
-            <i class="fa-solid fa-bars"></i>
+                class="fixed top-4 left-4 z-20 w-10 h-10 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 transition-all cursor-pointer"
+                title="サイドバーを開く" aria-label="サイドバーを開く">
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
         </button>
 
         <!-- Main Content -->
-        <main id="main-content" class="ml-64 flex-1 px-8 py-8">
+        <main id="main-content" class="flex-1 px-4 sm:px-6 lg:px-8 pb-8 pt-16 lg:pt-8">
             <div class="{% block content_width %}max-w-5xl mx-auto{% endblock %}">
                 {% block content %}{% endblock %}
             </div>
@@ -253,13 +271,14 @@
     </div>
 
     <script>
-        // Sidebar toggle with localStorage persistence
+        // Sidebar toggle
+        // - デスクトップ(lg+): body.sidebar-collapsed を localStorage で永続化
+        // - モバイル(<lg): body.sidebar-open のドロワー（永続化しない）
+        var _desktopQuery = window.matchMedia('(min-width: 1024px)');
+
         (function() {
-            var collapsed = localStorage.getItem('sidebar-collapsed') === 'true';
-            if (collapsed) {
-                document.getElementById('sidebar').style.transform = 'translateX(-100%)';
-                document.getElementById('main-content').style.marginLeft = '0';
-                document.getElementById('sidebar-open-btn').style.display = 'flex';
+            if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                document.body.classList.add('sidebar-collapsed');
             }
 
             // Restore subnav expand state
@@ -290,34 +309,71 @@
         })();
 
         function toggleSidebar() {
-            var sidebar = document.getElementById('sidebar');
-            var main = document.getElementById('main-content');
-            var openBtn = document.getElementById('sidebar-open-btn');
-            var isCollapsed = sidebar.style.transform === 'translateX(-100%)';
-
-            if (isCollapsed) {
-                sidebar.style.transform = '';
-                main.style.marginLeft = '';
-                openBtn.style.display = 'none';
-                localStorage.setItem('sidebar-collapsed', 'false');
+            if (_desktopQuery.matches) {
+                var collapsed = document.body.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('sidebar-collapsed', collapsed ? 'true' : 'false');
             } else {
-                sidebar.style.transform = 'translateX(-100%)';
-                main.style.marginLeft = '0';
-                openBtn.style.display = 'flex';
-                localStorage.setItem('sidebar-collapsed', 'true');
+                document.body.classList.toggle('sidebar-open');
             }
         }
 
-        // Global search
+        // モバイルドロワーはナビゲーション後に閉じる（ブラウザバック時の残留防止）
+        window.addEventListener('pageshow', function() {
+            document.body.classList.remove('sidebar-open');
+        });
+
+        // Global search（キーボード操作対応: ↑↓ で選択、Enter で開く、Escape で閉じる）
+        var _searchActiveIndex = -1;
+
+        function _searchItems() {
+            return Array.from(document.querySelectorAll('#global-search-results a'));
+        }
+        function _setSearchExpanded(expanded) {
+            var input = document.getElementById('global-search-input');
+            if (input) input.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+        function _highlightSearchItem(items, index) {
+            items.forEach(function(el, i) {
+                el.classList.toggle('bg-gray-100', i === index);
+                el.classList.toggle('dark:bg-gray-700', i === index);
+            });
+            if (index >= 0 && items[index]) {
+                items[index].scrollIntoView({ block: 'nearest' });
+            }
+        }
         function openSearch() {
             var results = document.getElementById('global-search-results');
             if (document.getElementById('global-search-input').value.trim()) {
                 results.classList.remove('hidden');
+                _setSearchExpanded(true);
             }
         }
         function closeSearch() {
             document.getElementById('global-search-results').classList.add('hidden');
+            _setSearchExpanded(false);
+            _searchActiveIndex = -1;
         }
+        document.getElementById('global-search-input').addEventListener('keydown', function(e) {
+            var items = _searchItems();
+            if (e.key === 'Escape') {
+                closeSearch();
+                this.blur();
+                return;
+            }
+            if (!items.length) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                _searchActiveIndex = (_searchActiveIndex + 1) % items.length;
+                _highlightSearchItem(items, _searchActiveIndex);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                _searchActiveIndex = (_searchActiveIndex - 1 + items.length) % items.length;
+                _highlightSearchItem(items, _searchActiveIndex);
+            } else if (e.key === 'Enter' && _searchActiveIndex >= 0 && items[_searchActiveIndex]) {
+                e.preventDefault();
+                items[_searchActiveIndex].click();
+            }
+        });
         document.addEventListener('click', function(e) {
             var container = document.getElementById('search-container');
             if (container && !container.contains(e.target)) {
@@ -327,7 +383,10 @@
         document.body.addEventListener('htmx:afterSwap', function(e) {
             if (e.detail.target.id === 'global-search-results') {
                 var results = document.getElementById('global-search-results');
-                results.classList.toggle('hidden', !results.innerHTML.trim());
+                var isEmpty = !results.innerHTML.trim();
+                results.classList.toggle('hidden', isEmpty);
+                _setSearchExpanded(!isEmpty);
+                _searchActiveIndex = -1;
             }
         }, true);
 
