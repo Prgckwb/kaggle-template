@@ -9,7 +9,7 @@ import os
 import subprocess
 import time
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import COMPETITION_ID
@@ -176,8 +176,8 @@ def _build_summary(rows: list[dict], updated_at: datetime) -> dict:
 
 
 def is_default_competition() -> bool:
-    """Check if COMPETITION_ID is still the template default."""
-    return COMPETITION_ID == "titanic"
+    """Check if COMPETITION_ID is unconfigured (empty)."""
+    return not COMPETITION_ID
 
 
 def get_leaderboard_summary(force_refresh: bool = False) -> dict | None:
@@ -188,9 +188,12 @@ def get_leaderboard_summary(force_refresh: bool = False) -> dict | None:
     now = time.time()
 
     # Check in-memory cache
-    if not force_refresh and _cache["data"] is not None:
-        if now - _cache["fetched_at"] < TTL_SECONDS:
-            return _cache["data"]
+    if (
+        not force_refresh
+        and _cache["data"] is not None
+        and now - _cache["fetched_at"] < TTL_SECONDS
+    ):
+        return _cache["data"]
 
     # Try existing CSV first (may be from previous session)
     csv_path = _find_csv()
@@ -215,7 +218,7 @@ def get_leaderboard_summary(force_refresh: bool = False) -> dict | None:
         return None
 
     mtime = csv_path.stat().st_mtime
-    updated_at = datetime.fromtimestamp(mtime, tz=timezone.utc)
+    updated_at = datetime.fromtimestamp(mtime, tz=UTC)
     summary = _build_summary(rows, updated_at)
 
     _cache["data"] = summary
