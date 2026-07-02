@@ -14,7 +14,7 @@ class BaseAgent(ABC):
         """Choose an action given the current observation."""
         ...
 
-    def reset(self) -> None:
+    def reset(self) -> None:  # noqa: B027 - デフォルトは状態なし（必要な場合のみ override）
         """Reset agent state for a new episode."""
         pass
 

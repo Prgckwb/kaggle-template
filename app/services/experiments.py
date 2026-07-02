@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -19,7 +19,7 @@ _summary_cache: dict[str, object] = {"mtime": 0.0, "data": []}
 
 
 def _get_cached_experiments_table() -> list[dict]:
-    """parse_experiments_table() の結果を mtime ベースでキャッシュする。"""
+    """EXP_SUMMARY.md の Experiments テーブル解析結果を mtime ベースでキャッシュする。"""
     summary_file = PROJECT_ROOT / "EXP_SUMMARY.md"
     if not summary_file.exists():
         return []
@@ -235,15 +235,10 @@ def get_experiment_file_content(exp_name: str, file_path: str) -> dict | None:
                 text = text[:200_000] + "\n... (truncated)"
             result["content_text"] = text
             result["language"] = ""
-        except (UnicodeDecodeError, Exception):
+        except Exception:
             result["type"] = "binary"  # fallback to binary
 
     return result
-
-
-def parse_experiments_table() -> list[dict]:
-    """キャッシュ付き public API。"""
-    return _get_cached_experiments_table()
 
 
 def _parse_experiments_table_impl() -> list[dict]:
@@ -382,7 +377,7 @@ def list_checkpoints(exp_name: str) -> list[dict]:
                 "run": run_name,
                 "filename": f"{f.parent.name}/{f.name}",
                 "size": f.stat().st_size,
-                "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc),
+                "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=UTC),
             }
         )
     return results
@@ -414,30 +409,34 @@ def get_oof_analysis(exp_name: str, run_name: str | None = None) -> dict | None:
     if not oof_path.exists():
         return None
 
+    import math
+
     import polars as pl
 
     try:
         df = pl.read_csv(oof_path)
         columns = df.columns
 
+        has_labels = "true_label" in columns and "pred_label" in columns
         result: dict = {
             "total_rows": len(df),
             "columns": columns,
             "preview_rows": df.head(20).to_dicts(),
+            "schema": "classification" if has_labels else "generic",
         }
 
         # confusion matrix (true_label vs pred_label がある場合)
-        if "true_label" in columns and "pred_label" in columns:
+        if has_labels:
             labels = sorted(df["true_label"].unique().to_list())
-            matrix = []
-            for true in labels:
-                row = []
-                for pred in labels:
-                    count = df.filter(
-                        (pl.col("true_label") == true) & (pl.col("pred_label") == pred)
-                    ).height
-                    row.append(count)
-                matrix.append(row)
+            label_index = {label: i for i, label in enumerate(labels)}
+            matrix = [[0] * len(labels) for _ in labels]
+            # 1 パスの group_by で全セルを集計（セルごとの filter は O(labels^2) 回の全走査になる）
+            pair_counts = df.group_by(["true_label", "pred_label"]).len()
+            for pair in pair_counts.iter_rows(named=True):
+                i = label_index.get(pair["true_label"])
+                j = label_index.get(pair["pred_label"])
+                if i is not None and j is not None:
+                    matrix[i][j] = pair["len"]
             accuracy = df.filter(
                 pl.col("true_label") == pl.col("pred_label")
             ).height / len(df)
@@ -446,6 +445,23 @@ def get_oof_analysis(exp_name: str, run_name: str | None = None) -> dict | None:
                 "matrix": matrix,
             }
             result["accuracy"] = round(accuracy, 4)
+        else:
+            # 期待カラムがない場合は数値カラムの基本統計を返す
+            numeric_stats = []
+            for col in columns:
+                if not df[col].dtype.is_numeric():
+                    continue
+                s = df[col]
+                numeric_stats.append(
+                    {
+                        "column": col,
+                        "mean": s.mean(),
+                        "std": s.std(),
+                        "min": s.min(),
+                        "max": s.max(),
+                    }
+                )
+            result["numeric_stats"] = numeric_stats
 
         # 確率カラムの分布 (prob_0, prob_1, ... がある場合)
         prob_cols = [c for c in columns if c.startswith("prob_")]
@@ -453,12 +469,19 @@ def get_oof_analysis(exp_name: str, run_name: str | None = None) -> dict | None:
             distributions = {}
             for col in prob_cols:
                 vals = df[col].to_list()
-                # 10 bins のヒストグラム
+                # 10 bins のヒストグラム（非有限値はスキップ、範囲外は端の bin に丸める）
                 hist_counts = [0] * 10
                 for v in vals:
-                    if v is not None:
-                        bin_idx = min(int(v * 10), 9)
-                        hist_counts[bin_idx] += 1
+                    if v is None:
+                        continue
+                    try:
+                        fv = float(v)
+                    except (TypeError, ValueError):
+                        continue
+                    if not math.isfinite(fv):
+                        continue
+                    bin_idx = min(max(int(fv * 10), 0), 9)
+                    hist_counts[bin_idx] += 1
                 distributions[col] = hist_counts
             result["prob_distributions"] = distributions
 
@@ -513,8 +536,13 @@ def list_run_logs(exp_name: str) -> list[dict]:
         summary_path = d / "run_summary.json"
         summary = None
         if summary_path.exists():
-            with open(summary_path) as f:
-                summary = _json.load(f)
+            try:
+                with open(summary_path) as f:
+                    summary = _json.load(f)
+            except Exception:
+                summary = None
+            if not isinstance(summary, dict):
+                summary = None
         fold_csvs = sorted(d.glob("fold*_metrics.csv"))
         results.append(
             {
@@ -560,5 +588,9 @@ def get_run_summary(exp_name: str, run_name: str) -> dict | None:
     path = PROJECT_ROOT / "src" / exp_name / "logs" / run_name / "run_summary.json"
     if not path.exists():
         return None
-    with open(path) as f:
-        return _json.load(f)
+    try:
+        with open(path) as f:
+            data = _json.load(f)
+    except Exception:
+        return None
+    return data if isinstance(data, dict) else None

@@ -1,0 +1,30 @@
+# =============================================================
+# コンペティションプロファイル
+# =============================================================
+# コンペ固有の値を一元管理する Single Source of Truth。
+# `/kaggle:init` 実行時にこのファイルだけを書き換える（CLAUDE.md や
+# スキル定義はコンペごとに書き換えない）。
+# AI エージェントはメトリクスの向きやコンペ情報が必要なとき、
+# まずこのファイルを参照すること。
+#
+# 参照するもの:
+#   - app/config.py（ダッシュボードの COMPETITION_ID）
+#   - .claude/skills/*（best run 判定・停滞検出のメトリクス方向など）
+#   - CLAUDE.md（規約中の {評価指標名} はこのファイルの metric.name を指す）
+
+competition:
+  name: ""            # 正式名称（例: "Spaceship Titanic"）
+  slug: ""            # Kaggle の competition slug（例: spaceship-titanic）
+  abbreviation: ""    # サイドバー表示等に使う短い略称（例: SpaceTitanic）
+  url: ""             # https://www.kaggle.com/competitions/{slug}
+  type: supervised    # supervised | optimization | simulation
+
+metric:
+  name: score         # メトリクスキー名（短い英小文字。例: auc, f1, rmse, map）
+  mode: max           # max = 大きいほど良い / min = 小さいほど良い
+  # 「改善した/停滞している」を判断する際の目安となる変化幅（絶対値）。
+  # 例: AUC なら 0.001、RMSE なら競技のスコアスケールに合わせて設定する。
+  meaningful_delta: null
+
+wandb:
+  project: kaggle-competition   # /kaggle:init で kaggle-{略称} に変更する

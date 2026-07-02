@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import csv
 import json
-from datetime import datetime, timezone
-from io import TextIOWrapper
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,40 +16,53 @@ from omegaconf import DictConfig, OmegaConf
 
 
 class MetricsLogger:
-    """Local metrics logger that writes CSV + JSON to logs/{run_name}/."""
+    """Local metrics logger that writes CSV + JSON to logs/{run_name}/.
+
+    - run_mode=debug のときは logs/{run_name}-debug/ に書き、fold0/full の
+      ログを上書きしない。
+    - 追跡する評価指標は cfg.metric.name / cfg.metric.mode（min/max）に従う。
+    - 途中のエポックで新しいメトリクスキーが増えても CSV に反映される
+      （行をメモリに保持し、毎回ファイル全体を書き直す）。
+    """
 
     def __init__(self, cfg: DictConfig) -> None:
         self.exp_name: str = cfg.exp_name
         self.run_name: str = cfg.run_name
         self.run_mode: str = cfg.run_mode
-        self.logs_dir = Path(cfg.logs_dir)
+
+        logs_dir = Path(cfg.logs_dir)
+        if self.run_mode == "debug":
+            logs_dir = logs_dir.with_name(f"{logs_dir.name}-debug")
+        self.logs_dir = logs_dir
         self.logs_dir.mkdir(parents=True, exist_ok=True)
 
-        self._fold_writers: dict[int, csv.DictWriter] = {}
-        self._fold_files: dict[int, TextIOWrapper] = {}
+        # 評価指標（未設定の古い config でも動くようにフォールバックする）
+        self.metric_name: str = OmegaConf.select(cfg, "metric.name", default="score")
+        self.metric_mode: str = OmegaConf.select(cfg, "metric.mode", default="max")
+
+        self._fold_rows: dict[int, list[dict[str, Any]]] = {}
         self._fold_fieldnames: dict[int, list[str]] = {}
         self._fold_best: dict[int, dict[str, Any]] = {}
-        self._started_at = datetime.now(timezone.utc).isoformat()
+        self._started_at = datetime.now(UTC).isoformat()
         self._config_snapshot = OmegaConf.to_container(cfg, resolve=True)
 
     def log_epoch(self, fold_idx: int, metrics: dict[str, Any]) -> None:
         """Log one epoch of metrics for a given fold."""
-        if fold_idx not in self._fold_writers:
-            self._open_fold(fold_idx, list(metrics.keys()))
+        rows = self._fold_rows.setdefault(fold_idx, [])
+        fieldnames = self._fold_fieldnames.setdefault(fold_idx, [])
+        self._fold_best.setdefault(fold_idx, {})
 
-        writer = self._fold_writers[fold_idx]
-        row = {k: metrics.get(k) for k in self._fold_fieldnames[fold_idx]}
-        writer.writerow(row)
-        self._fold_files[fold_idx].flush()
+        rows.append(dict(metrics))
+        for key in metrics:
+            if key not in fieldnames:
+                fieldnames.append(key)
 
+        self._write_fold_csv(fold_idx)
         self._update_best(fold_idx, metrics)
 
     def finish(self) -> None:
-        """Close all files and write run_summary.json."""
-        for f in self._fold_files.values():
-            f.close()
-
-        # Compute CV score (mean of best val_score across folds; fallback to best val_loss)
+        """Write run_summary.json."""
+        # CV score = 各 fold の best スコアの平均（debug では None）
         cv_score = None
         if self.run_mode != "debug":
             scores = [
@@ -61,6 +73,7 @@ class MetricsLogger:
             if scores:
                 cv_score = sum(scores) / len(scores)
             else:
+                # 評価指標が未記録の場合は val_loss にフォールバック
                 losses = [
                     b["best_val_loss"]
                     for b in self._fold_best.values()
@@ -73,8 +86,10 @@ class MetricsLogger:
             "exp_name": self.exp_name,
             "run_name": self.run_name,
             "run_mode": self.run_mode,
+            "metric_name": self.metric_name,
+            "metric_mode": self.metric_mode,
             "started_at": self._started_at,
-            "finished_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": datetime.now(UTC).isoformat(),
             "folds": {f"fold{k}": v for k, v in sorted(self._fold_best.items())},
             "cv_score": cv_score,
             "config_snapshot": self._config_snapshot,
@@ -87,32 +102,50 @@ class MetricsLogger:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _open_fold(self, fold_idx: int, fieldnames: list[str]) -> None:
+    def _write_fold_csv(self, fold_idx: int) -> None:
         path = self.logs_dir / f"fold{fold_idx}_metrics.csv"
-        f = open(path, "w", newline="")  # noqa: SIM115
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        self._fold_writers[fold_idx] = writer
-        self._fold_files[fold_idx] = f
-        self._fold_fieldnames[fold_idx] = fieldnames
-        self._fold_best[fold_idx] = {}
+        fieldnames = self._fold_fieldnames[fold_idx]
+        with open(path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in self._fold_rows[fold_idx]:
+                writer.writerow({k: row.get(k) for k in fieldnames})
+
+    def _metric_value(self, metrics: dict[str, Any]) -> Any:
+        """評価指標の値を取り出す（val/{metric} を優先、旧キーにフォールバック）。"""
+        for key in (f"val/{self.metric_name}", "val/score", "val_score"):
+            value = metrics.get(key)
+            if value is not None:
+                return value
+        return None
+
+    def _is_better(self, value: float, current_best: float | None) -> bool:
+        if current_best is None:
+            return True
+        if self.metric_mode == "min":
+            return value < current_best
+        return value > current_best
 
     def _update_best(self, fold_idx: int, metrics: dict[str, Any]) -> None:
         best = self._fold_best[fold_idx]
-
-        val_score = metrics.get("val/score") or metrics.get("val_score")
-        val_loss = metrics.get("val/loss") or metrics.get("val_loss")
         epoch = metrics.get("epoch", 0)
 
-        if val_score is not None:
-            if not best or val_score > best.get("best_val_score", float("-inf")):
-                best["best_epoch"] = epoch
-                best["best_val_score"] = val_score
+        val_score = self._metric_value(metrics)
+        if val_score is not None and self._is_better(
+            val_score, best.get("best_val_score")
+        ):
+            best["best_epoch"] = epoch
+            best["best_val_score"] = val_score
 
-        if val_loss is not None:
-            if "best_val_loss" not in best or val_loss < best["best_val_loss"]:
-                best["best_val_loss"] = val_loss
-                if val_score is None:
-                    best["best_epoch"] = epoch
+        # val/loss は補助情報として常に追跡する（0.0 も有効値として扱う）
+        val_loss = metrics.get("val/loss")
+        if val_loss is None:
+            val_loss = metrics.get("val_loss")
+        if val_loss is not None and (
+            "best_val_loss" not in best or val_loss < best["best_val_loss"]
+        ):
+            best["best_val_loss"] = val_loss
+            if val_score is None:
+                best["best_epoch"] = epoch
 
         best["total_epochs"] = epoch + 1

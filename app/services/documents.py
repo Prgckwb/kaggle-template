@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import markdown
 import nh3
 
 from app.services.helpers import PROJECT_ROOT
-
 
 _OFFICIAL_ORDER = ["overview.md", "data.md"]
 
@@ -34,9 +33,7 @@ def list_docs() -> dict:
                     "name": f.stem,
                     "filename": f.name,
                     "category": category,
-                    "modified": datetime.fromtimestamp(
-                        f.stat().st_mtime, tz=timezone.utc
-                    ),
+                    "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=UTC),
                 }
             )
     return result
@@ -52,7 +49,7 @@ def _list_docs_for_category(category: str) -> list[dict]:
             "name": f.stem,
             "filename": f.name,
             "category": category,
-            "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc),
+            "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=UTC),
         }
         for f in sorted(d.glob("*.md"), key=lambda f: _sort_key(category, f.name))
     ]
@@ -106,24 +103,6 @@ def get_competition_overview() -> dict | None:
         "title": title,
         "description": " ".join(description_lines) if description_lines else None,
     }
-
-
-def get_validation_strategy() -> str | None:
-    """README.md から Validation Strategy セクションを HTML で返す。"""
-    readme = PROJECT_ROOT / "README.md"
-    if not readme.exists():
-        return None
-
-    text = readme.read_text()
-    match = re.search(r"## Validation Strategy\s*\n(.*?)(?=\n## |\Z)", text, re.DOTALL)
-    if not match:
-        return None
-
-    section = match.group(1).strip()
-    if not section:
-        return None
-    html = markdown.markdown(section, extensions=["tables", "fenced_code"])
-    return _sanitize_html(html)
 
 
 _markdown_cache: dict[str, tuple[float, dict]] = {}

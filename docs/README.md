@@ -13,7 +13,7 @@ Kaggle 公式から提供される情報を記載します。
 - データの説明
 - 制約事項
 
-**例**: `competition.md`
+**例**: `overview.md`, `data.md`
 
 ### `discussion/`
 

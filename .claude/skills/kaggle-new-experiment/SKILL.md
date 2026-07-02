@@ -23,6 +23,7 @@ allowed-tools: Bash, Read, Write, Glob, Edit
    - `EXP_SUMMARY.md` の Experiments テーブルを Read で確認し、各実験の Key Change・CV・LB を把握
    - `docs/insights/` の知見ファイルを確認（実装上の知見のみ参考にする）
    - `docs/official/` を Read してコンペの概要・評価指標・データを把握
+   - `docs/competition-profile.yaml` を Read して評価指標の名前・方向（max/min）を把握
 
 2. **ユーザーにヒアリングする**（必ず質問して回答を待つ）
    - 「何を試したいですか？どんな仮説がありますか？」
@@ -69,17 +70,19 @@ exp{XXX} ですでに探索済みです。同じファミリー内での改良�
 メリット・デメリット分析の後、ユーザーの提案を踏まえて **2つの実験オプション** を提示する。
 これは、安定志向と挑戦志向の両方を検討させることで、探索の幅を担保するためのメカニズムである。
 
+改善幅の見込みは `docs/competition-profile.yaml` の `metric.mode`（max/min）と `meaningful_delta` を踏まえて、そのコンペのスコアスケールで表現する。
+
 ```
 === デュアル戦略 ===
 
-【安定型】（着実な改善: +0.5% 程度を見込む）
-- 実験名案: exp{NNN}-{subtitle}
+【安定型】（着実な改善: meaningful_delta 程度の改善を見込む）
+- 実験名案: exp{NNN}_{subtitle}
 - 手法: {既知の有効な手法をベースにした堅実なアプローチ}
 - 根拠: {なぜスコア改善が期待できるか}
 - リスク: 低（ただし改善幅も限定的）
 
 【爆発型】（高リスク・高リターン: うまくいけば大幅改善）
-- 実験名案: exp{NNN}-{subtitle}
+- 実験名案: exp{NNN}_{subtitle}
 - 手法: {従来とは異なる斬新なアプローチ}
 - 根拠: {なぜ大幅改善の可能性があるか}
 - リスク: 高（うまくいかない可能性も相応にある）
@@ -148,7 +151,8 @@ exp{XXX} ですでに探索済みです。同じファミリー内での改良�
    - [ ] `config.yaml` の `exp_name` が新しい実験名（例: `exp002_xxx`）に更新されているか
    - [ ] `output_dir` のパスが新しい実験ディレクトリを参照しているか（`${exp_name}` 変数経由なら自動で正しくなる）
    - [ ] `logs_dir` のパスが新しい実験ディレクトリを参照しているか（同上）
-   - [ ] `wandb.project` がデフォルト値（`kaggle-competition`）でないか（`/kaggle:init` 済みなら OK）
+   - [ ] `wandb.project` が `docs/competition-profile.yaml` の `wandb.project` と一致しているか（デフォルト値 `kaggle-competition` のままなら要修正）
+   - [ ] `metric.name` / `metric.mode` が profile の `metric` と一致しているか
 
 4. **実験 README.md を作成**（目的・仮説はフェーズ 2 の議論を反映）
 

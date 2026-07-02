@@ -1,7 +1,7 @@
 ---
 name: kaggle:record-result
 description: 実験結果を対話的に確認・記録する。CV/LB スコア、考察、知見を README と docs/insights に保存。
-argument-hint: [実験名（例: exp001-baseline）]
+argument-hint: [実験名（例: exp001_baseline）]
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Edit, Glob
 ---
@@ -13,10 +13,12 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 
 ## best run の決定ルール
 
-大実験の best run = **最高 LB（LB がなければ最高 CV）の run**。
+大実験の best run = **最良 LB（LB がなければ最良 CV）の run**。
+
+「最良」の方向は `docs/competition-profile.yaml` の `metric.mode` に従う（`max` なら最大、`min`（RMSE 等）なら最小が best）。**必ず先に profile を Read して方向を確認すること。**
 
 EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコアを記載する。
-複数 run がある場合、LB スコアが最も高い run を best とする。LB が未提出の run しかない場合は CV スコアで判定する。
+複数 run がある場合、LB スコアが最良の run を best とする。LB が未提出の run しかない場合は CV スコアで判定する。
 
 ## フェーズ 1: 実験の特定と状況確認
 
@@ -36,19 +38,20 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
    - `src/{exp-name}/output/{run_name}/` 配下に学習済みの出力があるか確認
    - EXP_SUMMARY.md の Experiments テーブルで既存のスコアを確認
 
-## フェーズ 2: スコアの収集（対話的）
+## フェーズ 2: スコアの収集（ローカルログ優先）
 
-ユーザーに自然な流れで確認する:
+**ユーザーに聞く前に、まず機械可読なログから自動取得する:**
 
-1. **CV スコア**
-   - 「CV スコアはいくつでしたか？」
-   - 各 fold のスコアがわかれば聞く（平均と分散の把握のため）
-   - 不明の場合は `-` として記録し、後で更新できることを伝える
+1. **CV スコアの自動取得**
+   - `src/{exp-name}/logs/{run_name}/run_summary.json` を Read し、`cv_score`・`folds`（fold ごとの best）・`metric_name`・`run_mode` を取得
+   - `fold{N}_metrics.csv` があれば fold ごとの推移も確認できる
+   - 取得できた場合: 「run_summary.json によると CV は {cv_score}（{metric_name}）ですね。この値で記録しますか？」と**確認だけ**行う
+   - ログが存在しない・値が欠けている場合のみ「CV スコアはいくつでしたか？」と質問する
 
 2. **LB スコア**
    - 「Kaggle に submit しましたか？LB スコアはいくつでしたか？」
-   - 未提出の場合は `-` として記録
-   - 「後で submit したら教えてください、更新します」と伝える
+   - Kaggle MCP が利用可能なら submission 一覧からの取得を試みてもよい
+   - 未提出の場合は `-` として記録し、「後で submit したら教えてください、更新します」と伝える
 
 3. **Split 方法**
    - README.md にすでに記載があればそれを確認
@@ -105,24 +108,24 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
 
 ### 4-2. EXP_SUMMARY.md の更新
 
-1. **Experiments テーブル**: 該当行の Split, CV, LB を更新（大実験の best run = 最高 LB、LB なしなら最高 CV の run のスコアを記載）
+1. **Experiments テーブル**: 該当行の Split, CV, LB を更新（大実験の best run = 最良 LB、LB なしなら最良 CV の run のスコアを記載。方向は profile の `metric.mode`）
 2. **Experiment Tree**: ノードにスコアを追加し、クラスを更新
    - スコアが入ったら `wip` → `good`（青）に変更
-   - 全実験中で最高 LB なら `best`（緑）に変更
+   - 全実験中で最良 LB なら `best`（緑）に変更
    - 他の実験が `best` → `good` に降格する必要があるかも確認
    - 行き詰まり検出でステータスが `dead-end` になった場合は `dead`（赤）に変更
 
    ノードのフォーマット:
    ```
-   X["exp{番号}-{subtitle}<br/>{split} | CV: {cv} | LB: {lb}"]
+   X["exp{番号}_{subtitle}<br/>{split} | CV: {cv} | LB: {lb}"]
    ```
 
 ### 4-3. docs/insights/ に知見ファイルを作成
 
-ファイル名: `YYYY-MM-DD_exp{番号}-{subtitle}.md`（今日の日付）
+ファイル名: `YYYY-MM-DD_exp{番号}_{subtitle}.md`（今日の日付。CLAUDE.md の命名規則と同じアンダースコア区切り）
 
 ```markdown
-# exp{番号}-{subtitle}
+# exp{番号}_{subtitle}
 
 ## 概要
 
@@ -158,14 +161,15 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
 
 ### 5-1. 停滞チェック
 
-対象実験の Runs テーブル（README.md）を確認し、直近 3 run の CV スコアを比較する:
+対象実験の Runs テーブル（README.md）を確認し、直近 3 run の CV スコアを比較する。
+**改善の方向と基準は `docs/competition-profile.yaml` の `metric.mode` と `meaningful_delta` に従う**（`min` 指標では減少が改善であることに注意）:
 
 1. CV スコアが数値として記録されている直近 3 run を取得
-2. 最新 run の CV と 3 つ前の run の CV の差を計算
-3. **改善幅が 0.5% 未満の場合**、以下の警告を表示する:
+2. 最新 run の CV と 3 つ前の run の CV の「改善量」（mode を考慮した符号）を計算
+3. **改善量が `meaningful_delta` 未満の場合**（`meaningful_delta` が未設定なら、そのコンペのスコアスケールで有意な差かをユーザーに確認する）、以下の警告を表示する:
 
 ```
-⚠ 行き詰まり検出: この実験の直近 3 run の CV 改善幅は {差分} です（0.5% 未満）。
+⚠ 行き詰まり検出: この実験の直近 3 run の CV 改善量は {差分} です（meaningful_delta = {値} 未満）。
 この実験は収穫逓減（diminishing returns）に達している可能性があります。
 
 推奨アクション:

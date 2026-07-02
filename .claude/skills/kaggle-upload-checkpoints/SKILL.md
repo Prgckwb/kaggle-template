@@ -1,7 +1,7 @@
 ---
 name: kaggle:upload-checkpoints
 description: 実験の output ディレクトリを Kaggle Dataset としてアップロードする。
-argument-hint: [実験名（例: exp001-baseline）]
+argument-hint: [実験名（例: exp001_baseline）]
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 ---
@@ -36,21 +36,24 @@ output ディレクトリの構造（`fold0/`, `fold1/`, ...）がそのまま K
 2. **メタデータ作成（存在しない場合）**
    - ユーザーに以下を確認:
      - Kaggle ユーザー名（既存メタデータがあればそこから取得）
-     - コンペティションスラグ（Kaggle URL の一部、例: `birdclef-2026`）
-   - slug を決定: `{kaggle_user}/{comp_slug}-{exp_name}`
+     - コンペティションスラグ（`docs/competition-profile.yaml` の `competition.slug` を既定値として提示）
+   - slug を決定: `{kaggle_user}/{comp_slug}-{exp_name_kebab}`
+     - **注意**: Kaggle の dataset slug に使えるのは英数字とハイフンのみ。実験名のアンダースコアはハイフンに変換する（例: `exp001_baseline` → `exp001-baseline`）
    - `dataset-metadata.json` を作成:
      ```json
      {
        "title": "{comp_slug} {exp_name}",
-       "id": "{kaggle_user}/{comp_slug}-{exp_name}",
+       "id": "{kaggle_user}/{comp_slug}-{exp_name_kebab}",
        "licenses": [{"name": "CC0-1.0"}]
      }
      ```
+   - ライセンスはデフォルト CC0-1.0 だが、チーム戦略上問題ないかユーザーに確認する（`kaggle datasets create` のデフォルトは非公開 Dataset）
 
 3. **ユーザーに確認**
    - メタデータの内容を表示
    - slug が正しいか確認
    - 承認を得てから次のフェーズに進む
+   - **注意**: `dataset-metadata.json` は gitignore 対象の `output/{run_name}/` 配下に置かれるため、再学習で上書き・消失し得る。作成した slug は実験 README.md にも記録しておく
 
 ## フェーズ 3: アップロード実行
 
@@ -69,7 +72,7 @@ output ディレクトリの構造（`fold0/`, `fold1/`, ...）がそのまま K
 ## フェーズ 4: 完了報告
 
 - アップロードした Dataset の情報:
-  - slug: `{kaggle_user}/{comp_slug}-{exp_name}`
-  - Kaggle 上のパス: `/kaggle/input/datasets/{kaggle_user}/{comp_slug}-{exp_name}/`
+  - slug: `{kaggle_user}/{comp_slug}-{exp_name_kebab}`
+  - Kaggle Notebook 上のマウントパス: 通常 `/kaggle/input/{dataset-slug}/`（**Add Data 後に Notebook のサイドバーで実際のパスを必ず確認する**。Kaggle の UI 更新でパス形式が変わることがある）
 - アップロード内容（fold 数、チェックポイントファイル一覧）
 - Notebook から参照する際のパス例

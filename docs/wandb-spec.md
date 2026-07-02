@@ -45,14 +45,14 @@ wandb.finish()
 
 - `WandbLogger(experiment=wandb.run)` を Trainer に渡し、PL の `self.log()` を現在の fold run に記録
 
-**メトリクスキー名規則**: `{split}/{metric}` 形式。全実験で統一し、表記揺れ（`acc` vs `accuracy`、`valid` vs `val`）を避ける。`{評価指標名}` は `/kaggle:init` 実行時にユーザーに確認し、実際のメトリクス名（例: `auc`, `f1`, `accuracy`）に置換する。以降変更しない。
+**メトリクスキー名規則**: `{split}/{metric}` 形式。全実験で統一し、表記揺れ（`acc` vs `accuracy`、`valid` vs `val`）を避ける。本ドキュメント中の `{評価指標名}` は `docs/competition-profile.yaml` の `metric.name`（`/kaggle:init` で設定。例: `auc`, `f1`, `rmse`）を指す。各実験の config（`metric.name` / `metric.mode`）も同じ値に揃え、以降変更しない。
 
 | キー名 | 意味 | 記録場所 |
 |--------|------|----------|
 | `train/loss` | 学習ロス（epoch 平均） | fold run |
-| `train/{評価指標名}` | 学習メトリクス（← `/kaggle:init` で置換） | fold run |
+| `train/{評価指標名}` | 学習メトリクス | fold run |
 | `val/loss` | 検証ロス（epoch 平均） | fold run |
-| `val/{評価指標名}` | 検証メトリクス（← `/kaggle:init` で置換） | fold run |
+| `val/{評価指標名}` | 検証メトリクス | fold run |
 | `cv/{評価指標名}` | 全 fold の best `val/{評価指標名}` の平均 | summary run の `wandb.summary` |
 | `cv/{評価指標名}_std` | 同標準偏差 | summary run の `wandb.summary` |
 | `fold{i}/best_val_{評価指標名}` | 各 fold の best `val/{評価指標名}` | summary run の `wandb.summary` |

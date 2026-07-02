@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "ask": [
+      "mcp__kaggle__submit_to_competition",
+      "mcp__kaggle__create_code_competition_submission",
+      "mcp__kaggle__upload_dataset_file"
+    ]
+  },
+  "enabledMcpjsonServers": ["kaggle"]
+}

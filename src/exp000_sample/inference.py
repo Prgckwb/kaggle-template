@@ -12,15 +12,17 @@ import hydra
 import pandas as pd
 from omegaconf import DictConfig
 
+from src.utils.seeding import seed_everything
 from src.utils.submission import validate_submission
 
 
 @hydra.main(version_base=None, config_path="config", config_name="config")
 def main(cfg: DictConfig) -> None:
+    seed_everything(cfg.seed)
     output_dir = Path(cfg.output_dir)
-    input_dir = Path(cfg.data.test_path).parent
+    sample_sub_path = Path(cfg.data.sample_submission_path)
 
-    sample_sub = pd.read_csv(input_dir / "sample_submission.csv")
+    sample_sub = pd.read_csv(sample_sub_path)
 
     # TODO: Load model checkpoints per fold and average predictions
     # Example for fold-ensemble:
@@ -43,7 +45,7 @@ def main(cfg: DictConfig) -> None:
     submission_path = output_dir / "submission.csv"
     submission.to_csv(submission_path, index=False)
 
-    errors = validate_submission(submission_path, input_dir / "sample_submission.csv")
+    errors = validate_submission(submission_path, sample_sub_path)
     if errors:
         print("Submission validation errors:")
         for e in errors:

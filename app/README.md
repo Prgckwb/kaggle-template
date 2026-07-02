@@ -20,11 +20,15 @@ uv run uvicorn app.main:app --reload
 | Jinja2 | テンプレートエンジン | pip (dev 依存) |
 | nh3 | HTML サニタイズ (XSS 防止) | pip (dev 依存) |
 | htmx 1.9.10 | 動的 UI 更新 | ローカル (`static/js/`) |
-| Tailwind CSS + typography plugin | スタイリング | CDN |
-| FontAwesome 6 Free | アイコン | CDN |
+| Tailwind CSS (Play CDN) + typography plugin | スタイリング | CDN |
+| FontAwesome 6.5.1 Free | アイコン | CDN |
 | Nunito (Google Fonts) | フォント | CDN |
 | highlight.js 11.9.0 | シンタックスハイライト | ローカル (`static/`) |
 | Chart.js 4.4.7 | スコアグラフ・OOF 可視化 | ローカル (`static/js/`) |
+| Mermaid 11 | Experiment Tree 等の図のレンダリング | CDN (jsdelivr) |
+
+CDN 読み込み: Google Fonts (Nunito) / FontAwesome 6.5.1 / Tailwind Play CDN / Mermaid 11。
+ローカル同梱 (vendored): htmx 1.9.10 / Chart.js 4.4.7 / highlight.js 11.9.0。
 
 ## スタイリング規則
 
@@ -65,7 +69,7 @@ FontAwesome 6 Free (`fa-solid` 系) を使用。絵文字は使わない。
 
 ### ダークモード対応マッピング
 
-現在はライトテーマのみ。ダークモード追加時は以下の Tailwind クラスマッピングに従う:
+ダークモード実装済み（`darkMode: 'class'`、`localStorage('theme')` で永続化、サイドバーフッターの `toggleDarkMode()` で切替）。新規 UI は以下の Tailwind クラスマッピングに従う:
 
 | 用途 | Light | Dark |
 |------|-------|------|
@@ -95,7 +99,7 @@ FontAwesome 6 Free (`fa-solid` 系) を使用。絵文字は使わない。
   - Knowledge ページにいるときは自動展開
   - サブアイテムに `active_subpage` による active 状態表示
 - ナビ部分のみ `overflow-y-auto` でスクロール
-- フッターなし（不要な情報を排除）
+- フッターにはダークモード切替ボタンのみを配置（それ以外の情報は置かない）
 
 ### メインコンテンツ
 
@@ -233,6 +237,25 @@ app/
     └── data/               # データ閲覧ページ
 ```
 
+## ダッシュボードが期待する実験ディレクトリ規約
+
+Experiments ページは `src/exp*/` ディレクトリを以下の規約でスキャンする:
+
+```
+src/exp{NNN}_{subtitle}/
+├── config/
+│   ├── config.yaml               # ベース run。run_name キーを参照（既定: run000-base）
+│   └── run{NNN}-{subtitle}.yaml  # 小実験 config。run_name で run を識別
+├── output/{run_name}/
+│   ├── fold{idx}/*.ckpt          # チェックポイント一覧に表示
+│   └── oof_predictions.csv       # OOF タブの分析対象
+└── logs/{run_name}/
+    ├── run_summary.json          # cv_score / run_mode / finished_at キーを参照
+    └── fold{idx}_metrics.csv     # Logs タブの epoch メトリクス表示
+```
+
+この規約に従わない実験はエラーにはならず、該当タブが空状態（empty state）で表示される。
+
 ## アーキテクチャ
 
 ### テンプレート環境の共有
@@ -273,7 +296,7 @@ from app.services.helpers import is_htmx
 @router.get("/experiments")
 def experiment_list(request: Request):
     template = "partials/_experiment_list.html" if is_htmx(request) else "experiments/list.html"
-    return templates.TemplateResponse(template, {...})
+    return templates.TemplateResponse(request, template, {...})
 ```
 
 ### 検索フィルタ

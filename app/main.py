@@ -4,6 +4,7 @@ import logging
 import traceback
 from pathlib import Path
 
+import yaml
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -75,14 +76,54 @@ def leaderboard_refresh(request: Request):
 
 _LOWER_IS_BETTER_KEYWORDS = ("loss", "rmse", "mae", "mse", "error")
 
+# mtime シグネチャベースのキャッシュ（`/` アクセスごとの全 config 再パースを防ぐ）
+_best_fn_cache: dict[str, object] = {"sig": None, "fn": max}
 
-def _get_best_score_fn():
+
+def _metric_mode_from_profile() -> str | None:
+    """docs/competition-profile.yaml の metric.mode（max / min）を返す。未設定なら None。"""
+    profile_path = PROJECT_ROOT / "docs" / "competition-profile.yaml"
+    if not profile_path.exists():
+        return None
+    try:
+        data = yaml.safe_load(profile_path.read_text()) or {}
+    except Exception:
+        return None
+    mode = (data.get("metric") or {}).get("mode")
+    if isinstance(mode, str) and mode.lower() in ("max", "min"):
+        return mode.lower()
+    return None
+
+
+def _best_fn_signature() -> tuple:
+    """profile と各実験 config の (path, mtime) シグネチャ（stat のみで軽量）。"""
+    sig = []
+    profile_path = PROJECT_ROOT / "docs" / "competition-profile.yaml"
+    if profile_path.exists():
+        sig.append((str(profile_path), profile_path.stat().st_mtime))
+    src = PROJECT_ROOT / "src"
+    if src.exists():
+        for d in sorted(src.iterdir()):
+            if not (d.is_dir() and d.name.startswith("exp")):
+                continue
+            cfg_path = d / "config" / "config.yaml"
+            if cfg_path.exists():
+                sig.append((str(cfg_path), cfg_path.stat().st_mtime))
+    return tuple(sig)
+
+
+def _compute_best_score_fn():
     """Return min or max depending on metric direction.
 
-    1. Check experiment configs for a ``greater_is_better`` field.
-    2. Otherwise infer from the metric name: if it contains loss/rmse/mae/mse/error
+    1. Prefer ``metric.mode`` in docs/competition-profile.yaml (max / min).
+    2. Otherwise check experiment configs for a ``greater_is_better`` field.
+    3. Otherwise infer from the metric name: if it contains loss/rmse/mae/mse/error
        use ``min``; else ``max``.
     """
+    mode = _metric_mode_from_profile()
+    if mode is not None:
+        return max if mode == "max" else min
+
     src = PROJECT_ROOT / "src"
     if src.exists():
         for d in sorted(src.iterdir()):
@@ -92,8 +133,6 @@ def _get_best_score_fn():
             if not cfg_path.exists():
                 continue
             try:
-                import yaml
-
                 cfg = yaml.safe_load(cfg_path.read_text()) or {}
             except Exception:
                 continue
@@ -111,6 +150,15 @@ def _get_best_score_fn():
                 return max
     # Default: higher is better
     return max
+
+
+def _get_best_score_fn():
+    """_compute_best_score_fn() の結果を mtime シグネチャでキャッシュして返す。"""
+    sig = _best_fn_signature()
+    if sig != _best_fn_cache["sig"]:
+        _best_fn_cache["fn"] = _compute_best_score_fn()
+        _best_fn_cache["sig"] = sig
+    return _best_fn_cache["fn"]
 
 
 @app.get("/", response_class=HTMLResponse)

@@ -9,6 +9,40 @@
         {% endif %}
     </div>
 
+    <!-- Numeric Column Stats (generic schema: true_label/pred_label がない場合) -->
+    {% if oof.schema is defined and oof.schema == "generic" and oof.numeric_stats %}
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+        <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-4">
+            <i class="fa-solid fa-calculator text-violet-500 mr-2"></i>Numeric Column Stats
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-900">
+                        <th class="px-3 py-2 text-left text-gray-500 dark:text-gray-400 font-semibold">Column</th>
+                        <th class="px-3 py-2 text-right text-gray-500 dark:text-gray-400 font-semibold">Mean</th>
+                        <th class="px-3 py-2 text-right text-gray-500 dark:text-gray-400 font-semibold">Std</th>
+                        <th class="px-3 py-2 text-right text-gray-500 dark:text-gray-400 font-semibold">Min</th>
+                        <th class="px-3 py-2 text-right text-gray-500 dark:text-gray-400 font-semibold">Max</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in oof.numeric_stats %}
+                    <tr class="border-t border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-3 py-1.5 font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">{{ stat.column }}</td>
+                        {% for key in ["mean", "std", "min", "max"] %}
+                        <td class="px-3 py-1.5 text-right text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                            {% if stat[key] is not none %}{{ stat[key] | round(4) }}{% else %}-{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Confusion Matrix -->
     {% if oof.confusion_matrix %}
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">

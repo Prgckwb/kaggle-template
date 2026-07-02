@@ -21,10 +21,19 @@ debug:
   limit_val_batches: 2
   n_folds: 1
 
+# Metric（docs/competition-profile.yaml と揃える。/kaggle:init で設定）
+# - name: wandb キー（val/{name}）・チェックポイント名・CV 集計に使う短い英小文字名
+# - mode: max = 大きいほど良い / min = 小さいほど良い
+# このサンプルはダミーの損失をスコアとして扱うため loss/min にしている
+metric:
+  name: loss
+  mode: min
+
 # Data
 data:
   train_path: ${hydra:runtime.cwd}/input/train.csv
   test_path: ${hydra:runtime.cwd}/input/test.csv
+  sample_submission_path: ${hydra:runtime.cwd}/input/sample_submission.csv
   n_folds: 5
 
 # Model
