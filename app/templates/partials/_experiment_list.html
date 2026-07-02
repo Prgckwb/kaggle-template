@@ -9,8 +9,8 @@
                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Exp</th>
                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">CV</th>
                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">LB</th>
-                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
-                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">説明</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">状態</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -26,12 +26,12 @@
                 <td class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">{{ exp.lb }}</td>
                 <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ exp.description }}</td>
                 <td class="px-4 py-3">
-                    {% if exp.has_inference %}
-                        {{ badge("complete", color="emerald", icon="fa-check") }}
-                    {% elif exp.has_config %}
-                        {{ badge("in progress", color="amber", icon="fa-spinner") }}
+                    {% if exp.has_scores %}
+                        {{ badge("記録済み", color="emerald", icon="fa-check") }}
+                    {% elif exp.has_results %}
+                        {{ badge("スコア未記録", color="amber", icon="fa-flask") }}
                     {% else %}
-                        {{ badge("draft", color="gray", icon="fa-pen") }}
+                        {{ badge("未着手", color="gray", icon="fa-pen") }}
                     {% endif %}
                 </td>
             </tr>
@@ -40,5 +40,5 @@
     </table>
 </div>
 {% else %}
-{{ empty_state("実験が見つかりません", "fa-flask") }}
+{{ empty_state("実験が見つかりません", "fa-flask", hint="/kaggle:new-experiment で新しい実験を対話的に作成できます。") }}
 {% endif %}

@@ -57,5 +57,8 @@
     });
 </script>
 {% else %}
-<p class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">No experiment scores available</p>
+{% from "components/_empty_state.html" import empty_state %}
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+{{ empty_state("スコアが記録された実験はまだありません", "fa-chart-line", hint="run_mode=full で学習して /kaggle:record-result でスコアを記録すると、実験ごとの CV/LB 推移がここに表示されます。") }}
+</div>
 {% endif %}

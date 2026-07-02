@@ -6,35 +6,38 @@
 
 {% block content %}
 
-<!-- Back link -->
-<a href="/experiments" class="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-emerald-500 font-semibold mb-4 transition-colors">
-    <i class="fa-solid fa-arrow-left text-xs"></i>
-    Experiments
-</a>
+<!-- Breadcrumb -->
+<nav class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6" aria-label="パンくずリスト">
+    <a href="/experiments" class="hover:text-emerald-500 font-semibold transition-colors">Experiments</a>
+    <i class="fa-solid fa-chevron-right text-xs text-gray-300 dark:text-gray-500" aria-hidden="true"></i>
+    <span class="font-semibold text-gray-800 dark:text-gray-100">{{ exp.name }}</span>
+</nav>
 
 <!-- Header -->
 <div class="flex items-center justify-between mb-6">
     <div class="flex items-center gap-3">
         <div class="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
-            <i class="fa-solid fa-flask text-emerald-500"></i>
+            <i class="fa-solid fa-flask text-emerald-500" aria-hidden="true"></i>
         </div>
         <h1 class="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{{ exp.name }}</h1>
     </div>
     <div class="flex items-center gap-2">
         {% if exp.runs %}
-            {{ badge(exp.runs|length ~ " runs", color="amber", icon="fa-flask") }}
+            {{ badge("run 設定 " ~ exp.runs|length ~ " 件", color="amber", icon="fa-flask") }}
         {% endif %}
         {% if exp.checkpoints %}
-            {{ badge(exp.checkpoints|length ~ " ckpt", color="sky", icon="fa-weight-hanging") }}
+            {{ badge("ckpt " ~ exp.checkpoints|length ~ " 件", color="sky", icon="fa-weight-hanging") }}
         {% endif %}
     </div>
 </div>
 
 <!-- Score cards -->
-<div class="grid grid-cols-3 gap-4 mb-6">
-    {{ metric_card("CV Score", exp.cv, icon="fa-chart-line", color="emerald") }}
-    {{ metric_card("LB Score", exp.lb, icon="fa-ranking-star", color="amber") }}
-    {{ metric_card("Files", exp.files|length ~ " files", icon="fa-folder-open", color="sky") }}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    {{ metric_card("CV Score", exp.cv, icon="fa-chart-line", color="emerald",
+                   subtitle="" if exp.cv != "-" else "run_mode=full 実行後 /kaggle:record-result で記録") }}
+    {{ metric_card("LB Score", exp.lb, icon="fa-ranking-star", color="amber",
+                   subtitle="" if exp.lb != "-" else "Kaggle へ submit 後 /kaggle:record-result で記録") }}
+    {{ metric_card("最終更新", exp.last_modified|timeago if exp.last_modified else "-", icon="fa-clock", color="sky") }}
 </div>
 
 <!-- Tabs -->

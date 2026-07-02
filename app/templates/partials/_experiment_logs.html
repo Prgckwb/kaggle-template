@@ -23,7 +23,7 @@
                 {% if log.cv_score is not none %}
                 {{ badge("CV: " ~ "%.4f" | format(log.cv_score), color="emerald", icon="fa-chart-line") }}
                 {% endif %}
-                {{ badge(log.fold_count ~ " folds", color="sky", icon="fa-layer-group") }}
+                {{ badge("fold × " ~ log.fold_count, color="sky", icon="fa-layer-group") }}
                 <i class="fa-solid fa-chevron-right text-xs text-gray-300 dark:text-gray-500 ml-1"></i>
             </div>
         </div>
@@ -31,5 +31,5 @@
     {% endfor %}
 </div>
 {% else %}
-{{ empty_state("No training logs found. Run training to generate logs.", "fa-chart-line") }}
+{{ empty_state("学習ログがありません", "fa-chart-line", hint="run_mode=debug でパイプラインを確認 → fold0 / full で学習すると、メトリクスの推移がここに表示されます。") }}
 {% endif %}
