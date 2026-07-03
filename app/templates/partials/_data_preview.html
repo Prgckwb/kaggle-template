@@ -41,6 +41,16 @@
         </div>
     </div>
 
+    <!-- Records view (on-demand: 長文テキストをセル省略なしで読む) -->
+    <div id="records-container">
+        <button hx-get="/data/records/{{ file.path }}"
+                hx-target="#records-container"
+                hx-swap="innerHTML"
+                class="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors cursor-pointer">
+            <i class="fa-solid fa-list mr-2"></i>レコード表示（1行 = 1カード。長文向け）
+        </button>
+    </div>
+
     <!-- Statistics (on-demand) -->
     <div id="csv-stats-container">
         <button hx-get="/data/stats/{{ file.path }}"
@@ -192,7 +202,7 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <script src="/static/js/wavesurfer.min.js"></script>
     <script>
     (function() {
         var ws = WaveSurfer.create({

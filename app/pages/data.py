@@ -9,6 +9,7 @@ from app.services.data import (
     get_csv_preview,
     get_csv_stats,
     get_file_info,
+    get_tabular_records,
     list_directory_images,
     list_input_files,
     read_json_preview,
@@ -118,6 +119,17 @@ def data_stats(request: Request, file_path: str):
     stats = get_csv_stats(full_path)
     ctx = {"stats": stats}
     return templates.TemplateResponse(request, "partials/_data_stats.html", ctx)
+
+
+@router.get("/data/records/{file_path:path}", response_class=HTMLResponse)
+def data_records(request: Request, file_path: str, offset: int = 0):
+    """長文テキスト向けのレコード単位ビュー（1行 = 1カード）。"""
+    full_path = safe_relative_path(file_path, INPUT_DIR)
+    if full_path is None or not full_path.exists():
+        return error_response(request, templates, 404, "ファイルが見つかりません")
+    records = get_tabular_records(full_path, offset=max(offset, 0))
+    ctx = {"records": records, "file_path": file_path}
+    return templates.TemplateResponse(request, "partials/_data_records.html", ctx)
 
 
 @router.get("/data/gallery/{dir_path:path}", response_class=HTMLResponse)

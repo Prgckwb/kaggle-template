@@ -84,24 +84,42 @@ def get_file_info(path: Path, base: Path) -> dict:
     }
 
 
-def get_csv_preview(path: Path, preview_rows: int = 5) -> dict | None:
-    """CSV の先頭行プレビューを返す（軽量）。"""
-    if not path.exists():
-        return None
+def _read_tabular_head(path: Path, n_rows: int):
+    """テーブルファイル（CSV / TSV / Parquet）の先頭 n_rows を DataFrame で返す。"""
     import polars as pl
 
+    suffix = path.suffix.lower()
+    if suffix == ".parquet":
+        return pl.read_parquet(path, n_rows=n_rows)
+    separator = "\t" if suffix == ".tsv" else ","
+    return pl.read_csv(
+        path, n_rows=n_rows, separator=separator, infer_schema_length=10000
+    )
+
+
+def _count_tabular_rows(path: Path) -> int:
+    """テーブルファイルの総行数を lazy scan で数える。"""
+    import polars as pl
+
+    suffix = path.suffix.lower()
+    if suffix == ".parquet":
+        lf = pl.scan_parquet(path)
+    else:
+        separator = "\t" if suffix == ".tsv" else ","
+        lf = pl.scan_csv(path, separator=separator, infer_schema_length=10000)
+    return lf.select(pl.len()).collect().item()
+
+
+def get_csv_preview(path: Path, preview_rows: int = 5) -> dict | None:
+    """テーブルファイル（CSV / TSV / Parquet）の先頭行プレビューを返す（軽量）。"""
+    if not path.exists():
+        return None
     try:
-        df = pl.read_csv(path, n_rows=preview_rows, infer_schema_length=10000)
-        total = (
-            pl.scan_csv(path, infer_schema_length=10000)
-            .select(pl.len())
-            .collect()
-            .item()
-        )
+        df = _read_tabular_head(path, preview_rows)
         return {
             "columns": df.columns,
             "rows": df.to_dicts(),
-            "total_rows": total,
+            "total_rows": _count_tabular_rows(path),
             "total_cols": len(df.columns),
         }
     except Exception:
@@ -109,29 +127,39 @@ def get_csv_preview(path: Path, preview_rows: int = 5) -> dict | None:
 
 
 def get_csv_stats(path: Path, stats_rows: int = 10000) -> dict | None:
-    """CSV の統計情報を返す（重い処理）。"""
+    """テーブルファイル（CSV / TSV / Parquet）の統計情報を返す（重い処理）。"""
     if not path.exists():
         return None
-    import polars as pl
-
     try:
-        df = pl.read_csv(path, n_rows=stats_rows, infer_schema_length=10000)
-        total = (
-            pl.scan_csv(path, infer_schema_length=10000)
-            .select(pl.len())
-            .collect()
-            .item()
-        )
+        df = _read_tabular_head(path, stats_rows)
         describe = df.describe()
         null_counts = {col: df[col].null_count() for col in df.columns}
 
         return {
-            "total_rows": total,
+            "total_rows": _count_tabular_rows(path),
             "total_cols": len(df.columns),
             "dtypes": {col: str(df[col].dtype) for col in df.columns},
             "null_counts": null_counts,
             "describe_columns": describe.columns,
             "describe_rows": describe.to_dicts(),
+        }
+    except Exception:
+        return None
+
+
+def get_tabular_records(path: Path, offset: int = 0, limit: int = 5) -> dict | None:
+    """長文テキスト向けのレコード単位ビュー（1行 = 1カード）。"""
+    if not path.exists():
+        return None
+    try:
+        df = _read_tabular_head(path, offset + limit)
+        rows = df.to_dicts()[offset : offset + limit]
+        return {
+            "columns": df.columns,
+            "rows": rows,
+            "offset": offset,
+            "limit": limit,
+            "total_rows": _count_tabular_rows(path),
         }
     except Exception:
         return None

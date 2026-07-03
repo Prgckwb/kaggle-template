@@ -1,0 +1,48 @@
+{# 長文テキスト向けレコードビュー: 1行 = 1カード。NLP コンペ等でセル省略なしに全文を読む #}
+{% if records and records.rows %}
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-list text-gray-400 dark:text-gray-500"></i>
+            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">
+                Records {{ records.offset + 1 }}–{{ records.offset + records.rows|length }} / {{ records.total_rows }}
+            </span>
+        </div>
+        <div class="flex items-center gap-2">
+            {% if records.offset > 0 %}
+            <button hx-get="/data/records/{{ file_path }}?offset={{ [records.offset - records.limit, 0] | max }}"
+                    hx-target="#records-container" hx-swap="innerHTML"
+                    class="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-lg text-xs font-semibold transition-colors cursor-pointer">
+                <i class="fa-solid fa-chevron-left mr-1"></i>前へ
+            </button>
+            {% endif %}
+            {% if records.offset + records.rows|length < records.total_rows %}
+            <button hx-get="/data/records/{{ file_path }}?offset={{ records.offset + records.limit }}"
+                    hx-target="#records-container" hx-swap="innerHTML"
+                    class="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-lg text-xs font-semibold transition-colors cursor-pointer">
+                次へ<i class="fa-solid fa-chevron-right ml-1"></i>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    <div class="divide-y divide-gray-100 dark:divide-gray-700 max-h-[600px] overflow-y-auto">
+        {% for row in records.rows %}
+        <div class="p-4">
+            <div class="text-xs font-bold text-gray-400 dark:text-gray-500 mb-2">Row {{ records.offset + loop.index }}</div>
+            <dl class="space-y-2">
+                {% for col in records.columns %}
+                <div>
+                    <dt class="text-xs font-bold text-gray-500 dark:text-gray-400">{{ col }}</dt>
+                    <dd class="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words">{{ row[col] if row[col] is not none else '—' }}</dd>
+                </div>
+                {% endfor %}
+            </dl>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
+    <p class="text-gray-500 dark:text-gray-400 font-semibold text-sm">レコードを読み込めませんでした</p>
+</div>
+{% endif %}
