@@ -51,6 +51,7 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
 2. **LB スコア**
    - 「Kaggle に submit しましたか？LB スコアはいくつでしたか？」
    - Kaggle MCP が利用可能なら submission 一覧からの取得を試みてもよい
+   - `uv run python tools/check_submission.py` でも最新提出のステータス・public LB を取得できる（読み取り専用）
    - 未提出の場合は `-` として記録し、「後で submit したら教えてください、更新します」と伝える
 
 3. **Split 方法**

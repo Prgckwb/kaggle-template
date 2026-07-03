@@ -153,6 +153,8 @@ exp{XXX} ですでに探索済みです。同じファミリー内での改良�
    - [ ] `logs_dir` のパスが新しい実験ディレクトリを参照しているか（同上）
    - [ ] `wandb.project` が `docs/competition-profile.yaml` の `wandb.project` と一致しているか（デフォルト値 `kaggle-competition` のままなら要修正）
    - [ ] `metric.name` / `metric.mode` が profile の `metric` と一致しているか
+   - [ ] `train.py` / `inference.py` の `config_schema` import がコピー元（例: `src.exp000_sample.config_schema`）のままになっていないか（新実験のパスに更新）
+   - [ ] `config.yaml` にキーを追加・削除した場合、`config_schema.py` の dataclass も同期しているか（不一致だと起動時に ConfigKeyError になる）
 
 4. **実験 README.md を作成**（目的・仮説はフェーズ 2 の議論を反映）
 
