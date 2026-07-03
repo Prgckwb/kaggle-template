@@ -70,8 +70,10 @@ def human_filesize(size: int | float) -> str:
     return f"{size:.1f} TB"
 
 
-def timeago(dt: datetime) -> str:
-    """datetime -> relative time string (Japanese)."""
+def timeago(dt: datetime | None) -> str:
+    """datetime -> relative time string (Japanese). None/不正値は空文字。"""
+    if not isinstance(dt, datetime):
+        return ""
     now = datetime.now(tz=UTC)
     diff = now - dt
     seconds = diff.total_seconds()

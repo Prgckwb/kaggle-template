@@ -7,7 +7,7 @@
             <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100">Leaderboard</h2>
         </div>
         <div class="flex items-center gap-3">
-            {% if leaderboard %}
+            {% if leaderboard and leaderboard.updated_at is defined %}
             <span class="text-xs text-gray-400 dark:text-gray-500">{{ leaderboard.updated_at|timeago }}</span>
             {% endif %}
             <button hx-post="/leaderboard/refresh"
@@ -15,8 +15,8 @@
                     hx-swap="outerHTML"
                     hx-indicator="#lb-spinner"
                     class="text-gray-400 hover:text-emerald-500 transition-colors cursor-pointer"
-                    title="更新">
-                <i class="fa-solid fa-arrows-rotate text-xs"></i>
+                    title="更新" aria-label="Leaderboard を更新">
+                <i class="fa-solid fa-arrows-rotate text-xs" aria-hidden="true"></i>
             </button>
             <span id="lb-spinner" class="htmx-indicator">
                 <i class="fa-solid fa-spinner fa-spin text-xs text-emerald-500"></i>

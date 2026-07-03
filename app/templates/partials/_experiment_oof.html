@@ -148,5 +148,5 @@
 </div>
 {% else %}
 {% from "components/_empty_state.html" import empty_state %}
-{{ empty_state("OOF predictions not found. Run inference first.", "fa-chart-bar") }}
+{{ empty_state("OOF 予測がありません", "fa-chart-bar", hint="run_mode=full で全 fold を学習すると output/{run_name}/oof_predictions.csv が生成され、ここで分析できます。") }}
 {% endif %}

@@ -81,5 +81,5 @@ function toggleRunDetail(idx, expName, runName) {
 }
 </script>
 {% else %}
-{{ empty_state("No runs found. Add a run config to config/ directory.", "fa-flask") }}
+{{ empty_state("run 設定がありません", "fa-flask", hint="config/run{NNN}-{subtitle}.yaml を追加すると小実験として表示されます。/kaggle:new-experiment で対話的に作成できます。") }}
 {% endif %}
