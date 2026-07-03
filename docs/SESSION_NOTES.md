@@ -4,7 +4,7 @@ This file tracks context across Claude Code sessions. Update at the end of each 
 
 ## Current Focus
 
-テンプレート自体の品質改善フェーズ（コンペ未参加）。PR #6〜#9 で大規模リファクタリングを実施し、すべて main にマージ済み。
+テンプレート自体の品質改善フェーズ（コンペ未参加）。PR #6〜#10 で大規模リファクタリングを実施し、すべて main にマージ済み。
 
 ## Recent Decisions
 
@@ -14,6 +14,7 @@ This file tracks context across Claude Code sessions. Update at the end of each 
 - **フロントエンドはセルフホスト（PR #8）**: Tailwind はビルド済み CSS をコミット（`make css` で再ビルド、動的色クラスは safelist）。残る CDN は Mermaid のみ
 - **タスクランナーは make に統一（PR #9）**: justfile 廃止。前提ツール削減のため
 - **提出ガード**: `.claude/settings.json` で提出系 MCP ツールを ask（確認必須）に設定
+- **unonao/kaggle-template 由来の改善（PR #10）**: config スキーマ検証（`config_schema.py` の dataclass、タイポ・型違いを起動時検出。config.yaml とキーを同期する規約）、`INPUT_DIR` 環境変数によるパス切替、`tools/` スタンドアロン CLI（提出監視・チェックポイントアップロード。`/kaggle:upload-checkpoints` はラッパー化）、wandb notes への Hydra オーバーライド自動記録、`utils/env.py`・`logger.py`・`timing.py` 追加。**Docker 導入はユーザー判断で見送り**
 
 ## Open Questions
 
