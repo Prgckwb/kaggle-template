@@ -20,15 +20,16 @@ uv run uvicorn app.main:app --reload
 | Jinja2 | テンプレートエンジン | pip (dev 依存) |
 | nh3 | HTML サニタイズ (XSS 防止) | pip (dev 依存) |
 | htmx 1.9.10 | 動的 UI 更新 | ローカル (`static/js/`) |
-| Tailwind CSS (Play CDN) + typography plugin | スタイリング | CDN |
-| FontAwesome 6.5.1 Free | アイコン | CDN |
-| Nunito (Google Fonts) | フォント | CDN |
+| Tailwind CSS 3.4 + typography plugin | スタイリング | ビルド済み CSS (`static/css/app.css`、`make css` で再ビルド) |
+| FontAwesome 6.5.1 Free | アイコン | ローカル (`static/css/` + `static/webfonts/`) |
+| Nunito | フォント | ローカル (`static/css/fonts.css` + `static/fonts/`) |
 | highlight.js 11.9.0 | シンタックスハイライト | ローカル (`static/`) |
 | Chart.js 4.4.7 | スコアグラフ・OOF 可視化 | ローカル (`static/js/`) |
+| wavesurfer.js 7 | 音声プレビューの波形表示 | ローカル (`static/js/`) |
 | Mermaid 11 | Experiment Tree 等の図のレンダリング | CDN (jsdelivr) |
 
-CDN 読み込み: Google Fonts (Nunito) / FontAwesome 6.5.1 / Tailwind Play CDN / Mermaid 11。
-ローカル同梱 (vendored): htmx 1.9.10 / Chart.js 4.4.7 / highlight.js 11.9.0。
+フロントエンドはセルフホスト方針。**CDN 読み込みは Mermaid 11 のみ**、それ以外はすべてローカル同梱 (vendored)。
+Tailwind のビルド環境は `static/build/`（コミット対象。詳細は `static/build/README.md`）。
 
 ## スタイリング規則
 
@@ -153,22 +154,36 @@ FontAwesome 6 Free (`fa-solid` 系) を使用。絵文字は使わない。
 
 カテゴリは `KNOWLEDGE_PAGES` レジストリ辞書で一元管理。
 
+### Guides（ガイド・分析レポートのファイルベースレジストリ）
+
+**可視化・説明コンテンツはまず Guides で足りないか検討する**（アプリのコード変更なしで追加できる）。
+評価指標の解説、EDA レポート、OOF エラー分析、リプレイビューア等はすべてここに置く。
+
+- 置き場所: `docs/guides/{slug}/`（`guide.json` + `index.html` + `assets/`）。規約は `docs/guides/README.md`
+- ルート: `/knowledge/guides`（一覧・タグフィルタ）、`/knowledge/guides/{slug}`（詳細）、`/knowledge/guides/{slug}/raw/{path}`（アセット配信。StaticFiles マウントは増やさず `FileResponse` で返す）
+- サービス: `app/services/guides.py`（`docs/guides/*/guide.json` の自動スキャン）
+- render 2形態:
+  - `iframe`: 自己完結 HTML を sandbox 付き iframe で表示。独自 CSS/JS/TS 成果物を持てて base.html と衝突しない。テーマは `?theme=` クエリ + `postMessage({type:"theme"})` で連携、高さは `postMessage({type:"guide-height"})` で通知（実装例: `docs/guides/sample-guide/`）
+  - `fragment`: Tailwind 断片をページ内に直接埋め込み。下記「構造化ガイドデザインパターン」を使う。**新しい Tailwind クラスを使ったら `make css`**（`docs/guides/**/*.html` はビルドのスキャン対象）
+- 作成は `/kaggle:create-guide` スキルで対話的に行える
+
 ### Knowledge サブページ追加パターン
 
-Knowledge 配下にカスタムサブページ（EDA 可視化、ガイド等）を追加する手順:
+Knowledge 配下にカスタムサブページを追加する手順（**コンテンツの追加なら上記 Guides を優先**。
+アプリのロジックが必要なページのみこのパターンを使う）:
 
 1. `app/pages/knowledge.py` の `KNOWLEDGE_PAGES` 辞書に `type: "special"` で追加
 2. テンプレートを作成: `app/templates/knowledge/{page}.html` + `app/templates/partials/_{page}_content.html`
 3. サイドバーは `KNOWLEDGE_PAGES` から自動生成されるため、base.html の編集は不要
 
 ```python
-# knowledge.py に追加（例: EDA ページ）
-KNOWLEDGE_PAGES["eda"] = {
+# knowledge.py に追加（例: 独自ロジックを持つページ）
+KNOWLEDGE_PAGES["mypage"] = {
     "type": "special",
-    "label": "EDA",
+    "label": "MyPage",
     "icon": "fa-chart-bar",
     "color": "emerald",
-    "description": "探索的データ分析",
+    "description": "説明",
 }
 ```
 
@@ -216,12 +231,14 @@ app/
 │   ├── helpers.py      # 汎用ヘルパー（パス検証、サイズ変換等）
 │   ├── experiments.py  # 実験管理（一覧、詳細、OOF、スコア）
 │   ├── documents.py    # ドキュメント・Markdown 処理
-│   ├── data.py         # データファイル操作（CSV、画像等）
+│   ├── data.py         # データファイル操作（CSV/TSV/Parquet、画像、音声等）
+│   ├── guides.py       # Guides レジストリ（docs/guides/ スキャン）
 │   ├── leaderboard.py  # リーダーボードサマリー（キャッシュ付き）
 │   └── search.py       # グローバル検索（実験・ドキュメント横断）
 ├── static/             # ローカル静的ファイル
-│   ├── css/            # highlight.js CSS
-│   └── js/             # htmx, highlight.js, Chart.js
+│   ├── build/          # Tailwind ビルド環境（make css。コミット対象）
+│   ├── css/            # ビルド済み app.css, FontAwesome, fonts, highlight.js CSS
+│   └── js/             # htmx, highlight.js, Chart.js, wavesurfer.js
 ├── pages/              # 各ページの APIRouter
 │   ├── experiments.py  # 実験一覧 + 詳細 + OOF + スコア
 │   ├── knowledge.py    # 知識ベース（official / insights / discussion）
@@ -336,7 +353,7 @@ def experiment_list(request: Request):
 
 ## 構造化ガイドデザインパターン
 
-Knowledge 配下のガイドページ（ドメイン知識の入門等）で使う、Markdown ではなく Tailwind HTML で作る構造化コンテンツのパターン。
+`render: "fragment"` のガイド（`docs/guides/`。上記 Guides 節参照）で使う、Markdown ではなく Tailwind HTML で作る構造化コンテンツのパターン。ダークモードは `dark:` クラスで自前対応する。
 
 ### パターン 1: セクションナビゲーション
 

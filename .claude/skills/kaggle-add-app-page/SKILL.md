@@ -10,12 +10,17 @@ allowed-tools: Bash, Read, Write, Glob, Edit
 
 ユーザーと対話しながら、Web ダッシュボード（FastAPI + htmx + Jinja2）に新しいページや可視化を追加する。
 
+**最初に確認**: 追加したいものが「可視化・説明・レポート等のコンテンツ」なら、ページ追加ではなく
+**ガイド（`/kaggle:create-guide` → `docs/guides/`）で足りないか必ず検討する**。
+ガイドはアプリのコード変更なしで追加でき、Knowledge → Guides に自動表示される。
+このスキルを使うのは、アプリのロジック（新しいデータソースの読み取り、動的なエンドポイント等）が必要な場合のみ。
+
 ## 前提知識
 
 ### アーキテクチャ
 
 - **フレームワーク**: FastAPI + Jinja2 + htmx
-- **スタイル**: Tailwind CSS (CDN)、FontAwesome 6 Free（アイコン）、Nunito フォント
+- **スタイル**: Tailwind CSS（ビルド済み CSS をセルフホスト。`make css` で再ビルド）、FontAwesome 6 Free（アイコン）、Nunito フォント。**外部 CDN は使わない**（例外は Mermaid のみ）
 - **カラー**: エメラルドアクセント（`emerald-500` = `#10b981`）
 - **レイアウト**: 左サイドバー（固定 w-64、トグル可）+ メインコンテンツ（`ml-64` / `ml-0`）
 - **スタイルの詳細**: `app/README.md` を参照
@@ -41,9 +46,10 @@ app/
 - **Home** (`/`): ダッシュボードトップ
 - **Experiments** (`/experiments`): 実験一覧・詳細・OOF・スコアグラフ
 - **Data** (`/data`): input/ 配下のファイル閲覧（ツリー表示・CSV プレビュー・画像ギャラリー）
-- **Knowledge** (`/knowledge`): 公式情報・ディスカッション・実験知見（3カテゴリ）
+- **Knowledge** (`/knowledge`): 公式情報・ディスカッション・実験知見・ガイド
   - `/knowledge/{category}`: カテゴリ別ドキュメント一覧（official / insights / discussion）
   - `/knowledge/{category}/{filename}`: ドキュメント詳細（全幅マークダウン表示）
+  - `/knowledge/guides`: ガイド・分析レポート（`docs/guides/` の自動発見レジストリ。コード変更不要）
 
 ### コーディング規則
 
@@ -56,9 +62,9 @@ app/
 
 ### 新ページ追加の方針
 
-**サブページ優先**: 新しいコンテンツは、まず既存セクションのサブページとして追加を検討する。
+**優先順位**: ①ガイド（`docs/guides/`、コード変更不要）→ ②既存セクションのサブページ → ③新規トップレベルページ。
 
-- **Knowledge**: カテゴリを追加（`app/pages/knowledge.py` の `KNOWLEDGE_PAGES` 辞書に `type: "category"` のエントリを1つ追加）
+- **Knowledge**: 可視化・説明コンテンツはガイドへ。Markdown ドキュメント群ならカテゴリを追加（`app/pages/knowledge.py` の `KNOWLEDGE_PAGES` 辞書に `type: "category"` のエントリを1つ追加）
 - **Experiments**: 詳細ページのタブを追加
 - **Data**: ファイルタイプ別プレビューを追加
 

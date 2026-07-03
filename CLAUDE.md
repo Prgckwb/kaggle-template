@@ -14,6 +14,7 @@ Kaggle コンペティション用テンプレート。Hydra + Wandb で実験�
 
 - 本ドキュメントやスキル中の `{評価指標名}` は profile の `metric.name` を指す
 - スコアの「良い/悪い」「改善/停滞」の判断は必ず `metric.mode`（max/min）と `metric.meaningful_delta` に従う
+- best run / 最終提出の判定基準は `selection.policy`（デフォルト `cv` = CV を信頼。public LB はノイジーな参考値）に従う
 - ダッシュボード（`app/config.py`）も profile の `competition.slug` を読む
 
 ## 技術スタック
@@ -64,9 +65,12 @@ kaggle-template/
 ├── app/                # Web アプリ → 詳細は app/README.md
 ├── docs/               # コンペ情報・知見・仕様
 │   ├── competition-profile.yaml  # コンペ固有設定（SSOT、/kaggle:init が書く）
+│   ├── guardrails.md   # コンペ固有ガードレール（評価関数の正誤・禁止事項。実装前に必読）
+│   ├── submissions.md  # 提出ログ（全提出の SSOT。CV-LB 分析・最終提出選定の元データ）
+│   ├── guides/         # ガイド・分析レポート（ダッシュボードの Guides に自動表示）→ docs/guides/README.md
 │   ├── official/       # Kaggle 公式情報
-│   ├── discussion/     # Discussion（YYYY-MM-DD_topic.md）
-│   └── insights/       # 実験知見（YYYY-MM-DD_topic.md）
+│   ├── discussion/     # 外部情報（Discussion・論文サーベイ、YYYY-MM-DD_topic.md）
+│   └── insights/       # 実験知見（YYYY-MM-DD_topic.md。例外: past_solutions_{slug}.md）
 ├── tools/              # スタンドアロン CLI（提出監視・チェックポイントアップロード）→ tools/README.md
 ├── src/
 │   ├── exp000_sample/  # サンプル実験（テンプレート）
@@ -113,7 +117,7 @@ src/exp001_xxx/
 ├── README.md       # 目的・仮説・結果・Runs テーブル・考察
 ├── train.py        # 学習スクリプト
 ├── inference.py    # 推論スクリプト（sample_submission.csv と同形式の CSV を出力）
-├── model.py        # モデル定義
+├── model.py        # モデル定義（simulation/optimization タイプでは agent.py / solver.py。docs/competition-types.md 参照）
 ├── data.py         # データ処理
 ├── config_schema.py # config.yaml のスキーマ（dataclass。タイポ・型違いを実行時に検出）
 ├── inference_notebook.ipynb  # Kaggle 推論 notebook（/kaggle:create-inference-notebook で生成）
@@ -213,13 +217,14 @@ src/{exp_name}/output/{run_name}/
 ## Web アプリ（ダッシュボード）
 
 - **ナビゲーション**: サイドバーは Home + Experiments / Data / Knowledge で構成
+- **可視化・説明・レポートはガイド（`docs/guides/`）に置く**: `/kaggle:create-guide` で作成し、Knowledge → Guides に自動表示される（アプリのコード変更不要）。ページ追加が必要なのはアプリのロジックが要る場合のみ
 - 新ページはまず既存セクションのサブページとして追加を検討し、トップレベル追加は最終手段
 - 2重サイドバー禁止（Data のファイルツリーは例外）
 - スタイル・コンポーネント・htmx パターン・実験ディレクトリとの契約: `app/README.md`
 
-### sandbox → app/static パイプライン
+### sandbox → docs/guides パイプライン
 
-sandbox/ で生成した分析画像を `app/static/analysis/` にコピーしてダッシュボードで表示（ディレクトリは必要に応じて `mkdir -p` で作成）。`app/static/` は単一の StaticFiles マウント — 別途マウントを追加しない。
+sandbox/ で生成した分析画像・図は `docs/guides/{slug}/assets/` に置き、`index.html`（+ `guide.json`）のレポートとしてまとめる（旧 `app/static/analysis/` への配置は廃止）。ダッシュボードの Knowledge → Guides に自動表示される。`app/static/` は単一の StaticFiles マウント — 別途マウントを追加しない（ガイドのアセットは `/knowledge/guides/{slug}/raw/{path}` ルートが配信する）。
 
 ## Git 規則
 
@@ -241,6 +246,12 @@ LLM は過去の実験結果に引きずられ探索空間を狭めがち。
 - **引き継いでよい**: データ前処理の実装上の工夫、バグ修正、`docs/insights/` の実装知見
 - **引き継いではいけない**: 「うまくいかない」という結論、手法への偏り、探索範囲の絞り込み
 - **新しい実験では**: 問題の本質・データの特性・ドメイン知識から仮説をゼロベースで立てる
+
+人間と AI の役割分担・失敗履歴の読ませ方の詳細は `docs/ai-agent-guidelines.md` を参照。
+
+### ガードレール（コンペ固有）
+
+評価関数の正誤・既知のバグパターン・「やってはいけないこと」は `docs/guardrails.md` に蓄積する（CLAUDE.md はコンペごとに書き換えないため、ここには書かない）。**実験の実装・修正・提案の前に必ず参照すること。**
 
 ### 疑問点の確認
 
@@ -270,8 +281,10 @@ LLM は過去の実験結果に引きずられ探索空間を狭めがち。
 | `/kaggle:commit` | 変更を論理単位でコミット＆プッシュ |
 | `/kaggle:check-commands` | 実行コマンドの確認 |
 | `/kaggle:add-app-page` | ダッシュボードに新ページ追加 |
+| `/kaggle:create-guide` | ガイド・分析レポートを作成（docs/guides/ → ダッシュボードに自動表示） |
 | `/kaggle:upload-checkpoints` | チェックポイントを Kaggle Datasets にアップロード |
 | `/kaggle:create-inference-notebook` | 推論ノートブック作成 |
+| `/kaggle:ensemble` | 複数実験の OOF をブレンドしアンサンブル submission を作成 |
 | `/kaggle:review-strategy` | 実験ポートフォリオの俯瞰レビュー（探索多様性・停滞検出） |
 | `/kaggle:scout-approaches` | 手法チェックリスト生成・探索率追跡 |
 | `/kaggle:past-solutions {slug}` | 過去コンペ上位解法を収集 → `docs/insights/` に保存 |
