@@ -6,10 +6,15 @@ import hydra
 # import numpy as np
 # import pandas as pd
 import wandb
+from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
+from src.exp000_sample.config_schema import register_config_schema
+from src.utils.logger import get_logger, resolve_logs_dir
 from src.utils.metrics_logger import MetricsLogger
 from src.utils.seeding import seed_everything
+
+register_config_schema()
 
 
 def resolve_run_config(cfg: DictConfig) -> dict:
@@ -55,6 +60,9 @@ def main(cfg: DictConfig) -> None:
     run_cfg = resolve_run_config(cfg)
     output_dir = Path(cfg.output_dir)
 
+    # 実行ログ（進捗・警告）は logs_dir にタイムスタンプ付きで保存される
+    logger = get_logger(cfg.exp_name, resolve_logs_dir(cfg.logs_dir, cfg.run_mode))
+
     # 評価指標（config.yaml の metric セクション。docs/competition-profile.yaml と揃える）
     metric_name = cfg.metric.name
     metric_mode = cfg.metric.mode  # "max" | "min"
@@ -62,14 +70,17 @@ def main(cfg: DictConfig) -> None:
         f"val/{metric_name}"  # wandb / MetricsLogger のキー名（{split}/{metric} 形式）
     )
 
-    print(f"Experiment: {cfg.exp_name}")
-    print(f"Run: {cfg.run_name}")
-    print(f"Run mode: {cfg.run_mode}")
-    print(f"Config:\n{OmegaConf.to_yaml(cfg)}")
+    logger.info("Experiment: %s", cfg.exp_name)
+    logger.info("Run: %s", cfg.run_name)
+    logger.info("Run mode: %s", cfg.run_mode)
+    logger.info("Config:\n%s", OmegaConf.to_yaml(cfg))
 
     # wandb group name（全 fold を束ねるキー）
     group_name = f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}"
     wandb_config = cast(dict[str, Any], OmegaConf.to_container(cfg, resolve=True))
+    # CLI オーバーライド（例: "training.lr=5e-4, run_mode=full"）を wandb の
+    # notes に記録し、run 一覧で「何を変えたか」を一目でわかるようにする
+    wandb_notes = ", ".join(HydraConfig.get().overrides.task) or None
 
     # Initialize local metrics logger
     metrics_logger = MetricsLogger(cfg)
@@ -87,9 +98,9 @@ def main(cfg: DictConfig) -> None:
     fold_scores: dict[int, float] = {}
 
     for fold_idx in run_cfg["folds_to_run"]:
-        print(f"\n{'=' * 50}")
-        print(f"Fold {fold_idx}")
-        print(f"{'=' * 50}")
+        logger.info("=" * 50)
+        logger.info("Fold %d", fold_idx)
+        logger.info("=" * 50)
 
         # Initialize wandb fold run
         wandb.init(
@@ -99,6 +110,7 @@ def main(cfg: DictConfig) -> None:
             name=f"fold_{fold_idx}",
             job_type="train",
             config=wandb_config,
+            notes=wandb_notes,
             mode=run_cfg["wandb_mode"],
             reinit=True,
         )
@@ -166,9 +178,12 @@ def main(cfg: DictConfig) -> None:
             wandb.log(epoch_metrics)
             metrics_logger.log_epoch(fold_idx, epoch_metrics)
 
-            print(
-                f"  Epoch {epoch}: train_loss={train_loss:.4f}, "
-                f"{metric_key}={val_score:.4f}"
+            logger.info(
+                "  Epoch %d: train_loss=%.4f, %s=%.4f",
+                epoch,
+                train_loss,
+                metric_key,
+                val_score,
             )
 
         fold_scores[fold_idx] = best_score
@@ -189,6 +204,7 @@ def main(cfg: DictConfig) -> None:
             name="summary",
             job_type="summary",
             config=wandb_config,
+            notes=wandb_notes,
             mode=run_cfg["wandb_mode"],
             reinit=True,
         )
@@ -204,10 +220,10 @@ def main(cfg: DictConfig) -> None:
         for fi, score in fold_scores.items():
             wandb.summary[f"fold{fi}/best_val_{metric_name}"] = score
         wandb.finish()
-        print(f"\nCV score: {cv_mean:.4f} ± {cv_std:.4f}")
+        logger.info("CV score: %.4f ± %.4f", cv_mean, cv_std)
 
     metrics_logger.finish()
-    print(f"\nTraining complete. Output dir: {output_dir}")
+    logger.info("Training complete. Output dir: %s", output_dir)
 
 
 if __name__ == "__main__":

@@ -12,8 +12,11 @@ import hydra
 import pandas as pd
 from omegaconf import DictConfig
 
+from src.exp000_sample.config_schema import register_config_schema
 from src.utils.seeding import seed_everything
 from src.utils.submission import validate_submission
+
+register_config_schema()
 
 
 @hydra.main(version_base=None, config_path="config", config_name="config")

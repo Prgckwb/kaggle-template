@@ -1,5 +1,6 @@
 # Experiment configuration
 defaults:
+  - base_schema  # config_schema.py の dataclass（タイポ・型違いを実行時に検出）
   - _self_
 
 # Experiment
@@ -30,10 +31,13 @@ metric:
   mode: min
 
 # Data
+# input_dir は環境変数 INPUT_DIR で上書きできる（例: Kaggle Notebook では
+# INPUT_DIR=/kaggle/input/{slug}）。未設定ならローカルの input/ を使う。
 data:
-  train_path: ${hydra:runtime.cwd}/input/train.csv
-  test_path: ${hydra:runtime.cwd}/input/test.csv
-  sample_submission_path: ${hydra:runtime.cwd}/input/sample_submission.csv
+  input_dir: ${oc.env:INPUT_DIR,${hydra:runtime.cwd}/input}
+  train_path: ${data.input_dir}/train.csv
+  test_path: ${data.input_dir}/test.csv
+  sample_submission_path: ${data.input_dir}/sample_submission.csv
   n_folds: 5
 
 # Model
