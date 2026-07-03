@@ -2,7 +2,7 @@
 
 ダッシュボードの `app/static/css/app.css` を生成するビルド環境。**リポジトリにコミットする**
 （`.gitignore` は `/build/`（ルートのみ）を除外しており、このディレクトリは対象外。
-`node_modules/` のみ ignore され、`package-lock.json` は再現性のためコミットする）。
+`node_modules/` のみ ignore され、lock ファイルは再現性のためコミットする）。
 
 ## 使い方
 
