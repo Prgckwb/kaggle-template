@@ -22,6 +22,7 @@ allowed-tools: Bash, Read, Write, Glob, Edit
    - 各大実験の `config/run*.yaml` を確認し、小実験の状況も把握する
    - `EXP_SUMMARY.md` の Experiments テーブルを Read で確認し、各実験の Key Change・CV・LB を把握
    - `docs/insights/` の知見ファイルを確認（実装上の知見のみ参考にする）
+   - `docs/guardrails.md` を確認（評価関数の正誤・既知のバグ・「やってはいけないこと」は必ず引き継ぐ）
    - `docs/official/` を Read してコンペの概要・評価指標・データを把握
    - `docs/competition-profile.yaml` を Read して評価指標の名前・方向（max/min）を把握
 
@@ -155,6 +156,7 @@ exp{XXX} ですでに探索済みです。同じファミリー内での改良�
    - [ ] `metric.name` / `metric.mode` が profile の `metric` と一致しているか
    - [ ] `train.py` / `inference.py` の `config_schema` import がコピー元（例: `src.exp000_sample.config_schema`）のままになっていないか（新実験のパスに更新）
    - [ ] `config.yaml` にキーを追加・削除した場合、`config_schema.py` の dataclass も同期しているか（不一致だと起動時に ConfigKeyError になる）
+   - [ ] コンペタイプに不要なファイルを削除したか（`docs/competition-profile.yaml` の `competition.type` を確認。`supervised` なら `agent.py` を削除、`simulation` なら `model.py` の代わりに `agent.py`、`optimization` なら `solver.py` を使う。詳細は `docs/competition-types.md`）
 
 4. **実験 README.md を作成**（目的・仮説はフェーズ 2 の議論を反映）
 

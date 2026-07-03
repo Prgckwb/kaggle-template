@@ -15,7 +15,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
 | # | 項目 | 確認方法 |
 |---|------|---------|
-| 1 | コンペティションタイプが選択済み | `EXP_SUMMARY.md` に `Competition Type: supervised/optimization/simulation` が記載されていること |
+| 1 | コンペティションタイプが選択済み | `docs/competition-profile.yaml` の `competition.type` が意図したタイプであること（SSOT。EXP_SUMMARY.md の記載は表示用の複製） |
 | 2 | コンペ名がドキュメント・アプリに反映済み | README.md のタイトルがデフォルト（`Competition Name`）でないこと |
 | 3 | `uv sync` が実行済み | `.venv/` ディレクトリが存在すること |
 | 4 | `input/` にデータがダウンロード済み | `input/` に `.gitkeep` 以外のファイルがあること |
@@ -23,12 +23,13 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 | 6 | `docs/official/data.md` が記入済み | テンプレートのプレースホルダーでないこと |
 | 7 | Validation Strategy が記載済み（supervised のみ） | `supervised` タイプの場合、EXP_SUMMARY.md の該当セクションがプレースホルダーでないこと |
 | 8 | `docs/competition-profile.yaml` が設定済み | `competition.slug` と `metric.name` / `metric.mode` が空・デフォルトでないこと |
-| 9 | 実験 config の wandb project / metric が設定済み | `src/exp000_sample/config/config.yaml` の `wandb.project` が `kaggle-competition` のままでなく、`metric` が profile と一致すること |
+| 9 | 実験 config の wandb project が設定済み | `src/exp000_sample/config/config.yaml` の `wandb.project` が `kaggle-competition` のままでないこと（`metric` はサンプル動作用に `loss`/`min` のままでよい） |
+| 10 | 実験用 extra 依存がインストール済み | `uv pip list` に torch（`--extra torch`）または lightgbm 等（`--extra tabular`）があること。`src/utils/cv.py` 等は scikit-learn に依存するため、コア依存のみでは実験を実行できない |
 
 ## フェーズ 1: 現在の状態を診断
 
 1. 上記チェックリストの各項目を自動的に確認する:
-   - `EXP_SUMMARY.md` に `Competition Type:` の記載があるか確認
+   - `docs/competition-profile.yaml` の `competition.type` を確認（SSOT。`EXP_SUMMARY.md` の `Competition Type:` は表示用の複製）
    - `README.md` の1行目を Read し、`Competition Name` のままか確認
    - `.venv/` の存在を Bash で確認
    - `input/` の内容を Glob で確認
@@ -66,10 +67,12 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    3. simulation — エージェント/RL コンペ（ゲームやシステムを制御するエージェント）
    ```
 
-2. 選択されたタイプを `EXP_SUMMARY.md` の先頭付近に記載:
-   ```markdown
-   **Competition Type**: `supervised` | `optimization` | `simulation`
-   ```
+2. 選択されたタイプを記録する:
+   - **`docs/competition-profile.yaml` の `competition.type` に書き込む（これが SSOT。他のスキルはここを読む）**
+   - あわせて `EXP_SUMMARY.md` の先頭付近にも表示用の複製として記載:
+     ```markdown
+     **Competition Type**: `supervised` | `optimization` | `simulation`
+     ```
 
 3. タイプに応じて以降のステップを適応:
    - **`supervised`**: 既存の動作と同じ（変更なし）
@@ -101,6 +104,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
      abbreviation: "{略称}"
      url: "https://www.kaggle.com/competitions/{competition-slug}"
      type: {2-0 で選択したタイプ}
+     deadline: {最終提出締切 YYYY-MM-DD。Overview のタイムラインから取得}
    wandb:
      project: kaggle-{略称の小文字}
    ```
@@ -122,10 +126,15 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
 4. **ローカルキャッシュの掃除**: 前のコンペの残骸があれば `.cache/` ディレクトリを削除する（gitignore 済みのローカルキャッシュ）。
 
+5. **ガードレールのリセット**: `docs/guardrails.md` に前のコンペの記載が残っていればテンプレート状態（各セクション「（まだなし）」）に戻す。
+
+6. **ガイドの掃除**: `docs/guides/` に前のコンペのガイドが残っていれば削除する（`README.md` と `sample-guide/` は残す）。`docs/submissions.md` もテンプレート状態に戻す。
+
 ### 2-2. 環境セットアップ
 
 1. **uv sync の確認**
    - `.venv/` が存在しなければ `uv sync` の実行を案内
+   - **実験に使うモデル系統に応じて extra も同時に確認する**: PyTorch 系なら `uv sync --extra torch`、GBDT 系なら `uv sync --extra tabular`（`src/utils/cv.py` 等が scikit-learn に依存するため、コア依存のみでは実験を実行できない）
    - 実行するかユーザーに確認し、承認があれば実行
 
 2. **input/ データの確認**
@@ -180,11 +189,21 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
      meaningful_delta: {数値 or null}
    ```
 
-3. **実験 config への反映**
-   - `src/exp000_sample/config/config.yaml` の `metric.name` / `metric.mode` を profile と同じ値に更新
+3. **選定方針（selection）の確認**
+   - `docs/official/overview.md` から public LB に使われる test の割合を確認（記載があれば `selection.public_test_ratio` に記録）
+   - `selection.policy` はデフォルト `cv`（Trust your CV）のままを推奨。public test が十分大きい等の理由でユーザーが `lb` / `hybrid` を選ぶ場合のみ変更する
+
+   ```yaml
+   selection:
+     policy: {cv|lb|hybrid}
+     public_test_ratio: {数値 or null}
+   ```
+
+4. **実験 config への反映**
+   - `src/exp000_sample/config/config.yaml` の `metric` は**書き換えない**（サンプルはダミー損失を記録するため `loss`/`min` が正。実コンペの metric に変えると「metric 名で loss 値を記録する」半壊状態になる）。新実験を作成する際に `/kaggle:new-experiment` のチェックリストで profile と揃える
    - CLAUDE.md や docs/wandb-spec.md は置換しない（`{評価指標名}` は profile の `metric.name` を指す設計）
 
-4. **確認**
+5. **確認**
    - 設定内容をユーザーに提示して確認を得る
 
 ### 2-5. Validation Strategy（supervised タイプのみ）

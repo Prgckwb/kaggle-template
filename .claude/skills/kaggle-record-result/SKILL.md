@@ -13,12 +13,16 @@ allowed-tools: Bash, Read, Write, Edit, Glob
 
 ## best run の決定ルール
 
-大実験の best run = **最良 LB（LB がなければ最良 CV）の run**。
+**必ず先に `docs/competition-profile.yaml` を Read し、`metric.mode` と `selection.policy` を確認すること。**
 
-「最良」の方向は `docs/competition-profile.yaml` の `metric.mode` に従う（`max` なら最大、`min`（RMSE 等）なら最小が best）。**必ず先に profile を Read して方向を確認すること。**
+- 「最良」の方向は `metric.mode` に従う（`max` なら最大、`min`（RMSE 等）なら最小が best）
+- best の判定基準は `selection.policy` に従う:
+  - `cv`（デフォルト）: **最良 CV の run** が best。public LB はノイジーな参考値として扱う
+  - `lb`: 最良 public LB の run が best（LB が未提出の run しかない場合は CV で判定）
+  - `hybrid`: CV best と LB best の両方を提示し、ユーザーに判断を委ねる
+- **CV best と LB best の run が食い違う場合は、policy に関わらず必ず両方を提示して警告する**（CV-LB 乖離のサイン。`docs/submissions.md` の履歴で相関を確認し、必要なら `kaggle-analyst` での分析を提案する）
 
 EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコアを記載する。
-複数 run がある場合、LB スコアが最良の run を best とする。LB が未提出の run しかない場合は CV スコアで判定する。
 
 ## フェーズ 1: 実験の特定と状況確認
 
@@ -53,6 +57,7 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
    - Kaggle MCP が利用可能なら submission 一覧からの取得を試みてもよい
    - `uv run python tools/check_submission.py` でも最新提出のステータス・public LB を取得できる（読み取り専用）
    - 未提出の場合は `-` として記録し、「後で submit したら教えてください、更新します」と伝える
+   - **提出があった場合は提出日・提出ファイル名・提出理由も確認する**（4-3 で `docs/submissions.md` に追記するため）
 
 3. **Split 方法**
    - README.md にすでに記載があればそれを確認
@@ -109,10 +114,10 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
 
 ### 4-2. EXP_SUMMARY.md の更新
 
-1. **Experiments テーブル**: 該当行の Split, CV, LB を更新（大実験の best run = 最良 LB、LB なしなら最良 CV の run のスコアを記載。方向は profile の `metric.mode`）
+1. **Experiments テーブル**: 該当行の Split, CV, LB を更新（大実験の best run のスコアを記載。判定は「best run の決定ルール」= profile の `selection.policy` と `metric.mode` に従う）
 2. **Experiment Tree**: ノードにスコアを追加し、クラスを更新
    - スコアが入ったら `wip` → `good`（青）に変更
-   - 全実験中で最良 LB なら `best`（緑）に変更
+   - 全実験中の best（`selection.policy` に従って判定）なら `best`（緑）に変更
    - 他の実験が `best` → `good` に降格する必要があるかも確認
    - 行き詰まり検出でステータスが `dead-end` になった場合は `dead`（赤）に変更
 
@@ -121,7 +126,18 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
    X["exp{番号}_{subtitle}<br/>{split} | CV: {cv} | LB: {lb}"]
    ```
 
-### 4-3. docs/insights/ に知見ファイルを作成
+### 4-3. docs/submissions.md への追記（提出があった場合）
+
+LB スコアが得られた提出については、`docs/submissions.md` の Submissions テーブルに 1 行追記する:
+
+```markdown
+| {提出日} | {exp_name} / {run_name} | {submission ファイル名} | {cv} | {lb} | {提出理由・メモ} |
+```
+
+- 初回追記時はプレースホルダー行（「まだ提出なし」）を削除する
+- 過去の提出の記録漏れに気づいた場合も、この機会に追記を提案する
+
+### 4-4. docs/insights/ に知見ファイルを作成
 
 ファイル名: `YYYY-MM-DD_exp{番号}_{subtitle}.md`（今日の日付。CLAUDE.md の命名規則と同じアンダースコア区切り）
 
@@ -165,9 +181,13 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
 対象実験の Runs テーブル（README.md）を確認し、直近 3 run の CV スコアを比較する。
 **改善の方向と基準は `docs/competition-profile.yaml` の `metric.mode` と `meaningful_delta` に従う**（`min` 指標では減少が改善であることに注意）:
 
-1. CV スコアが数値として記録されている直近 3 run を取得
+1. CV スコアが数値として記録されている直近 3 run を取得（Runs テーブルは実行順に追記される前提。順序が怪しい場合はユーザーに確認する）
 2. 最新 run の CV と 3 つ前の run の CV の「改善量」（mode を考慮した符号）を計算
-3. **改善量が `meaningful_delta` 未満の場合**（`meaningful_delta` が未設定なら、そのコンペのスコアスケールで有意な差かをユーザーに確認する）、以下の警告を表示する:
+3. **停滞判定の基準値**は次の優先順位で決める:
+   1. `meaningful_delta`（profile に設定済みの場合）
+   2. 未設定なら **fold 間ばらつきから自動推定する**: `src/{exp-name}/logs/{run_name}/run_summary.json` の `folds` から各 fold の best スコアの標準偏差 `std` を計算し、`ノイズフロア = std / sqrt(n_folds)` を基準値とする（CV 平均の標準誤差。これ未満の改善は fold 間ノイズと区別できない）。この値を profile の `meaningful_delta` に記録することをユーザーに提案する
+   3. run_summary.json も取れなければ、そのコンペのスコアスケールで有意な差かをユーザーに確認する
+4. **改善量が基準値未満の場合**、以下の警告を表示する:
 
 ```
 ⚠ 行き詰まり検出: この実験の直近 3 run の CV 改善量は {差分} です（meaningful_delta = {値} 未満）。
