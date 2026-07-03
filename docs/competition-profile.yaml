@@ -18,6 +18,9 @@ competition:
   abbreviation: ""    # サイドバー表示等に使う短い略称（例: SpaceTitanic）
   url: ""             # https://www.kaggle.com/competitions/{slug}
   type: supervised    # supervised | optimization | simulation
+  # 最終提出締切（YYYY-MM-DD）。/kaggle:review-strategy が残り時間に応じて
+  # 探索重視（序盤）/ 深掘り（中盤）/ アンサンブル・提出選定（終盤）を提案する。
+  deadline: null
 
 metric:
   name: score         # メトリクスキー名（短い英小文字。例: auc, f1, rmse, map）
@@ -25,6 +28,18 @@ metric:
   # 「改善した/停滞している」を判断する際の目安となる変化幅（絶対値）。
   # 例: AUC なら 0.001、RMSE なら競技のスコアスケールに合わせて設定する。
   meaningful_delta: null
+
+# best run / final submission の選定方針。
+# public LB は test の一部でしか計算されないため、原則 CV を信頼する（Trust your CV）。
+#   cv     = CV スコアで best を判定する（デフォルト推奨）
+#   lb     = public LB で判定する（public test が大きい・CV との相関を確認済みの場合のみ）
+#   hybrid = CV と LB の両方を見て人間が判断する
+# CV best と LB best が食い違った場合、スキルは必ず両方を提示して警告する。
+selection:
+  policy: cv
+  # public LB に使われる test データの割合（Overview に記載があれば設定。例: 0.2）
+  # 小さいほど LB はノイジーで shake-up リスクが高い。
+  public_test_ratio: null
 
 wandb:
   project: kaggle-competition   # /kaggle:init で kaggle-{略称} に変更する

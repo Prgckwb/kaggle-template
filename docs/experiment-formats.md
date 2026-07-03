@@ -9,6 +9,11 @@
 
 - `Split`: 分割方法（例: `5-Fold SKF`, `GroupKFold(user)`）
 - `Key Change`: 前実験からの主な変更点・実験の焦点
+- 各行のスコアは大実験の best run のもの。best の判定は `docs/competition-profile.yaml` の `selection.policy`（デフォルト `cv`）と `metric.mode` に従う
+
+## 実験 README の Runs テーブル
+
+各実験の `README.md` の Runs テーブルは**実行順（時系列）に追記する**。行き詰まり検出（`/kaggle:record-result`）が「直近 3 run」をテーブルの並び順から判定するため、並び替えは行わない。
 
 ## Experiment Tree（Mermaid）
 
@@ -17,7 +22,7 @@
 - ノード: `"exp名<br/>Split | CV: x.xxx | LB: x.xxx"`
 - エッジラベル: 前実験からの主な変更点（= Key Change）
 - スタイル（必ず `classDef` で色を定義し、全ノードにクラスを割り当てる）:
-  - `best`（緑 `#10b981`）= metric direction に従った best LB（higher/lower-is-better を考慮）、太枠で強調
+  - `best`（緑 `#10b981`）= 全実験中の best。判定は profile の `selection.policy`（デフォルト `cv` = 最良 CV）と `metric.mode` に従う。太枠で強調
   - `good`（青 `#3b82f6`）= 完了した実験
   - `base`（灰 `#64748b`）= ベースライン
   - `wip`（黄 `#f59e0b`、破線）= 進行中の実験

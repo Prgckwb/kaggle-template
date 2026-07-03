@@ -34,7 +34,7 @@ graph TD
 - ノード: "exp名<br/>Split | CV: x.xxx | LB: x.xxx"
 - エッジラベル: 前実験からの主な変更点（= Key Change）
 - classDef で色を定義し、全ノードにクラスを割り当てる:
-  - best(緑 #10b981)=最良LB（方向は docs/competition-profile.yaml の metric.mode。太枠で強調）
+  - best(緑 #10b981)=全実験中の best（判定は docs/competition-profile.yaml の selection.policy と metric.mode。太枠で強調）
   - good(青 #3b82f6)=完了
   - base(灰 #64748b)=ベースライン
   - wip(黄 #f59e0b、破線)=進行中
