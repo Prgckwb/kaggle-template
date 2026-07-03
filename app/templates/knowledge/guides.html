@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "components/_badge.html" import badge %}
+
+{% block title %}Guides - Knowledge{% endblock %}
+{% block content_width %}max-w-5xl mx-auto{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<nav class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
+    <a href="/knowledge" class="hover:text-emerald-500 font-semibold transition-colors">Knowledge</a>
+    <i class="fa-solid fa-chevron-right text-xs text-gray-300 dark:text-gray-500"></i>
+    <span class="font-semibold text-gray-800 dark:text-gray-100">{{ meta.label }}</span>
+</nav>
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-{{ meta.color }}-50 dark:bg-{{ meta.color }}-900/30 rounded-xl flex items-center justify-center">
+            <i class="fa-solid {{ meta.icon }} text-{{ meta.color }}-500"></i>
+        </div>
+        <div>
+            <h1 class="text-3xl font-extrabold text-gray-800 dark:text-gray-100">{{ meta.label }}</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ meta.description }}</p>
+        </div>
+    </div>
+    {{ badge(guides|length ~ " 件", color=meta.color, icon="fa-compass") }}
+</div>
+
+<!-- Tag filter + guide cards (htmx で丸ごと差し替え) -->
+<div id="guide-content">
+    {% include "partials/_guide_cards.html" %}
+</div>
+
+{% endblock %}

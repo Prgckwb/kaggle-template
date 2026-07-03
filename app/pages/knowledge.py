@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from app.services.documents import (
     _list_docs_for_category,
     get_competition_overview,
     list_all_knowledge_docs,
     read_markdown_file,
+)
+from app.services.guides import (
+    GUIDES_DIR,
+    get_guide,
+    list_all_tags,
+    list_guides,
+    read_fragment_html,
 )
 from app.services.helpers import (
     PROJECT_ROOT,
@@ -23,7 +30,8 @@ from app.template_env import templates
 router = APIRouter()
 
 # Knowledge ページレジストリ
-# type: "category" = Markdown ドキュメント一覧、"special" = 構造化 HTML ページ
+# type: "category" = Markdown ドキュメント一覧、"special" = 構造化 HTML ページ、
+#       "guides" = docs/guides/ の自動発見レジストリ（ガイド・分析レポート）
 # 新しいページを追加するには、この辞書に1行追加するだけでよい
 KNOWLEDGE_PAGES: dict[str, dict] = {
     "official": {
@@ -47,6 +55,13 @@ KNOWLEDGE_PAGES: dict[str, dict] = {
         "color": "sky",
         "description": "Kaggle Discussion の要約・メモ",
     },
+    "guides": {
+        "type": "guides",
+        "label": "Guides",
+        "icon": "fa-compass",
+        "color": "violet",
+        "description": "ガイド・EDA・分析レポート（docs/guides/ から自動発見）",
+    },
 }
 
 
@@ -59,6 +74,7 @@ templates.env.globals["knowledge_subnav"] = [
 @router.get("/knowledge", response_class=HTMLResponse)
 def knowledge_index(request: Request):
     all_docs = list_all_knowledge_docs()
+    all_docs["guides"] = list_guides()
     overview = get_competition_overview()
     return templates.TemplateResponse(
         request,
@@ -71,6 +87,67 @@ def knowledge_index(request: Request):
             categories=KNOWLEDGE_PAGES,
         ),
     )
+
+
+# --- Guides ---------------------------------------------------------------
+# 固定パス（/knowledge/guides/...）はパスパラメータ付きルート
+# （/knowledge/{page} 等）より先に定義すること（app/README.md 参照）
+
+
+@router.get("/knowledge/guides", response_class=HTMLResponse)
+def guides_index(request: Request, tag: str = ""):
+    guides = list_guides(tag=tag or None)
+    ctx = page_context(
+        request,
+        "knowledge",
+        "guides",
+        meta=KNOWLEDGE_PAGES["guides"],
+        guides=guides,
+        tags=list_all_tags(),
+        active_tag=tag,
+    )
+    if is_htmx(request):
+        return templates.TemplateResponse(request, "partials/_guide_cards.html", ctx)
+    return templates.TemplateResponse(request, "knowledge/guides.html", ctx)
+
+
+@router.get("/knowledge/guides/{slug}", response_class=HTMLResponse)
+def guide_detail(request: Request, slug: str):
+    guide = get_guide(slug)
+    if guide is None:
+        return error_response(request, templates, 404, "ガイドが見つかりません")
+    if not guide["has_index"]:
+        return error_response(
+            request, templates, 404, "index.html がありません（guide.json のみ存在）"
+        )
+
+    fragment_html = None
+    if guide["render"] == "fragment":
+        fragment_html = read_fragment_html(slug)
+
+    return templates.TemplateResponse(
+        request,
+        "knowledge/guide_detail.html",
+        page_context(
+            request,
+            "knowledge",
+            "guides",
+            meta=KNOWLEDGE_PAGES["guides"],
+            guide=guide,
+            fragment_html=fragment_html,
+        ),
+    )
+
+
+@router.get("/knowledge/guides/{slug}/raw/{asset_path:path}")
+def guide_raw(request: Request, slug: str, asset_path: str):
+    guide_dir = GUIDES_DIR / slug
+    if get_guide(slug) is None:
+        return error_response(request, templates, 404, "ガイドが見つかりません")
+    full_path = safe_relative_path(asset_path, guide_dir)
+    if full_path is None or not full_path.is_file():
+        return error_response(request, templates, 404, "ファイルが見つかりません")
+    return FileResponse(full_path)
 
 
 @router.get("/knowledge/{page}", response_class=HTMLResponse)

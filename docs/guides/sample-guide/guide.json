@@ -1,0 +1,9 @@
+{
+  "title": "サンプルガイド",
+  "description": "自己完結 HTML ガイドの実装例（テーマ連携・高さ通知プロトコルのリファレンス）",
+  "icon": "fa-flask",
+  "color": "violet",
+  "tags": ["guide"],
+  "created": "2026-07-04",
+  "render": "iframe"
+}

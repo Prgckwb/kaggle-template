@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>サンプルガイド</title>
+<style>
+    /* 自己完結ガイドのスタイル方針:
+       - CSS 変数でライト/ダーク両テーマを定義し、:root[data-theme="dark"] で切り替える
+       - ダッシュボードの配色（gray-50/800, emerald-500 等）に寄せると統一感が出る */
+    :root {
+        --bg: #f9fafb;
+        --card: #ffffff;
+        --text: #1f2937;
+        --text-sub: #6b7280;
+        --border: #e5e7eb;
+        --accent: #10b981;
+    }
+    :root[data-theme="dark"] {
+        --bg: #111827;
+        --card: #1f2937;
+        --text: #f3f4f6;
+        --text-sub: #9ca3af;
+        --border: #374151;
+        --accent: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Nunito", -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+        line-height: 1.7;
+    }
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px 24px;
+        margin-bottom: 16px;
+    }
+    h1 { font-size: 1.4rem; margin: 0 0 4px; }
+    h2 { font-size: 1.05rem; margin: 0 0 8px; color: var(--accent); }
+    p { margin: 0 0 8px; font-size: 0.92rem; }
+    .sub { color: var(--text-sub); font-size: 0.85rem; }
+    code {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-size: 0.85em;
+    }
+    .chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 120px;
+        padding-top: 8px;
+    }
+    .bar {
+        flex: 1;
+        background: var(--accent);
+        border-radius: 6px 6px 0 0;
+        opacity: 0.85;
+        transition: height 0.4s ease;
+        cursor: pointer;
+    }
+    .bar:hover { opacity: 1; }
+</style>
+</head>
+<body>
+    <div class="card">
+        <h1>サンプルガイド</h1>
+        <p class="sub">このページは docs/guides/ に置かれた自己完結 HTML の実装例です。
+           独自の CSS と JS を持ち、ダッシュボード本体と衝突しません。
+           新しいガイドを作るときのリファレンスとして使ってください。</p>
+    </div>
+
+    <div class="card">
+        <h2>1. テーマ連携</h2>
+        <p>現在のテーマ: <code id="theme-label">light</code>。
+           サイドバーのダークモード切替に追随します（URL クエリ <code>?theme=</code> で初期化し、
+           <code>postMessage</code> で切替通知を受け取る）。</p>
+    </div>
+
+    <div class="card">
+        <h2>2. 独自 JS による可視化</h2>
+        <p class="sub">バーをクリックすると値がランダムに変わります。D3 等を使う場合は assets/ に vendor してください。</p>
+        <div class="chart" id="chart"></div>
+    </div>
+
+    <div class="card">
+        <h2>3. 高さ通知</h2>
+        <p class="sub">このガイドは <code>guide-height</code> メッセージで自身の高さをホストに伝えているため、
+           iframe 内スクロールが発生しません。</p>
+    </div>
+
+<script>
+(function () {
+    // --- テーマ連携プロトコル（docs/guides/README.md 参照） ---
+    function applyTheme(theme) {
+        document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+        document.getElementById('theme-label').textContent = theme;
+    }
+    var initial = new URLSearchParams(location.search).get('theme');
+    if (initial) applyTheme(initial);
+    window.addEventListener('message', function (e) {
+        if (e.data && e.data.type === 'theme') applyTheme(e.data.theme);
+    });
+
+    // --- 高さ通知プロトコル ---
+    function reportHeight() {
+        parent.postMessage({ type: 'guide-height', height: document.body.scrollHeight + 8 }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    new ResizeObserver(reportHeight).observe(document.body);
+
+    // --- サンプル可視化（vanilla JS） ---
+    var chart = document.getElementById('chart');
+    for (var i = 0; i < 8; i++) {
+        var bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = (20 + Math.random() * 80) + '%';
+        bar.onclick = function () { this.style.height = (20 + Math.random() * 80) + '%'; };
+        chart.appendChild(bar);
+    }
+})();
+</script>
+</body>
+</html>

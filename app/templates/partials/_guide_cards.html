@@ -1,0 +1,60 @@
+{% from "components/_empty_state.html" import empty_state %}
+
+<!-- Tag filter -->
+{% if tags %}
+<div class="flex flex-wrap gap-2 mb-6">
+    <button hx-get="/knowledge/guides"
+            hx-target="#guide-content" hx-swap="innerHTML" hx-push-url="true"
+            class="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer
+                   {% if not active_tag %}bg-{{ meta.color }}-500 text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+        すべて
+    </button>
+    {% for tag in tags %}
+    <button hx-get="/knowledge/guides?tag={{ tag }}"
+            hx-target="#guide-content" hx-swap="innerHTML" hx-push-url="true"
+            class="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer
+                   {% if active_tag == tag %}bg-{{ meta.color }}-500 text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+        {{ tag }}
+    </button>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Guide cards -->
+{% if guides %}
+<div class="grid grid-cols-2 gap-5">
+    {% for guide in guides %}
+    <a href="/knowledge/guides/{{ guide.slug }}"
+       class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all group block">
+        <div class="flex items-start justify-between mb-3">
+            <div class="w-11 h-11 bg-{{ guide.color }}-50 dark:bg-{{ guide.color }}-900/30 rounded-xl flex items-center justify-center">
+                <i class="fa-solid {{ guide.icon }} text-{{ guide.color }}-500 text-lg"></i>
+            </div>
+            {% if guide.created %}
+            <span class="text-xs text-gray-400 dark:text-gray-500 font-semibold">{{ guide.created }}</span>
+            {% endif %}
+        </div>
+        <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1 group-hover:text-{{ guide.color }}-500 transition-colors">
+            {{ guide.title }}
+        </h2>
+        {% if guide.description %}
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">{{ guide.description }}</p>
+        {% endif %}
+        <div class="flex flex-wrap items-center gap-2">
+            {% for tag in guide.tags %}
+            <span class="rounded-full bg-{{ guide.color }}-50 dark:bg-{{ guide.color }}-900/30 text-{{ guide.color }}-600 dark:text-{{ guide.color }}-400 text-xs font-semibold px-3 py-1">{{ tag }}</span>
+            {% endfor %}
+            <span class="ml-auto text-xs text-gray-400 dark:text-gray-500" title="{{ 'ページ内に埋め込み表示' if guide.render == 'fragment' else '自己完結 HTML（iframe 表示）' }}">
+                <i class="fa-solid {{ 'fa-puzzle-piece' if guide.render == 'fragment' else 'fa-window-maximize' }}"></i>
+            </span>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+{% if active_tag %}
+{{ empty_state("タグ「" ~ active_tag ~ "」のガイドはありません", "fa-compass", hint="別のタグを選択するか、「すべて」に戻してください。") }}
+{% else %}
+{{ empty_state("まだガイドがありません", "fa-compass", hint="/kaggle:create-guide でガイドを作成するか、docs/guides/{slug}/ に guide.json + index.html を配置すると、ここに自動で表示されます。") }}
+{% endif %}
+{% endif %}

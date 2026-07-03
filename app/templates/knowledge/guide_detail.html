@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% from "components/_badge.html" import badge %}
+
+{% block title %}{{ guide.title }} - Guides{% endblock %}
+{% block content_width %}{% if guide.render == 'iframe' %}max-w-7xl mx-auto{% else %}max-w-4xl mx-auto{% endif %}{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<nav class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6 no-print">
+    <a href="/knowledge" class="hover:text-emerald-500 font-semibold transition-colors">Knowledge</a>
+    <i class="fa-solid fa-chevron-right text-xs text-gray-300 dark:text-gray-500"></i>
+    <a href="/knowledge/guides" class="hover:text-emerald-500 font-semibold transition-colors">Guides</a>
+    <i class="fa-solid fa-chevron-right text-xs text-gray-300 dark:text-gray-500"></i>
+    <span class="font-semibold text-gray-800 dark:text-gray-100">{{ guide.title }}</span>
+</nav>
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-{{ guide.color }}-50 dark:bg-{{ guide.color }}-900/30 rounded-xl flex items-center justify-center">
+            <i class="fa-solid {{ guide.icon }} text-{{ guide.color }}-500"></i>
+        </div>
+        <div>
+            <h1 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100">{{ guide.title }}</h1>
+            {% if guide.description %}
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ guide.description }}</p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="flex items-center gap-2 no-print">
+        {% for tag in guide.tags %}
+        {{ badge(tag, color=guide.color) }}
+        {% endfor %}
+        {% if guide.created %}
+        <span class="text-xs text-gray-400 dark:text-gray-500 font-semibold ml-2">{{ guide.created }}</span>
+        {% endif %}
+        {% if guide.render == 'iframe' %}
+        <a href="/knowledge/guides/{{ guide.slug }}/raw/index.html" target="_blank" rel="noopener"
+           class="ml-2 inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-semibold transition-colors"
+           title="新しいタブで開く">
+            <i class="fa-solid fa-up-right-from-square"></i>
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if guide.render == 'fragment' and fragment_html %}
+<!-- Fragment: アプリの look & feel に統合された Tailwind 断片（リポジトリ管理の信頼コンテンツ） -->
+{{ fragment_html | safe }}
+
+{% elif guide.render == 'iframe' %}
+<!-- Iframe: 自己完結 HTML（独自 CSS/JS を持つガイド。base.html と衝突しない） -->
+<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <iframe id="guide-frame"
+            title="{{ guide.title }}"
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            class="w-full border-0 block"
+            style="min-height: 75vh;"></iframe>
+</div>
+
+<script>
+(function() {
+    var frame = document.getElementById('guide-frame');
+    var base = '/knowledge/guides/{{ guide.slug }}/raw/index.html';
+
+    function currentTheme() {
+        return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    }
+
+    // 初期テーマはクエリで渡す（描画前に適用できるように）
+    frame.src = base + '?theme=' + currentTheme();
+
+    // テーマ切替をガイドへ postMessage で通知（ガイド側は message イベントで受ける）
+    function syncTheme() {
+        if (frame.contentWindow) {
+            frame.contentWindow.postMessage({ type: 'theme', theme: currentTheme() }, '*');
+        }
+    }
+    frame.addEventListener('load', syncTheme);
+    new MutationObserver(syncTheme).observe(document.documentElement, {
+        attributes: true, attributeFilter: ['class']
+    });
+
+    // ガイドからの高さ通知でスクロールを一本化（任意プロトコル）
+    window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'guide-height' && typeof e.data.height === 'number') {
+            frame.style.height = Math.min(Math.max(e.data.height, 200), 20000) + 'px';
+            frame.style.minHeight = '0';
+        }
+    });
+})();
+</script>
+{% endif %}
+
+{% endblock %}
