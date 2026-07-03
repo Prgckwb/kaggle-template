@@ -35,14 +35,14 @@ Kaggle コンペティション用テンプレート。Hydra + Wandb で実験�
 uv sync                        # 依存関係インストール（コア依存のみ）
 uv sync --extra torch          # PyTorch 系を含めてインストール
 uv sync --extra tabular        # GBDT 系を含めてインストール
-just app                       # Web アプリ起動（空きポート自動選択）
+make app                       # Web アプリ起動（空きポート自動選択）
 
 # Lint / Format / Test
-just lint                      # ruff check
-just format                    # ruff format
-just fix                       # ruff check --fix + format
-just typecheck                 # ty check
-just test                      # pytest（src/utils の単体テスト）
+make lint                      # ruff check
+make format                    # ruff format
+make fix                       # ruff check --fix + format
+make typecheck                 # ty check
+make test                      # pytest（src/utils の単体テスト）
 
 # 実験実行
 uv run python -m src.exp001_xxx.train                           # fold0（デフォルト）
@@ -66,7 +66,7 @@ kaggle-template/
 ├── src/
 │   ├── exp000_sample/  # サンプル実験（テンプレート）
 │   └── utils/          # 共有ユーティリティ
-├── tests/              # src/utils の単体テスト（just test）
+├── tests/              # src/utils の単体テスト（make test）
 ├── .claude/
 │   ├── skills/         # Claude Code スキル
 │   └── agents/         # Claude Code エージェント
@@ -213,7 +213,7 @@ sandbox/ で生成した分析画像を `app/static/analysis/` にコピーし�
 
 ## テスト方針
 
-- `src/utils/` の共有ユーティリティは `tests/` に単体テストを置く（`just test`）。ユーティリティを変更したらテストも更新する
+- `src/utils/` の共有ユーティリティは `tests/` に単体テストを置く（`make test`）。ユーティリティを変更したらテストも更新する
 - 実験コード（`src/exp*`）には TDD を適用しない。`run_mode=debug` でパイプライン全体の動作確認を行うことで代替する
 
 ## AI エージェントへの注意

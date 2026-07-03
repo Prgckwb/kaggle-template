@@ -135,6 +135,12 @@ app/
    - 必要に応じてサブアイテムを追加
 6. **`index.html`** の Home カードグリッドにカードを追加
 
+### Tailwind CSS の再ビルド（重要）
+
+Tailwind はビルド済み CSS（`app/static/css/app.css`）をローカル配信している。
+**テンプレートに新しいユーティリティクラスを追加したら `make css` で再ビルドすること**
+（既存クラスと safelist 済みの動的色クラスはそのままで動く）。詳細は `app/static/build/README.md`。
+
 ### スタイリングの遵守事項
 
 - カード: `bg-white rounded-2xl shadow-sm border border-gray-200`
@@ -154,7 +160,8 @@ app/
 
 ## フェーズ 4: 動作確認
 
-1. `just app` または `uv run uvicorn app.main:app --reload` でアプリを起動
+0. 新しい Tailwind クラスを追加した場合は `make css` で CSS を再ビルド
+1. `make app` または `uv run uvicorn app.main:app --reload` でアプリを起動
 2. ブラウザで該当ページにアクセスし、表示を確認
 3. htmx の動的更新が正しく動作するか確認
 4. エラーがあれば修正

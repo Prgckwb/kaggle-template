@@ -90,7 +90,7 @@ uv run python -m src.{exp-name}.train -m training.lr=1e-3,5e-4,1e-4
 **その他:**
 
 ```bash
-just app    # Web アプリ起動
+make app    # Web アプリ起動
 ```
 
 - 各オーバーライドが config のどのパラメータに対応するか簡潔に説明

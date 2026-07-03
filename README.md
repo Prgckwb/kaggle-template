@@ -7,7 +7,7 @@
 | ツール | 用途 | インストール |
 |--------|------|-------------|
 | [uv](https://docs.astral.sh/uv/) | パッケージ管理 | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| [just](https://github.com/casey/just) | タスクランナー（`just app` 等） | `brew install just` |
+| make | タスクランナー（`make app` 等） | macOS / Linux は標準搭載（macOS は Xcode CLT） |
 | Kaggle API トークン | データ取得・提出 | https://www.kaggle.com/settings → API → Create New Token → `~/.kaggle/kaggle.json` |
 | wandb アカウント | 実験管理 | `uv run wandb login` |
 
@@ -55,12 +55,12 @@ kaggle-template/
 uv sync
 
 # Web ダッシュボード起動
-just app
+make app
 
 # Lint / Format / Test
-just lint
-just format
-just test
+make lint
+make format
+make test
 
 # 実験実行
 uv run python -m src.exp001_xxx.train                              # fold0（デフォルト）
