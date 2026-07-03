@@ -5,7 +5,7 @@ FastAPI + htmx + Jinja2 によるダッシュボード。
 ## 起動方法
 
 ```bash
-just app
+make app
 # または
 uv run uvicorn app.main:app --reload
 ```
