@@ -11,6 +11,9 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 実験の output ディレクトリをそのまま Kaggle Dataset としてアップロードする。
 output ディレクトリの構造（`fold0/`, `fold1/`, ...）がそのまま Kaggle 上に反映される。
 
+実体は `tools/upload_checkpoints.py`（Claude Code なしでも直接使えるスタンドアロン CLI）。
+このスキルはヒアリング + CLI 実行のラッパー。
+
 ## フェーズ 1: 対象実験の特定と状況確認
 
 1. **対象実験を特定する**
@@ -27,47 +30,34 @@ output ディレクトリの構造（`fold0/`, `fold1/`, ...）がそのまま K
    - 各 fold のチェックポイントファイル名とサイズを表示
    - アップロード対象を確認（通常は全 fold）
 
-## フェーズ 2: Kaggle Dataset メタデータ準備
+## フェーズ 2: アップロード方法の確認
 
 1. **既存メタデータの確認**
    - `src/{exp_name}/output/{run_name}/dataset-metadata.json` が存在するか確認
-   - 存在する場合はその内容を表示し、更新するか確認
+   - 存在する場合はその内容（Dataset の id）を表示し、バージョン更新でよいか確認
+   - 存在しない場合は初回作成。ユーザーに Kaggle ユーザー名を確認する
+     - dataset slug は CLI が profile の `competition.slug` + 実験名から自動生成する
+       （英数字とハイフンのみ。アンダースコアはハイフンに変換される）
+     - ライセンスはデフォルト CC0-1.0（非公開 Dataset として作成される）。チーム戦略上問題ないか確認する
 
-2. **メタデータ作成（存在しない場合）**
-   - ユーザーに以下を確認:
-     - Kaggle ユーザー名（既存メタデータがあればそこから取得）
-     - コンペティションスラグ（`docs/competition-profile.yaml` の `competition.slug` を既定値として提示）
-   - slug を決定: `{kaggle_user}/{comp_slug}-{exp_name_kebab}`
-     - **注意**: Kaggle の dataset slug に使えるのは英数字とハイフンのみ。実験名のアンダースコアはハイフンに変換する（例: `exp001_baseline` → `exp001-baseline`）
-   - `dataset-metadata.json` を作成:
-     ```json
-     {
-       "title": "{comp_slug} {exp_name}",
-       "id": "{kaggle_user}/{comp_slug}-{exp_name_kebab}",
-       "licenses": [{"name": "CC0-1.0"}]
-     }
-     ```
-   - ライセンスはデフォルト CC0-1.0 だが、チーム戦略上問題ないかユーザーに確認する（`kaggle datasets create` のデフォルトは非公開 Dataset）
-
-3. **ユーザーに確認**
-   - メタデータの内容を表示
-   - slug が正しいか確認
-   - 承認を得てから次のフェーズに進む
+2. **ユーザーに確認**
+   - 実行する CLI コマンドを提示し、承認を得てから次のフェーズに進む
    - **注意**: `dataset-metadata.json` は gitignore 対象の `output/{run_name}/` 配下に置かれるため、再学習で上書き・消失し得る。作成した slug は実験 README.md にも記録しておく
 
 ## フェーズ 3: アップロード実行
 
-1. **既存 Dataset の確認**
-   - `kaggle datasets status {id}` で既に Dataset が存在するか確認
+`tools/upload_checkpoints.py` を実行する:
 
-2. **アップロード**
-   - **初回**: `kaggle datasets create -p src/{exp_name}/output/{run_name}/`
-   - **更新**: `kaggle datasets version -p src/{exp_name}/output/{run_name}/ -m "{message}"`
-     - message はユーザーに確認（例: "fold0 学習完了", "全 fold 追加"）
+```bash
+# 初回（Dataset 新規作成）
+uv run python tools/upload_checkpoints.py {exp_name} {run_name} --user {kaggle_user} --new
 
-3. **結果確認**
-   - アップロードが成功したか確認
-   - エラーがあれば原因を説明し対処法を案内
+# 2回目以降（バージョン更新。message はユーザーに確認。例: "fold0 学習完了", "全 fold 追加"）
+uv run python tools/upload_checkpoints.py {exp_name} {run_name} -m "{message}"
+```
+
+- アップロードが成功したか確認
+- エラーがあれば原因を説明し対処法を案内
 
 ## フェーズ 4: 完了報告
 

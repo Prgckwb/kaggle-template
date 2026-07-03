@@ -49,6 +49,10 @@ uv run python -m src.exp001_xxx.train                           # fold0（デフ
 uv run python -m src.exp001_xxx.train run_mode=debug            # デバッグモード
 uv run python -m src.exp001_xxx.train run_mode=full             # 全 fold
 uv run python -m src.exp001_xxx.train --config-name=run001-yyy  # 小実験指定
+
+# Kaggle CLI ツール（詳細は tools/README.md。提出は行わない読み取り専用の監視あり）
+uv run python tools/check_submission.py                         # 最新提出のステータス監視・LB 表示
+uv run python tools/upload_checkpoints.py {exp} {run} -m "..."  # チェックポイントを Dataset 化
 ```
 
 ## ディレクトリ構成
@@ -63,6 +67,7 @@ kaggle-template/
 │   ├── official/       # Kaggle 公式情報
 │   ├── discussion/     # Discussion（YYYY-MM-DD_topic.md）
 │   └── insights/       # 実験知見（YYYY-MM-DD_topic.md）
+├── tools/              # スタンドアロン CLI（提出監視・チェックポイントアップロード）→ tools/README.md
 ├── src/
 │   ├── exp000_sample/  # サンプル実験（テンプレート）
 │   └── utils/          # 共有ユーティリティ
@@ -84,6 +89,9 @@ kaggle-template/
 | `submission.py` | sample_submission.csv との形式バリデーション |
 | `seeding.py` | 再現性のためのシード固定（random, numpy, torch） |
 | `checkpoint.py` | チェックポイントの軽量化・重み読み込み |
+| `env.py` | 実行環境検出・パス解決（INPUT_DIR / Kaggle Notebook 判定） |
+| `logger.py` | ファイル + 標準出力ロガー（logs_dir にタイムスタンプ付き保存） |
+| `timing.py` | 処理時間・メモリ使用量の計測（`timer` / `trace`） |
 
 ## Kaggle 情報の取得
 
@@ -107,6 +115,7 @@ src/exp001_xxx/
 ├── inference.py    # 推論スクリプト（sample_submission.csv と同形式の CSV を出力）
 ├── model.py        # モデル定義
 ├── data.py         # データ処理
+├── config_schema.py # config.yaml のスキーマ（dataclass。タイポ・型違いを実行時に検出）
 ├── inference_notebook.ipynb  # Kaggle 推論 notebook（/kaggle:create-inference-notebook で生成）
 ├── config/
 │   ├── config.yaml           # ベース設定（run_name: run000-base、metric は profile と揃える）
@@ -131,6 +140,13 @@ model:
 training:
   lr: 2e-5
 ```
+
+### config のスキーマ検証とパス
+
+- ベース config は `defaults: [base_schema, _self_]` で `config_schema.py` の dataclass を継承しており、yaml・CLI オーバーライドのタイポや型違いは起動時にエラーになる
+- **config.yaml にキーを追加・削除したら `config_schema.py` も同期する**（不一致は ConfigKeyError になる）
+- 実験を新規作成する際は `config_schema` の import パスを新実験のものに更新する
+- データパスは `data.input_dir`（環境変数 `INPUT_DIR` で上書き可能）を経由する。未設定時はローカルの `input/`、Kaggle Notebook では `INPUT_DIR=/kaggle/input/{slug}` を指定
 
 ### 実行モード
 

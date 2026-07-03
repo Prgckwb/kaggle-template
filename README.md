@@ -42,6 +42,7 @@ kaggle-template/
 │   ├── official/   # Kaggle 公式情報
 │   ├── discussion/ # Kaggle Discussion 情報
 │   └── insights/   # 実験から得た知見
+├── tools/          # スタンドアロン CLI（提出監視・チェックポイントアップロード）
 └── src/            # 実験ディレクトリ
     └── exp000_sample/
         ├── config/     # ベース config + 小実験 config
@@ -70,6 +71,16 @@ uv run python -m src.exp001_xxx.train run_mode=full                # 全 fold
 # 小実験（Run）を指定して実行
 uv run python -m src.exp001_xxx.train --config-name=run001-yyy
 uv run python -m src.exp001_xxx.train --config-name=run001-yyy run_mode=debug
+
+# Kaggle CLI ツール（詳細は tools/README.md）
+uv run python tools/check_submission.py       # 最新提出のステータス監視 + LB 表示
+uv run python tools/upload_checkpoints.py exp001_xxx run000-base -m "更新"  # チェックポイントを Dataset 化
+```
+
+データパスは `INPUT_DIR` 環境変数で切り替えられる（未設定時はローカルの `input/`）:
+
+```bash
+INPUT_DIR=/kaggle/input/{slug} uv run python -m src.exp001_xxx.train
 ```
 
 ## Skills (Claude Code)
