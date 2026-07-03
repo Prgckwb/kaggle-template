@@ -1,0 +1,12 @@
+{
+  "name": "kaggle-dashboard-css",
+  "private": true,
+  "description": "Tailwind CSS build for the dashboard (make css)",
+  "scripts": {
+    "build": "tailwindcss -i input.css -o ../css/app.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.15",
+    "tailwindcss": "^3.4.17"
+  }
+}
