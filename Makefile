@@ -15,14 +15,14 @@ app: ## Web アプリを起動（ホットリロード有効、空きポート�
 	uv run uvicorn app.main:app --reload --port $$port
 
 lint: ## Lint（ruff check）
-	uv run ruff check src/ app/ tests/
+	uv run ruff check src/ app/ tests/ tools/
 
 format: ## Format（ruff format）
-	uv run ruff format src/ app/ tests/
+	uv run ruff format src/ app/ tests/ tools/
 
 fix: ## Lint 自動修正 + Format
-	uv run ruff check --fix src/ app/ tests/
-	uv run ruff format src/ app/ tests/
+	uv run ruff check --fix src/ app/ tests/ tools/
+	uv run ruff format src/ app/ tests/ tools/
 
 typecheck: ## 型チェック（ty）
 	uv run ty check src/ app/
