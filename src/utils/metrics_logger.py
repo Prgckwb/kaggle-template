@@ -9,10 +9,11 @@ from __future__ import annotations
 import csv
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from omegaconf import DictConfig, OmegaConf
+
+from src.utils.logger import resolve_logs_dir
 
 
 class MetricsLogger:
@@ -30,10 +31,7 @@ class MetricsLogger:
         self.run_name: str = cfg.run_name
         self.run_mode: str = cfg.run_mode
 
-        logs_dir = Path(cfg.logs_dir)
-        if self.run_mode == "debug":
-            logs_dir = logs_dir.with_name(f"{logs_dir.name}-debug")
-        self.logs_dir = logs_dir
+        self.logs_dir = resolve_logs_dir(cfg.logs_dir, self.run_mode)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
 
         # 評価指標（未設定の古い config でも動くようにフォールバックする）

@@ -11,6 +11,7 @@ dependencies = [
     "pandas",
     "numpy",
     "pyyaml",
+    "psutil",  # src/utils/timing.py の trace() で使用
 ]
 
 [project.optional-dependencies]
@@ -50,7 +51,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "NPY"]
 ignore = ["E501"]  # 行長は formatter に任せる
 
 [tool.ruff.lint.isort]
-known-first-party = ["src", "app"]
+known-first-party = ["src", "app", "tools"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1216,6 +1216,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "polars" },
+    { name = "psutil" },
     { name = "pyyaml" },
     { name = "wandb" },
 ]
@@ -1258,6 +1259,7 @@ requires-dist = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "polars" },
+    { name = "psutil" },
     { name = "pyyaml" },
     { name = "scikit-learn", marker = "extra == 'tabular'" },
     { name = "scikit-learn", marker = "extra == 'torch'" },
