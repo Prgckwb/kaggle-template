@@ -22,8 +22,8 @@ Kaggle 金メダリストの実戦知見（kinosuke 氏の Image2Biomass 5位解
 
 `concurrent_sessions: true` のとき、次は**相手の未コミット作業を壊す**:
 
-- 🔴 `git add -A` / `git add .` — 相手の作業を巻き込んでコミットする。**常にパスを明示する**（hooks で deny）
-- 🔴 `git stash` / `git reset --hard` / `git checkout -- <file>` — 相手の未コミット作業を即座に消す（hooks で deny。必要ならユーザーに確認して手で打ってもらう）
+- 🔴 `git add -A` / `git add .` — 相手の作業を巻き込んでコミットする。**常にパスを明示する**（`permissions.deny` と `.claude/hooks/guard.py` の二重で deny）
+- 🔴 `git stash` / `git reset --hard` / `git checkout -- <file>` — 相手の未コミット作業を即座に消す（`permissions.deny` と hooks の二重で deny。必要ならユーザーに確認して手で打ってもらう）
 - ⚠ **共有ファイル**（`docs/guardrails.md` / `EXP_SUMMARY.md` 等）は複数セッションの集約先。
   コミット前に `git diff <file> | grep "^+## "` で追加された節の持ち主を確認する。
   末尾への連続追記は hunk が 1 個にまとまるので `git add -p` の split は当てにできない。

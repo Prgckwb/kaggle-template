@@ -229,6 +229,23 @@ def main(cfg: DictConfig) -> None:
     #     oof_df.to_csv(output_dir / "oof_predictions.csv", index=False)
     #     print(f"\nOOF predictions saved to {output_dir / 'oof_predictions.csv'}")
 
+    # CV の集計はローカルには常に出す（wandb の有無・fold 数に依存させない）。
+    # summary run の条件（fold >= 2 かつ wandb 有効）に載せると、1 fold の full や
+    # wandb 無効時にスコアが 1 行も残らない。
+    if cfg.run_mode == "full" and fold_scores:
+        local_scores = list(fold_scores.values())
+        local_mean = sum(local_scores) / len(local_scores)
+        if len(local_scores) == 1:
+            logger.info(
+                "Single-fold score: %.4f（CV ではない。fold 1 本の値）", local_mean
+            )
+        else:
+            local_std = (
+                sum((s - local_mean) ** 2 for s in local_scores)
+                / (len(local_scores) - 1)
+            ) ** 0.5
+            logger.info("CV score: %.4f ± %.4f", local_mean, local_std)
+
     # Summary run（full モード && wandb 有効 && fold >= 2 のときだけ。docs/wandb-spec.md 参照）
     # 1 fold しか回っていない CV に summary run を作ると、fold run と同じ値が
     # "CV スコア" として並び、単一 fold の値を CV と見誤る。
@@ -252,11 +269,8 @@ def main(cfg: DictConfig) -> None:
         )
         scores = list(fold_scores.values())
         cv_mean = sum(scores) / len(scores)
-        cv_std = (
-            (sum((s - cv_mean) ** 2 for s in scores) / (len(scores) - 1)) ** 0.5
-            if len(scores) > 1
-            else 0.0
-        )
+        # このブロックは len(fold_scores) >= 2 が保証されているので不偏分散が定義できる
+        cv_std = (sum((s - cv_mean) ** 2 for s in scores) / (len(scores) - 1)) ** 0.5
         wandb.summary[f"cv/{metric_name}"] = cv_mean
         wandb.summary[f"cv/{metric_name}_std"] = cv_std
         # CV の代表値は OOF pooled スコア（docs/wandb-spec.md）。
@@ -264,7 +278,6 @@ def main(cfg: DictConfig) -> None:
         for fi, score in fold_scores.items():
             wandb.summary[f"fold{fi}/best_val_{metric_name}"] = score
         wandb.finish()
-        logger.info("CV score: %.4f ± %.4f", cv_mean, cv_std)
 
     metrics_logger.finish()
     logger.info("Training complete. Output dir: %s", output_dir)

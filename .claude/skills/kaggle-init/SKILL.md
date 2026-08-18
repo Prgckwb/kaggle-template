@@ -107,7 +107,8 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 6. `max_runs_per_exp` — 既定 `8`（超過は `/kaggle:review-strategy` が分割を提案する）
 
 - `concurrent_sessions` を `false` にした場合は、`.claude/settings.json` の git 系ガード
-  （`permissions.deny` の `git add -A` 系と `.claude/hooks/guard.py` の git 規則）を
+  （`permissions.deny` の `git add -A` / `git commit -a` / `git stash` / `git reset --hard` /
+  `git checkout --` と、`.claude/hooks/guard.py` の同等の git 規則）を
   外してよいことを案内する
 - `submission_by` を `agent` にした場合は、同じく提出のガードを外してよいことを案内する
 - **`metric.noise` は null のまま置く**。最初のベースラインが完走した後に
