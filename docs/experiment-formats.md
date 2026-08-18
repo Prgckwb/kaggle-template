@@ -1,3 +1,4 @@
+<!-- lifecycle: invariant -->
 # EXP_SUMMARY.md 更新フォーマット
 
 実験完了後に `EXP_SUMMARY.md` を更新する際のフォーマット仕様。

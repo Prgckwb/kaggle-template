@@ -1,7 +1,40 @@
+<!-- lifecycle: invariant -->
 # AI エージェント運用ガイドライン
 
 CLAUDE.md の「AI エージェントへの注意」セクションを補完する詳細ガイド。
 Kaggle 金メダリストの実戦知見（kinosuke 氏の Image2Biomass 5位解法等）に基づく。
+
+## 運用の合意（Working Agreements）
+
+エージェントの**実行時の既定値**。機械可読な値は `docs/competition-profile.yaml` の
+`workflow` ブロックが SSOT で、ここにはその理由を書く。`/kaggle:init` が対話で埋める。
+
+| 合意 | 既定 | なぜ |
+|---|---|---|
+| `default_run_mode` | `fold0` | GPU 時間の節約。fold0 で有望と分かった run だけをユーザーの明示指示で full に昇格させる。アンサンブル・提出で全 fold が必要になったら昇格を提案して承認を得る |
+| `submission_by` | `user` | 提出枠は 1 日数回しかなく、ユーザーが手元で提出することもある。二重提出は枠を無駄に消費する。エージェントは notebook の commit・出力確認までで止め、貼り付け用の description を添えて引き渡す |
+| `branching` | `main-only` | 実験ブランチ運用で同内容が別 SHA で二重コミットされ、統合時にマージ衝突が起きた |
+| `concurrent_sessions` | `true` | 複数セッションが**同じ作業ディレクトリの同一実体**を編集する。`git status` の未コミット変更が自分のものだとは限らない |
+| `remote_training` | `none` | リモート GPU を使うなら `herdr`。運用は `docs/remote-training-ops.md` |
+| `max_runs_per_exp` | `8` | 超えると README で「何の 1 変数差分だったか」が追えなくなる（実コンペで 26 run / 14 run の exp が発生した） |
+
+### 併走セッション前提の作業規律
+
+`concurrent_sessions: true` のとき、次は**相手の未コミット作業を壊す**:
+
+- 🔴 `git add -A` / `git add .` — 相手の作業を巻き込んでコミットする。**常にパスを明示する**（hooks で deny）
+- 🔴 `git stash` / `git reset --hard` / `git checkout -- <file>` — 相手の未コミット作業を即座に消す（hooks で ask）
+- ⚠ **共有ファイル**（`docs/guardrails.md` / `EXP_SUMMARY.md` 等）は複数セッションの集約先。
+  コミット前に `git diff <file> | grep "^+## "` で追加された節の持ち主を確認する。
+  末尾への連続追記は hunk が 1 個にまとまるので `git add -p` の split は当てにできない。
+  両者の作業が混在したら片方がまとめて 1 コミットにし、メッセージに両方の由来を書く
+- ⚠ **run 番号は予約も含めて確認する**: `config/` の既存ファイルだけを見て次の空き番号を決めない。
+  `grep -rnE "run[0-9]{3}" docs src` で plans / specs の予約も見る
+
+### 情報源の優先順位
+
+Kaggle・クラウドの情報は **MCP より CLI**（`uv run kaggle ...` / `gcloud ...`）。
+MCP は未認証だと公開ツールが `authenticate` だけになり、気づかないまま「使えない」状態になる。
 
 ## 失敗履歴の読ませ方
 

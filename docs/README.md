@@ -1,6 +1,33 @@
+<!-- lifecycle: invariant -->
 # docs ディレクトリ
 
 このディレクトリはコンペティションに関する情報を整理して管理します。
+
+## lifecycle 二層
+
+各ドキュメントの 1 行目に lifecycle マーカーがある。
+
+| マーカー | 意味 |
+|---|---|
+| `<!-- lifecycle: invariant -->` | コンペを跨いで持ち越す。`/kaggle:init` は触らない |
+| `<!-- lifecycle: per-competition -->` | コンペ固有。`/kaggle:init` がテンプレート状態にリセットする |
+
+| ファイル | lifecycle | 役割 |
+|---|---|---|
+| `ai-agent-guidelines.md` | invariant | 人間と AI の分担 + 運用の合意（Working Agreements） |
+| `experiment-methodology.md` | invariant | 効果の帰属・判定の資格・対照群の設計（コンペ非依存の実験作法） |
+| `remote-training-ops.md` | invariant | リモート GPU 学習の運用と監視（herdr 前提） |
+| `wandb-spec.md` | invariant | wandb の k-fold ログ方針 |
+| `experiment-formats.md` | invariant | EXP_SUMMARY の記述フォーマット |
+| `competition-types.md` | invariant | supervised / optimization / simulation の解釈 |
+| `competition-profile.yaml` | per-competition | コンペ固有値の SSOT（`/kaggle:init` が書く） |
+| `training-conventions.md` | per-competition | 学習実験の規約（コンペ固有の穴埋めつき） |
+| `guardrails.md` | per-competition | 評価関数の正誤・既知のバグパターン・やってはいけないこと |
+| `submissions.md` | per-competition | 全提出のログ（SSOT） |
+| `experiment-log.md` | per-competition | 実験台帳（時系列 + 探索バックログ） |
+| `official/` `discussion/` `insights/` `guides/` | per-competition | 収集物・知見・レポート（マーカー不要） |
+
+**新しいドキュメントを `docs/` 直下に置いたら、マーカーとこの表の行を必ず追加する。**
 
 ## ディレクトリ構成
 
