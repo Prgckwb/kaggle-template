@@ -4,6 +4,16 @@ defaults:
 
 run_name: run001-sample-v2
 
+# 系譜: 親 run と、親から変えたキー（ドット表記）。
+# `uv run python -c "..."` で src.utils.lineage.check_varied に config を渡すと
+# 宣言と実際の差分が一致しているか検算できる（継承キーは差分に数えない）。
+lineage:
+  parent: config  # ベース config 直下なので config（親 run があればその run 名）
+  varied:
+    - model.name
+    - training.epochs
+    - training.lr
+
 model:
   name: sample-v2
 

@@ -223,9 +223,29 @@ run を足そうとしている場合は、**まず分割を提案する**。
 
    run_name: run{NNN}-{subtitle}
 
+   # 系譜（必須）: 親 run 名（ベース config 直下なら config）と、
+   # 親から変えたキーのドット表記。`/kaggle:record-result` が実差分と照合する
+   lineage:
+     parent: {親 run 名 or config}
+     varied:
+       - model.name
+
    # 変更するパラメータのみ記述
    model:
      name: xxx
+   ```
+
+   `lineage.varied` は「実際に変えたキー」と一致させる。書いた後に検算する:
+
+   ```bash
+   uv run python -c "
+   import sys, yaml
+   from src.utils.lineage import check_varied
+   child = yaml.safe_load(open(sys.argv[1]))
+   parent = yaml.safe_load(open(sys.argv[2]))
+   r = check_varied(child, parent, declared=child.get('lineage', {}).get('varied', []))
+   print(f'ok={r.ok} n_varied={r.n_varied} actual={r.actual} missing={r.missing} extra={r.extra}')
+   " src/{exp}/config/run{NNN}-{subtitle}.yaml src/{exp}/config/config.yaml
    ```
 
 2. **実験 README.md の Runs テーブルに行を追加**

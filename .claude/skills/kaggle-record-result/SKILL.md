@@ -86,7 +86,9 @@ print(f'missing={result.missing} extra={result.extra}')
   **「この Δ は N 変数の合計」**と明記し、**1 変数の名前で呼ばない**。
   中間 run があるなら段に分解して各段の差を併記する
   （`docs/experiment-methodology.md` の「効果の帰属」）
-- Hydra の `defaults` は解決前の yaml では効かないので、親 config を明示的に読むこと
+- Hydra の `defaults` は解決前の yaml では効かないので、親 config を明示的に読むこと。
+  **差分 config（変えたキーだけ書いた子）をそのまま `yaml.safe_load` で渡してよい** —
+  `diff_config_keys` は親にしか無いキーを継承とみなし差分に数えないため、compose は不要
 - `LineageCheck` の `ok` / `n_varied` は property なので `dataclasses.asdict()` では落ちる。
   上のように属性アクセスで取り出す
 

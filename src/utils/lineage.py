@@ -15,9 +15,10 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-# run の同一性そのものを表すキーは差分から除く（必ず変わるため）
+# run の同一性そのものを表すキー（必ず変わる）と、Hydra の継承宣言は差分から除く。
+# `defaults` は list 値のフラットキーになるため、除かないと差分に混入する。
 DEFAULT_IGNORE: frozenset[str] = frozenset(
-    {"run_name", "lineage.parent", "lineage.varied"}
+    {"run_name", "lineage.parent", "lineage.varied", "defaults"}
 )
 
 
@@ -52,12 +53,28 @@ def diff_config_keys(
     *,
     ignore: Iterable[str] = DEFAULT_IGNORE,
 ) -> list[str]:
-    """親と子で値が異なるキー（追加・削除も含む）をソートして返す。"""
+    """子が親から変えたキーをソートして返す。
+
+    走査対象は**子に存在するキーだけ**である。親にしか無いキーは
+    「継承（inherited）」とみなし、差分に数えない。
+
+    理由: Hydra の `defaults:` は `yaml.safe_load` では compose されないため、
+    差分 config（`defaults: [config]` + 変えたキーだけ）を素で読むと、
+    子が触っていない継承キーは必ず「親にしか無いキー」として現れる。
+    さらに Hydra の子 config には「キーの削除」を表現する手段が無いので、
+    親にしか無いキーを「削除された差分」と読むこと自体が誤りになる。
+
+    - 子と親の両方にあり値が異なるキー → 差分
+    - 子にあって親に無いキー → 「追加」として差分
+    - 親にしか無いキー → 継承。差分に数えない
+
+    差分 config（Hydra の子 config）をそのまま渡してよい。
+    """
     ignored = set(ignore)
     flat_child = flatten_config(child)
     flat_parent = flatten_config(parent)
 
-    keys = (set(flat_child) | set(flat_parent)) - ignored
+    keys = set(flat_child) - ignored
     changed = [
         key
         for key in keys

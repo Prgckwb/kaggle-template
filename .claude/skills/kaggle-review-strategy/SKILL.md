@@ -126,6 +126,10 @@ print(f'n_varied={len(keys)} keys={keys}')
 " src/{exp}/config/{runA}.yaml src/{exp}/config/{runB}.yaml
 ```
 
+**差分 config をそのまま渡してよい**（`diff_config_keys` は親にしか無いキーを継承とみなし
+差分に数えないので、Hydra の compose は不要）。ただし走査は第 1 引数側のキーだけなので、
+兄弟 run 同士を比べるときは両向き（A,B と B,A）を実行して和を取る。
+
 `n_varied >= 2` の比較は較正点に採らない。
 **交絡を含む比較から較正点を作ると較正表そのものが汚染される。**
 
