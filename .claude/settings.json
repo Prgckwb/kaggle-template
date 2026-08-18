@@ -1,17 +1,19 @@
 {
   "permissions": {
-    "ask": [
-      "mcp__kaggle__submit_to_competition",
-      "mcp__kaggle__create_code_competition_submission",
-      "mcp__kaggle__upload_dataset_file"
-    ],
+    "ask": ["mcp__kaggle__upload_dataset_file"],
     "deny": [
       "Bash(git add -A*)",
       "Bash(git add --all*)",
       "Bash(git add .)",
       "Bash(git add . *)",
+      "Bash(git commit -a*)",
+      "Bash(git stash*)",
+      "Bash(git reset --hard*)",
+      "Bash(git checkout -- *)",
       "Bash(kaggle competitions submit*)",
-      "Bash(uv run kaggle competitions submit*)"
+      "Bash(uv run kaggle competitions submit*)",
+      "mcp__kaggle__submit_to_competition",
+      "mcp__kaggle__create_code_competition_submission"
     ]
   },
   "hooks": {

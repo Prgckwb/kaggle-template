@@ -4,11 +4,16 @@
 Bash ツールに渡されたコマンドを検査し、次の 2 種類を実行前に止める。
 
 1. 併走セッションの未コミット作業を壊す git 操作
-   （`git add -A` / `git add .` / `git stash` / `git reset --hard` / `git checkout --`）
+   （`git add -A` / `git add .` / `git commit -a` / `git stash` /
+   `git reset --hard` / `git checkout --`）
 2. Kaggle への提出（提出はユーザーの専管）
 
 判定は `.claude/settings.json` の `permissions.deny` と二重の網になっている。
 deny は宣言的にパターンを弾き、この hook は理由を添えて止める。
+hook 側だけが見られるのは `git -C <path> add -A` のように**グローバルオプションが
+サブコマンドの前に挟まった形**である（deny の glob は先頭一致なので拾えない）。
+逆に hook は fail-open（スクリプトに届かなければ黙って通る）なので、
+deny 側が外側の網として必要になる。どちらも欠かせない。
 
 前提の設定は `docs/competition-profile.yaml` の `workflow` にある。
 `concurrent_sessions: false` なら git 系の規則、`submission_by: agent` なら
@@ -26,16 +31,29 @@ import json
 import re
 import sys
 
+# git のサブコマンドの前に挟まるグローバルオプションを吸収する接頭辞。
+# `git -C <path> add -A` / `git --git-dir=... add .` を素通しさせないため
+# （`/kaggle:harvest-template` は `git -C "$TMPL"` の書き方を教えている）。
+# `-C <path>` のように値が別トークンになる形も 1 要素として食う。
+_GIT = r"git\s+(?:(?:-[A-Za-z]|--[A-Za-z][\w-]*)(?:[=\s]+\S+)?\s+)*"
+
 # (正規表現, deny の理由) の並び。先に一致したものが採用される。
 RULES: list[tuple[str, str]] = [
     (
-        r"git\s+add\s+(-A\b|--all\b|\.(\s|$))",
+        _GIT + r"add\s+(-A\b|--all\b|\.(\s|$))",
         "git add -A / git add . は併走セッションの未コミット作業を巻き込みます。"
         "コミットしたいパスを明示してください"
         "（docs/ai-agent-guidelines.md の「運用の合意」）。",
     ),
     (
-        r"git\s+(stash|reset\s+--hard|checkout\s+--)",
+        # `-a` を含む短オプション束（-a / -am / -va）と `--all`。`--amend` は素通しする。
+        _GIT + r"commit\s+(?:-[^\s]*\s+|--\S+\s+)*(?:-[A-Za-z]*a[A-Za-z]*|--all)\b",
+        "git commit -a / -am は追跡中の全変更を巻き込みます（git add -A と同じ危険）。"
+        "パスを明示して git add してから git commit してください"
+        "（docs/ai-agent-guidelines.md の「運用の合意」）。",
+    ),
+    (
+        _GIT + r"(stash|reset\s+--hard|checkout\s+--)",
         "この操作は併走セッションの未コミット作業を消します。共有ファイルには打たず、"
         "必要ならユーザーに確認してください"
         "（docs/ai-agent-guidelines.md の「併走セッション前提の作業規律」）。",

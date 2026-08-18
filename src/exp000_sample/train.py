@@ -156,14 +156,23 @@ def main(cfg: DictConfig) -> None:
         # TODO: Create model
         # TODO: Create PyTorch Lightning Trainer with ModelCheckpoint
         #
-        # チェックポイント名は CLAUDE.md の規約 {exp_name}-val_{metric}={score}.ckpt に従う。
+        # チェックポイント名は docs/training-conventions.md の規約
+        #   {exp番号}-{run_name}-f{k}[-ep{NN}][-val_{評価指標名}-{score}].ckpt
+        # に従う（src/utils/submission_manifest.py がこの形をパースして提出構成を復元する）。
+        # ⚠ メトリクス名とスコアの区切りの "-" は必須（区切りが無いと f1 のような
+        #    数字入りメトリクス名でスコアの境界が決まらず、静かに誤った値になる）。
+        # ⚠ "=" は使わない（Kaggle がファイル名の "=" を除去することがあり、
+        #    Dataset 経由の重み配布が壊れる）。
         # monitor には学習ループで log しているキー（metric_key = "val/{metric}"）を渡すこと。
         # キーに "/" を含むため auto_insert_metric_name=False が必須。
         #
         # from lightning.pytorch.callbacks import ModelCheckpoint
         # checkpoint_callback = ModelCheckpoint(
         #     dirpath=str(fold_dir),
-        #     filename=f"{cfg.exp_name}-val_{metric_name}={{{metric_key}:.4f}}",
+        #     filename=(
+        #         f"{exp_short}-{cfg.run_name}-f{fold_idx}"
+        #         f"-ep{{epoch:02d}}-val_{metric_name}-{{{metric_key}:.4f}}"
+        #     ),
         #     auto_insert_metric_name=False,
         #     monitor=metric_key,
         #     mode=metric_mode,
@@ -220,8 +229,14 @@ def main(cfg: DictConfig) -> None:
     #     oof_df.to_csv(output_dir / "oof_predictions.csv", index=False)
     #     print(f"\nOOF predictions saved to {output_dir / 'oof_predictions.csv'}")
 
-    # Summary run（full モードかつ wandb 有効時のみ。CLAUDE.md / docs/wandb-spec.md 参照）
-    if cfg.run_mode == "full" and run_cfg["wandb_mode"] != "disabled" and fold_scores:
+    # Summary run（full モード && wandb 有効 && fold >= 2 のときだけ。docs/wandb-spec.md 参照）
+    # 1 fold しか回っていない CV に summary run を作ると、fold run と同じ値が
+    # "CV スコア" として並び、単一 fold の値を CV と見誤る。
+    if (
+        cfg.run_mode == "full"
+        and run_cfg["wandb_mode"] != "disabled"
+        and len(fold_scores) >= 2
+    ):
         wandb.init(
             project=cfg.wandb.project,
             entity=cfg.wandb.entity,

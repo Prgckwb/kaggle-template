@@ -11,6 +11,8 @@ docs/training-conventions.md の「チェックポイント」節でこの命名
 ⚠ メトリクス名とスコアの間の `-` は必須（区切りが無いと数字を含むメトリクス名
    例: f1 / top5 で境界が決まらない）。`=` は使わない — Kaggle がファイル名の `=`
    を除去することがあり、Dataset 経由の重み配布が壊れる。
+⚠ メトリクス名にハイフンを使わない（`macro_f1` と書き `macro-f1` と書かない）。
+   区切りの `-` と区別できないため、ハイフン入りの名前は None を返す。
 """
 
 from __future__ import annotations
@@ -26,10 +28,15 @@ from typing import Any
 # （run 名に 'full' 等の f を含んでも壊れない）。
 # メトリクス名とスコアは `-` で区切る（`val_f10.8523` のように区切りが無いと
 # f1 のような数字入りメトリクス名でスコアの境界が決まらず、誤った値を静かに返す）。
+# score は符号つき（R2・相関係数は負になり得る。`val_r2--0.1234` で score=-0.1234）。
+# metric 名は `[A-Za-z0-9_]+` に限る = ハイフンを許さない。許すと区切りが曖昧になり
+# `val_macro-f1-0.8523` を metric=macro / score=不定 のように読み違える
+# （規約として「メトリクス名にハイフンを使わない」を docs/training-conventions.md に置いた。
+#   規約外の名前は None を返して静かな誤読を防ぐ）。
 _CKPT_RE = re.compile(
     r"^(?P<exp>exp\d+)-(?P<run>.+)-f(?P<fold>\d+)"
     r"(?:-ep(?P<epoch>\d+))?"
-    r"(?:-val_(?P<metric>[A-Za-z0-9_]+)-(?P<score>[0-9]+\.[0-9]+))?"
+    r"(?:-val_(?P<metric>[A-Za-z0-9_]+)-(?P<score>-?[0-9]+\.[0-9]+))?"
     r"\.ckpt$"
 )
 

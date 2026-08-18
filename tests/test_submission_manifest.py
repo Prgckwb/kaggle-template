@@ -58,6 +58,32 @@ def test_parse_prefers_last_fold_marker() -> None:
     assert ref.epoch == 4
 
 
+def test_parse_negative_score() -> None:
+    """R2・相関係数は負になり得る。符号を落とすと静かに誤った値を返す。"""
+    ref = parse_ckpt_name("exp012-run002-ridge-f1-ep03-val_r2--0.1234.ckpt")
+    assert ref is not None
+    assert ref.run == "run002-ridge"
+    assert ref.fold == 1
+    assert ref.epoch == 3
+    assert ref.score == -0.1234
+
+
+def test_parse_negative_score_without_epoch() -> None:
+    ref = parse_ckpt_name("exp012-run002-ridge-f1-val_pearson--0.0500.ckpt")
+    assert ref is not None
+    assert ref.epoch is None
+    assert ref.score == -0.05
+
+
+def test_parse_rejects_hyphenated_metric_name() -> None:
+    """メトリクス名にハイフンを使うと区切りが曖昧になるので規約違反として弾く。
+
+    docs/training-conventions.md の「メトリクス名にハイフンを使わない」規約
+    （`macro_f1` と書き `macro-f1` と書かない）を検出するための境界。
+    """
+    assert parse_ckpt_name("exp012-run000-base-f0-val_macro-f1-0.8523.ckpt") is None
+
+
 def test_parse_returns_none_for_unrecognized_name() -> None:
     assert parse_ckpt_name("last.ckpt") is None
     assert parse_ckpt_name("model_best.pth") is None

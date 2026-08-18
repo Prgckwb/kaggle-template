@@ -31,8 +31,9 @@ def is_kaggle_notebook() -> bool:
 def input_dir() -> Path:
     """データの入力ディレクトリを返す。
 
-    Kaggle Notebook では /kaggle/input を返す。コンペデータは
-    さらに /kaggle/input/{competition_slug}/ 配下にマウントされる点に注意
+    Kaggle Notebook では /kaggle/input を返す。その配下の構成に注意:
+    コンペデータは /kaggle/input/competitions/{slug}/、
+    Dataset は /kaggle/input/datasets/{user}/{dataset-slug}/ にマウントされる
     （実際のマウントパスは Notebook のサイドバーで確認すること）。
     """
     env_value = os.environ.get("INPUT_DIR")

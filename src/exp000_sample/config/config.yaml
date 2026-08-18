@@ -45,7 +45,10 @@ metric:
 
 # Data
 # input_dir は環境変数 INPUT_DIR で上書きできる（例: Kaggle Notebook では
-# INPUT_DIR=/kaggle/input/{slug}）。未設定ならローカルの input/ を使う。
+# INPUT_DIR=/kaggle/input/competitions/{slug}）。未設定ならローカルの input/ を使う。
+# ⚠ コンペデータは /kaggle/input/competitions/{slug}、Dataset は
+#   /kaggle/input/datasets/{user}/{dataset-slug} にマウントされる。
+#   /kaggle/input/{slug} は誤りで、全レコードが欠損値埋めになり提出が静かに壊れる。
 data:
   input_dir: ${oc.env:INPUT_DIR,${hydra:runtime.cwd}/input}
   train_path: ${data.input_dir}/train.csv

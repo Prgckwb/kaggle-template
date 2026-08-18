@@ -117,8 +117,11 @@ def main() -> int:
         )
         print(f"Dataset を更新しました: {metadata['id']} ({args.message})")
 
-    dataset_slug = metadata["id"].split("/", 1)[1]
-    print(f"Notebook のマウントパス（通常）: /kaggle/input/{dataset_slug}/")
+    owner, dataset_slug = metadata["id"].split("/", 1)
+    print(
+        "Notebook のマウントパス（通常）: "
+        f"/kaggle/input/datasets/{owner}/{dataset_slug}/"
+    )
     print("※ Add Data 後に Notebook のサイドバーで実際のパスを必ず確認すること")
     return 0
 
