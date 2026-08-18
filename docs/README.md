@@ -12,8 +12,12 @@
 | `<!-- lifecycle: invariant -->` | コンペを跨いで持ち越す。`/kaggle:init` は触らない |
 | `<!-- lifecycle: per-competition -->` | コンペ固有。`/kaggle:init` がテンプレート状態にリセットする |
 
+**YAML ファイルでは HTML コメントが構文エラーになるので、`# lifecycle: per-competition` の
+コメント形式を 1 行目に置く**（例: `docs/competition-profile.yaml`）。
+
 | ファイル | lifecycle | 役割 |
 |---|---|---|
+| `README.md`（このファイル） | invariant | docs の地図と lifecycle の規約 |
 | `ai-agent-guidelines.md` | invariant | 人間と AI の分担 + 運用の合意（Working Agreements） |
 | `experiment-methodology.md` | invariant | 効果の帰属・判定の資格・対照群の設計（コンペ非依存の実験作法） |
 | `remote-training-ops.md` | invariant | リモート GPU 学習の運用と監視（herdr 前提） |
@@ -25,6 +29,7 @@
 | `guardrails.md` | per-competition | 評価関数の正誤・既知のバグパターン・やってはいけないこと |
 | `submissions.md` | per-competition | 全提出のログ（SSOT） |
 | `experiment-log.md` | per-competition | 実験台帳（時系列 + 探索バックログ） |
+| `SESSION_NOTES.md` | per-competition | セッション間の引き継ぎメモ |
 | `official/` `discussion/` `insights/` `guides/` | per-competition | 収集物・知見・レポート（マーカー不要） |
 
 **新しいドキュメントを `docs/` 直下に置いたら、マーカーとこの表の行を必ず追加する。**

@@ -38,14 +38,20 @@ wandb.init(
     resume="allow",
     job_type="train",
     # tags でクロスフィルタ（fold 横断・データバージョン横断の比較用）
+    # データバージョン系のキーは未定義でも壊れないように falsy を除外する
     tags=[
-        exp_short,
-        cfg.run_name,
-        f"fold{fold_idx}",
-        cfg.run_mode,
-        cfg.data.fold_version,   # 例: folds_v1（異なる version 間で CV を比較しない）
-        cfg.data.data_version,   # 前処理・特徴量のバージョン
-        cfg.data.label_version,  # 教師・擬似ラベルのバージョン
+        t
+        for t in (
+            exp_short,
+            cfg.run_name,
+            f"fold{fold_idx}",
+            cfg.run_mode,
+            # OmegaConf.select は struct モードでも未定義キーで例外を出さず default を返す
+            OmegaConf.select(cfg, "data.fold_version", default=None),   # 例: folds_v1
+            OmegaConf.select(cfg, "data.data_version", default=None),   # 前処理・特徴量のバージョン
+            OmegaConf.select(cfg, "data.label_version", default=None),  # 教師・擬似ラベルのバージョン
+        )
+        if t
     ],
     config=OmegaConf.to_container(cfg, resolve=True) | {"fold_idx": fold_idx},
     mode=run_cfg["wandb_mode"],
@@ -76,8 +82,18 @@ wandb.finish()
 - **CV の代表値は `oof/{評価指標名}`**（全 fold の予測を pooled して 1 回計算した値）にする。
   `cv/{評価指標名}` と `cv/{評価指標名}_std` は**ばらつき幅の把握**に使う
   （fold 平均は fold ごとのサンプル数差・指標の非線形性で pooled とずれる）
-- 決定的 `id` + `resume="allow"` は**設定を変えて仕切り直すときも安全**にする
-  （投入直後の設定見直しは `docs/remote-training-ops.md` の「投入前チェック」）
+- ⚠ **データバージョン系の tag（`fold_version` / `data_version` / `label_version`）を使うなら、
+  `config_schema.py` の `DataConfig` と `config.yaml` の両方にキーを追加する**
+  （片方だけだと起動時に ConfigKeyError になる）。上のスニペットは未定義でも落ちないが、
+  **バージョンを刻まないと世代を跨いだスコア比較を後から検算できない**
+  → `docs/experiment-methodology.md` の「プロキシ指標の分解能」
+- ⚠ **決定的 `id` + `resume="allow"` が安全なのは「同じ試行の継続」だけ**である。
+  中断されたジョブを別マシンで再実行する用途には正しく効くが、
+  **既存 id への resume は同じ history に追記される**ので、設定を変えて焼き直すと
+  捨てた試行の点が残り、`epoch` を x 軸にした `val/*` は x が重複し、
+  `define_metric(..., summary=cfg.metric.mode)` は**両試行を通した best** を拾う。
+  → **設定を変えて仕切り直すときは新しい id を取る**（`...-f{k}-a2` のように attempt を足す）。
+  投入直後に設定を見直す手順は `docs/remote-training-ops.md` の「投入前チェック」
 
 **メトリクスキー名規則**: `{split}/{metric}` 形式で全実験統一し、表記揺れ（`acc` vs `accuracy`、`valid` vs `val`）を避ける。wandb UI は `/` の前でパネルをグルーピングするため、`train` / `val` / `perf` / `time` / `cv` / `oof` の欄に自動整理される。本ドキュメント中の `{評価指標名}` は `docs/competition-profile.yaml` の `metric.name`（`/kaggle:init` で設定。例: `auc`, `f1`, `rmse`）を指す。各実験の config（`metric.name` / `metric.mode`）も同じ値に揃え、以降変更しない。
 

@@ -1,3 +1,4 @@
+<!-- lifecycle: per-competition -->
 # Session Notes
 
 This file tracks context across Claude Code sessions. Update at the end of each session.
