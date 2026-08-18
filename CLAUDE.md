@@ -196,7 +196,9 @@ src/{exp_name}/output/{run_name}/
 └── oof_predictions.csv        # full モードで生成
 ```
 
-再実行時は上書き。パラメータを変えて比較したい場合は小実験を追加する。
+再実行時、**run ディレクトリ（`output/{run_name}/`）の中身は上書きされる**（`train.csv` / `val.csv` / `oof_predictions.csv` は同名で書き直される）。
+一方 **ckpt ファイル名は epoch とスコアを含むので衝突しない**（＝古い epoch の ckpt は残る。削除は `docs/training-conventions.md` の掃除方針に従う）。
+パラメータを変えて比較したい場合は小実験（別 `run_name`）を追加する。
 
 ### 実験後の更新（必須）
 

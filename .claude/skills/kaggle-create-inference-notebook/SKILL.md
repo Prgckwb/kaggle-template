@@ -120,7 +120,9 @@ else:
 ### 注意点
 
 - GPU/CPU 自動切り替え: `torch.device("cuda" if torch.cuda.is_available() else "cpu")`
-- Kaggle 上のファイル名: `=` が除去される場合がある。チェックポイント名に `=` を含む場合は `glob("*.ckpt")` で検索するパターンも検討
+- チェックポイント名は `{exp番号}-{run_name}-f{k}[-ep{NN}][-val_{評価指標名}-{score}].ckpt`（`docs/training-conventions.md`）を前提にする。
+  **`=` を含む名前は作らない** — Kaggle がファイル名の `=` を除去することがあり、Dataset 経由の重み配布が壊れる。
+  fold ごとの best は `glob("*-f{k}-*.ckpt")` で引き、`src/utils/submission_manifest.parse_ckpt_name` でスコアを読んで選ぶ
 - `num_workers`: Kaggle 環境では `2` 程度が安定
 
 ## フェーズ 4: 完了報告

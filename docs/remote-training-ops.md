@@ -278,8 +278,11 @@ git clone <repository-url> {repo} && cd {repo}
 curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.local/bin/env
 uv sync --extra torch
 
-# ⚠ 学習コマンドは `uv run --extra torch python -m ...` で起動する
-#   引数なしの `uv run` が環境を extra なしで再同期し、依存が消えることがある
+# ⚠ `uv sync --extra torch` 済みの環境なら、素の `uv run python -m ...` で extra は維持される
+#   （他ドキュメントとスキルはこの素の形を使っている）。
+#   `--extra torch` を明示するのは次の場合: extra を入れていない環境、
+#   別のセッション・スクリプトが `uv sync`（extra なし）を打ち得る場合、
+#   VM を作り直した直後で同期状態が不明な場合。迷うならこちらを使えば副作用はない
 
 uv run wandb login
 

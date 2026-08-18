@@ -25,7 +25,11 @@ competition:
   deadline: null
 
 metric:
-  name: score         # メトリクスキー名（短い英小文字。例: auc, f1, rmse, map）
+  # メトリクスキー名（短い英小文字。例: auc, f1, rmse, map）。
+  # ⚠ ハイフンを使わない（`macro_f1` と書き `macro-f1` と書かない）。
+  #   チェックポイント名 `-val_{name}-{score}.ckpt` の区切りと区別できず、
+  #   src/utils/submission_manifest.py が提出構成を復元できなくなる。
+  name: score
   mode: max           # max = 大きいほど良い / min = 小さいほど良い
   # 「改善した/停滞している」を判断する際の目安となる変化幅（絶対値）。
   # 例: AUC なら 0.001、RMSE なら競技のスコアスケールに合わせて設定する。

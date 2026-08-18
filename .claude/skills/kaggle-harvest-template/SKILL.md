@@ -20,12 +20,25 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
 ## フェーズ 1: 対象の特定
 
+> ⚠ **シェル変数は Bash 呼び出しをまたいで残らない**（1 コマンド = 1 プロセス）。
+> このスキルの各コードブロックは**自己完結**にしてある。`TMPL` と `FORK` は
+> ブロックごとに先頭で置き直すこと（値は下の 0. と 1. で確定させ、以降は同じ値を書く）。
+
+0. **テンプレートのパスを確定する**（以降の全ブロックで使う）
+
+   ```bash
+   TMPL=<template-path>       # $ARGUMENTS があればそれを使う。無ければユーザーに聞く
+   git -C "$TMPL" rev-parse --show-toplevel   # 実在する git リポジトリであることを確認
+   ```
+
 1. **fork 点を特定する**
 
    テンプレートから複製した時点のコミットを探す。次の順に試し、**得られた SHA を
    ユーザーに提示して確認を取る**（誤ると差分の範囲が丸ごとずれる）:
 
    ```bash
+   TMPL=<template-path>       # 0. で確定した値
+
    # (a) テンプレートを clone して作業を始めた場合: 最初のコミット
    git log --oneline --reverse | head -3
 
@@ -46,7 +59,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 2. **差分の範囲を確認する**
 
    ```bash
-   FORK=<sha>
+   FORK=<sha>                 # 1. で確定し、ユーザーの確認を取った SHA
    git diff --stat "$FORK" HEAD -- CLAUDE.md docs .claude tools src/utils tests
    git log --oneline "$FORK"..HEAD -- .claude | wc -l   # スキルが更新されたか
    ```
@@ -107,7 +120,10 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
 ## フェーズ 3: 還流
 
-1. テンプレートのパスを確認し（$ARGUMENTS があればそれを使う）、ブランチを切る:
+> ⚠ 各ブロックは自己完結。`TMPL`（フェーズ 1 の 0.）と `FORK`（フェーズ 1 の 1.）は
+> ブロックの先頭で置き直す。
+
+1. テンプレートにブランチを切る:
 
    ```bash
    TMPL=<template-path>
@@ -119,17 +135,21 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 2. fork 点のスナップショットを展開して参照元にする（何を足したかを差分で見るため）:
 
    ```bash
-   rm -rf /tmp/harvest-src && mkdir -p /tmp/harvest-src
-   git archive "$FORK" | tar -x -C /tmp/harvest-src
+   FORK=<sha>
+   # 固定パスは併走セッションと衝突する（相手の展開先を rm -rf しかねない）ので mktemp を使う。
+   # パスは次のブロックで使うので、標準出力に出したうえでメモしておく
+   SRC=$(mktemp -d -t harvest-src)
+   git archive "$FORK" | tar -x -C "$SRC"
+   echo "fork 点のスナップショット: $SRC"
    ```
 
-3. **分類ごとに 1 コミット**にする（gitmoji + 日本語）。順序は①→②→③。
-   `git add` は**常にパスを明示する**（`git add -A` は使わない）。
+   使い終わったら `rm -rf "$SRC"` で片付ける（`$SRC` は `mktemp` が返した実パスに置き換える）。
 
-4. **固有名詞の除去を必ず検証する**。コンペ略称・データセット名・バケット名・ユーザー名・
+3. **固有名詞の除去を検証する**。コンペ略称・データセット名・バケット名・ユーザー名・
    ラベル名・ドメイン用語・backbone 名を列挙して grep する:
 
    ```bash
+   TMPL=<template-path>
    grep -rniE "<コンペ略称>|<データ名>|<バケット名>|<ユーザー名>|<ラベル名>|<backbone 名>" \
      "$TMPL"/docs/experiment-methodology.md "$TMPL"/docs/remote-training-ops.md \
      "$TMPL"/docs/ai-agent-guidelines.md "$TMPL"/CLAUDE.md "$TMPL"/.claude \
@@ -138,27 +158,56 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
    実測値を引くときは「あるコンペでの実測例」と匿名化する。
 
-5. `per-competition` のファイルは**骨格だけ**還流する（中身は持ち込まない）。
+4. `per-competition` のファイルは**骨格だけ**還流する（中身は持ち込まない）。
    `lifecycle` マーカーが全ファイルにあることを確認する:
 
    ```bash
+   TMPL=<template-path>
    ls "$TMPL"/docs/*.md | wc -l
    head -1 "$TMPL"/docs/*.md | grep -c "lifecycle:"   # 上と一致すること
    ```
 
-6. 品質チェックを通す:
+5. **コミットの前に**品質チェックを通す（`make fix` は formatter がファイルを書き換えるので、
+   コミット後に走らせるとその変更がコミットに入らない）:
 
    ```bash
-   cd "$TMPL" && make fix && make lint && make test && make typecheck
+   TMPL=<template-path>
+   make -C "$TMPL" fix && make -C "$TMPL" lint \
+     && make -C "$TMPL" test && make -C "$TMPL" typecheck
+   ```
+
+   `make typecheck` は既存の diagnostics 件数を**増やしていない**ことだけを見る（0 件が条件ではない）。
+
+6. **分類ごとに 1 コミット**にする（gitmoji + 日本語）。順序は①→②→③。
+   `git add` は**常にパスを明示する**（`git add -A` / `git commit -a` は使わない。
+   併走セッションの未コミット作業を巻き込むため、テンプレート側の hook も拒否する）。
+
+   ```bash
+   TMPL=<template-path>
+   git -C "$TMPL" status --short          # make fix の書き換えも含まれていることを確認
+   git -C "$TMPL" add <path> <path> ...
+   git -C "$TMPL" commit -m "🔧 ..."
    ```
 
 7. PR を作る。本文には**分類の根拠**（なぜ②で、なぜ④でないか）と、
-   閉じられた Open Question を書く:
+   閉じられた Open Question を書く。`--repo` はプレースホルダのままにせず、
+   テンプレートの origin から解決する:
 
    ```bash
+   TMPL=<template-path>
+   # origin の URL から owner/repo を取り出す（SSH 形式・HTTPS 形式の両方に対応）。
+   # ⚠ 末尾の .git を先に落としてから最後の 2 要素を取る。1 本の式で `[^/]+?` と
+   #    書くと BSD sed（macOS 既定）が "repetition-operator operand invalid" で落ちる
+   REPO=$(git -C "$TMPL" remote get-url origin \
+          | sed -E 's#\.git$##' | sed -E 's#^.*[:/]([^/]+/[^/]+)$#\1#')
+   echo "PR 先: $REPO"                      # 期待どおりか目で確認する
+   #                                        （origin がローカルパスだと owner が別物になる）
    git -C "$TMPL" push -u origin HEAD
-   gh pr create --repo <owner>/<template-repo> --title "..." --body "..."
+   gh pr create --repo "$REPO" --title "..." --body "..."
    ```
+
+   `--repo` を省いて `gh` の cwd 解決に任せる形でもよいが、その場合は
+   **cwd がテンプレート側であること**を確認する（コンペ側リポジトリに PR を出してしまう）。
 
    **PR の作成までで止める。マージはユーザーが判断する。**
 

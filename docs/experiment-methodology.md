@@ -7,6 +7,12 @@
 > ここに書かれた**数値はすべて「あるコンペでの実測例」**である。自分のコンペの値は
 > `docs/competition-profile.yaml` の `metric.meaningful_delta` と `metric.noise` に記録し、
 > 判定にはそちらを使う。
+>
+> **`<!-- harvest -->` マーカー**: このファイルや `docs/` 配下に追記した知見のうち、
+> 「汎用だがまだテンプレートへ還流していない」ものは行末または直前の行に `<!-- harvest -->` を置く。
+> `/kaggle:harvest-template` がこのマーカーを grep して回収するので、
+> `/kaggle:record-result` を経由せず手で追記した場合も**自分でマーカーを付ける**
+> （付け忘れると、コンペ終了時の還流から漏れる）。
 
 ## 効果の帰属
 
@@ -436,11 +442,15 @@ run 間の比較に「成果物品質の偶然差」が混入し、**統制さ�
 
 - ✅ **prune は best を絶対に削除しない**。resume 用の直近 N 個の外にあっても残す:
   ```bash
-  # 命名規約は {exp番号}-{run_name}-f{k}-ep{NN}-val_{評価指標名}-{score}.ckpt（CLAUDE.md）なので
-  # スコアは "val_<名前>-" の後ろを取る（"val_" 直後を取ると metric 名に食われる）
-  # ⚠ 並べ替えの向きは metric.mode 依存: max なら -gr（降順）、min なら -g（昇順）
+  # 命名規約は {exp番号}-{run_name}-f{k}-ep{NN}-val_{評価指標名}-{score}.ckpt
+  # （docs/training-conventions.md）なので、スコアは "val_<名前>-" の後ろを取る
+  # （"val_" 直後を取ると metric 名に食われる）
+  # ⚠ 符号を許すこと（R2・相関係数は負になり得る。`val_r2--0.1234` は score=-0.1234）。
+  #   `\([0-9.]*\)` だと負スコアの行が sed で落ち、残った正スコアだけで best を決めてしまう
+  # ⚠ 並べ替えの向きは metric.mode 依存: max なら -gr（降順）、min なら -g（昇順）。
+  #   `sort -g` は符号つきで正しく並ぶ（実測: -0.3 < -0.1234 < 0.05）
   SORT_FLAGS="-k1,1gr"          # metric.mode: min のコンペでは -k1,1g にする
-  best=$(ls "$d"/*.ckpt | sed -n 's/.*-val_[A-Za-z0-9_]*-\([0-9.]*\)\.ckpt$/\1 &/p' \
+  best=$(ls "$d"/*.ckpt | sed -n 's/.*-val_[A-Za-z0-9_]*-\(-\{0,1\}[0-9.]*\)\.ckpt$/\1 &/p' \
          | sort $SORT_FLAGS | head -1 | cut -d' ' -f2-)
   [ -n "$best" ] || { echo "best を特定できない（命名規約と正規表現が食い違っている）" >&2; exit 1; }
   ```
