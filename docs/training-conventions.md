@@ -52,9 +52,11 @@
 ## チェックポイント
 
 - Lightning の `ModelCheckpoint` を使い、ファイル名に **exp / run / fold / epoch / スコアを全て入れる**:
-  `{exp番号}-{run_name}-f{k}-ep{epoch:02d}-val_{評価指標名}{score:.4f}.ckpt`。
+  `{exp番号}-{run_name}-f{k}-ep{epoch:02d}-val_{評価指標名}-{score:.4f}.ckpt`。
   `auto_insert_metric_name=False` を必ず指定する（`val/xxx` の `/` がディレクトリを作るため）
   - この命名は `src/utils/submission_manifest.py` がパースして提出構成を復元するので、**規則を崩さない**
+  - ⚠ メトリクス名とスコアの間の `-` は必須（区切りが無いと数字を含むメトリクス名で境界が決まらない）。
+    `=` は使わない — Kaggle がファイル名の `=` を除去することがあり、Dataset 経由の重み配布が壊れる
 - **上書き禁止**: epoch とスコア入りの命名なので同名衝突は起きない。同期に削除系フラグを使わない
 - **prune は best を絶対に削除しない**（resume 用の最新 N 個の外にあっても残す）。
   best を消すと「best という名前の非 best」で提出・比較してしまう

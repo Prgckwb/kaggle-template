@@ -12,7 +12,7 @@ from src.utils.submission_manifest import (
 
 
 def test_parse_full_ckpt_name() -> None:
-    ref = parse_ckpt_name("exp006-run004-effv2s-f0-ep05-val_auc0.9104.ckpt")
+    ref = parse_ckpt_name("exp006-run004-effv2s-f0-ep05-val_auc-0.9104.ckpt")
 
     assert ref is not None
     assert ref.exp == "exp006"
@@ -34,11 +34,28 @@ def test_parse_ckpt_without_epoch_and_score() -> None:
 
 def test_parse_run_name_containing_f_letter() -> None:
     """run 名に 'f' を含んでも fold 抽出が壊れないこと。"""
-    ref = parse_ckpt_name("exp009-run003-cnxb384full-f2-ep08-val_auc0.9436.ckpt")
+    ref = parse_ckpt_name("exp009-run003-cnxb384full-f2-ep08-val_auc-0.9436.ckpt")
 
     assert ref is not None
     assert ref.run == "run003-cnxb384full"
     assert ref.fold == 2
+
+
+def test_parse_prefers_last_fold_marker() -> None:
+    """run 名の途中に -f{数字} があっても、fold は最後の -f{数字} から取る。
+
+    `.ckpt` 末尾までの残りが `(-ep\\d+)?(-val_metric-score)?` の形に厳密一致する
+    必要があるため、run 名内の途中の `-f{数字}` を fold と誤認しても最後まで
+    パースが完了せず失敗する。そのため実測では `.+` と `.+?` は同じ結果になる
+    （fix round 2 のレビューで実測・記録済み。下記コマンドの出力を参照）。
+    このテストは「run 名の途中に -f{数字} を含む」という実例の回帰を守る。
+    """
+    ref = parse_ckpt_name("exp007-run001-f16slices-f3-ep04-val_auc-0.8800.ckpt")
+
+    assert ref is not None
+    assert ref.run == "run001-f16slices"
+    assert ref.fold == 3
+    assert ref.epoch == 4
 
 
 def test_parse_returns_none_for_unrecognized_name() -> None:
@@ -48,9 +65,9 @@ def test_parse_returns_none_for_unrecognized_name() -> None:
 
 def test_build_manifest_groups_by_exp_and_run() -> None:
     files = [
-        "exp006-run004-effv2s-f0-ep05-val_auc0.9104.ckpt",
-        "exp006-run004-effv2s-f1-ep06-val_auc0.9002.ckpt",
-        "exp010-run000-base-f0-ep11-val_auc0.9411.ckpt",
+        "exp006-run004-effv2s-f0-ep05-val_auc-0.9104.ckpt",
+        "exp006-run004-effv2s-f1-ep06-val_auc-0.9002.ckpt",
+        "exp010-run000-base-f0-ep11-val_auc-0.9411.ckpt",
     ]
 
     manifest = build_manifest(files, notebook="comp-submit", notebook_version=20)
@@ -115,6 +132,20 @@ def test_describe_manifest_omits_weights_when_absent() -> None:
     )
 
     assert describe_manifest(manifest) == "V3 exp006-run004-effv2s(1f) | mean | tta=on"
+
+
+def test_describe_manifest_reports_unparsed_when_components_empty() -> None:
+    """規約外ファイルしか無いとき、二重スペースではなく unparsed 件数が読み取れること。"""
+    manifest = build_manifest(
+        ["last.ckpt", "model_best.pth"],
+        notebook="comp-submit",
+        notebook_version=5,
+    )
+
+    assert manifest["components"] == []
+    assert (
+        describe_manifest(manifest) == "V5 (構成不明: unparsed 2 件) | mean | tta=off"
+    )
 
 
 def test_write_manifest_roundtrip(tmp_path: Path) -> None:

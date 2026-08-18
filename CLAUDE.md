@@ -190,7 +190,7 @@ metrics_logger.finish()
 ```
 src/{exp_name}/output/{run_name}/
 ├── fold0/
-│   ├── {exp_name}-val_{評価指標名}={score}.ckpt
+│   ├── {exp番号}-{run_name}-f{k}-ep{NN}-val_{評価指標名}-{score}.ckpt
 │   ├── train.csv / val.csv    # OOF 再現性のための split 記録
 ├── fold1/ ...
 └── oof_predictions.csv        # full モードで生成

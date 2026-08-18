@@ -436,11 +436,11 @@ run 間の比較に「成果物品質の偶然差」が混入し、**統制さ�
 
 - ✅ **prune は best を絶対に削除しない**。resume 用の直近 N 個の外にあっても残す:
   ```bash
-  # 命名規約は {exp_name}-val_{評価指標名}={score}.ckpt（CLAUDE.md）なので
-  # スコアは "val_<名前>=" の後ろを取る（"val_" 直後を取ると metric 名に食われる）
+  # 命名規約は {exp番号}-{run_name}-f{k}-ep{NN}-val_{評価指標名}-{score}.ckpt（CLAUDE.md）なので
+  # スコアは "val_<名前>-" の後ろを取る（"val_" 直後を取ると metric 名に食われる）
   # ⚠ 並べ替えの向きは metric.mode 依存: max なら -gr（降順）、min なら -g（昇順）
   SORT_FLAGS="-k1,1gr"          # metric.mode: min のコンペでは -k1,1g にする
-  best=$(ls "$d"/*.ckpt | sed -n 's/.*val_[^=]*=\([0-9.]*\)\.ckpt$/\1 &/p' \
+  best=$(ls "$d"/*.ckpt | sed -n 's/.*-val_[A-Za-z0-9_]*-\([0-9.]*\)\.ckpt$/\1 &/p' \
          | sort $SORT_FLAGS | head -1 | cut -d' ' -f2-)
   [ -n "$best" ] || { echo "best を特定できない（命名規約と正規表現が食い違っている）" >&2; exit 1; }
   ```
