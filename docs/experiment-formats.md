@@ -5,10 +5,14 @@
 
 ## Experiments テーブル
 
-| Exp | Name | Split | Key Change | CV | LB |
-|-----|------|-------|------------|----|----|
+| Exp | Name | Split | Parent | Vars | Key Change | CV | LB |
+|-----|------|-------|--------|-----:|------------|----|----|
 
 - `Split`: 分割方法（例: `5-Fold SKF`, `GroupKFold(user)`）
+- `Parent`: 比較の基準にした exp / run（`lineage.parent`）
+- `Vars`: 親から変えた変数の数（`lineage.varied` の要素数）。
+  **2 以上のときは Key Change を単一の変数名で書かない**
+  （`docs/experiment-methodology.md`「効果の帰属」）
 - `Key Change`: 前実験からの主な変更点・実験の焦点
 - 各行のスコアは大実験の best run のもの。best の判定は `docs/competition-profile.yaml` の `selection.policy`（デフォルト `cv`）と `metric.mode` に従う
 
@@ -21,7 +25,8 @@
 実験の進捗・成果が一目で把握できるよう、ステータスごとに色分けしたカラフルなツリーにする。色によって「どの実験が最高スコアか」「どれが進行中か」を視覚的に即座に判別できることが重要。
 
 - ノード: `"exp名<br/>Split | CV: x.xxx | LB: x.xxx"`
-- エッジラベル: 前実験からの主な変更点（= Key Change）
+- エッジラベル: 前実験からの変更点。**変数が 2 つ以上なら `(2 vars)` のように個数を併記する**
+  （後から「この Δ は何の効果か」を取り違えないため）
 - スタイル（必ず `classDef` で色を定義し、全ノードにクラスを割り当てる）:
   - `best`（緑 `#10b981`）= 全実験中の best。判定は profile の `selection.policy`（デフォルト `cv` = 最良 CV）と `metric.mode` に従う。太枠で強調
   - `good`（青 `#3b82f6`）= 完了した実験
@@ -35,7 +40,9 @@
 graph TD
     A["exp001_baseline<br/>5-Fold SKF | CV: 0.850 | LB: 0.841"]
     B["exp002_augment<br/>5-Fold SKF | CV: 0.872 | LB: 0.865"]
+    C["exp003_bigger<br/>5-Fold SKF | CV: 0.880 | LB: 0.870"]
     A -- "データ拡張追加" --> B
+    B -- "容量 2 倍 + 解像度 384 (2 vars)" --> C
 
     classDef best fill:#10b981,stroke:#059669,color:#fff,stroke-width:3px
     classDef good fill:#3b82f6,stroke:#2563eb,color:#fff
@@ -45,6 +52,7 @@ graph TD
 
     class A base
     class B best
+    class C good
 ```
 
 **exp000 はサンプル実験のため、exp001 以降が作成された後は Experiments テーブルおよび Experiment Tree に載せない。**
