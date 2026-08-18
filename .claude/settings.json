@@ -4,6 +4,27 @@
       "mcp__kaggle__submit_to_competition",
       "mcp__kaggle__create_code_competition_submission",
       "mcp__kaggle__upload_dataset_file"
+    ],
+    "deny": [
+      "Bash(git add -A*)",
+      "Bash(git add --all*)",
+      "Bash(git add .)",
+      "Bash(git add . *)",
+      "Bash(kaggle competitions submit*)",
+      "Bash(uv run kaggle competitions submit*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard.py\""
+          }
+        ]
+      }
     ]
   },
   "enabledMcpjsonServers": ["kaggle"]

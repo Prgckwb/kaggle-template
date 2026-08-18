@@ -29,7 +29,22 @@ uv sync --extra tabular   # LightGBM / XGBoost / CatBoost + scikit-learn
 /kaggle:init
 ```
 
-コンペ固有の設定（コンペ名・評価指標・wandb project）は `docs/competition-profile.yaml` に集約されており、`/kaggle:init` が書き込む。
+コンペ固有の設定（コンペ名・評価指標・wandb project・エージェントの働き方）は `docs/competition-profile.yaml` に集約されており、`/kaggle:init` が書き込む。
+
+### エージェントのガードレール（hooks）
+
+`.claude/settings.json` の `PreToolUse` hook（`.claude/hooks/guard.py`）が次を実行時に止める。
+`git add` 系と提出は `permissions.deny` にも同じパターンが入っており、宣言と hook の二重の網になっている。
+
+| パターン | 止める場所 | 理由 |
+|---|---|---|
+| `git add -A` / `git add .` / `git add --all` | deny + hook | 併走セッションの未コミット作業を巻き込む。常にパスを明示する |
+| `git stash` / `git reset --hard` / `git checkout -- <file>` | hook（理由を提示して deny） | 相手の未コミット作業を即座に消す |
+| `kaggle competitions submit` | deny + hook | 提出はユーザーの専管。notebook の commit までで止める |
+
+`docs/competition-profile.yaml` の `workflow.concurrent_sessions` が `false` なら git 系、
+`workflow.submission_by` が `agent` なら提出のパターンを外してよい
+（理由は `docs/ai-agent-guidelines.md` の「運用の合意」）。
 
 ## Directory Structure
 
@@ -98,6 +113,9 @@ INPUT_DIR=/kaggle/input/{slug} uv run python -m src.exp001_xxx.train
 | `/kaggle:review-strategy` | 実験ポートフォリオの俯瞰レビュー（探索多様性・停滞検出） |
 | `/kaggle:scout-approaches` | 手法チェックリスト生成・探索率追跡 |
 | `/kaggle:past-solutions` | Kaggle MCP 経由で類似過去コンペの上位解法を `docs/insights/past_solutions_{slug}.md` に収集 |
+| `/kaggle:create-guide` | ダッシュボードの Guides に表示するガイド・分析レポート（HTML）を作成 |
+| `/kaggle:ensemble` | 複数実験の OOF をブレンドし、重みを最適化して submission を作成 |
+| `/kaggle:harvest-template` | コンペで得た汎用知見をテンプレートリポジトリへ還流する PR を作る |
 
 ## Experiment Workflow
 

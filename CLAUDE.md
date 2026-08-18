@@ -254,9 +254,17 @@ LLM は過去の実験結果に引きずられ探索空間を狭めがち。
 
 人間と AI の役割分担・失敗履歴の読ませ方の詳細は `docs/ai-agent-guidelines.md` を参照。
 
-### ガードレール（コンペ固有）
+### ガードレールと方法論
 
-評価関数の正誤・既知のバグパターン・「やってはいけないこと」は `docs/guardrails.md` に蓄積する（CLAUDE.md はコンペごとに書き換えないため、ここには書かない）。**実験の実装・修正・提案の前に必ず参照すること。**
+- **コンペ固有**の評価関数の正誤・既知のバグパターン・禁止事項は `docs/guardrails.md`
+  （`per-competition`。`/kaggle:init` がリセットする）
+- **コンペ非依存**の判定作法（効果の帰属・判定の資格・対照群の設計・循環評価）は
+  `docs/experiment-methodology.md`（`invariant`。コンペを跨いで持ち越す）
+
+**実験の実装・修正・提案の前に両方を参照する。** 新しい知見を得たら
+`/kaggle:record-result` の「知見の routing」フェーズで書き込み先を判定し、
+コンペ終了時に `/kaggle:harvest-template` でテンプレートへ還流する
+（CLAUDE.md はコンペごとに書き換えないため、知見はここには書かない）。
 
 ### 疑問点の確認
 
@@ -297,7 +305,7 @@ review-strategy / scout-approaches / past-solutions / harvest-template）は
 
 | サーバー | 用途 | 設定 |
 |---------|------|------|
-| `kaggle` | Kaggle 公式情報・Discussion・LB・Dataset 取得 | `.mcp.json`（リポジトリ同梱） |
+| `kaggle` | （補助）認証が通っていれば Discussion・LB の取得に使える。**主経路は `kaggle` CLI**（「Kaggle 情報の取得」参照） | `.mcp.json`（リポジトリ同梱） |
 | `runpod` | Pod・Endpoint・Template・GPU の管理 | claude.ai 統合（外部） |
 | `runpod-docs` | RunPod ドキュメント検索 | claude.ai 統合（外部） |
 
