@@ -77,6 +77,7 @@ def main(cfg: DictConfig) -> None:
 
     # wandb group name（全 fold を束ねるキー）
     group_name = f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}"
+    exp_short = cfg.exp_name.split("_")[0]  # "exp000_sample" -> "exp000"
     wandb_config = cast(dict[str, Any], OmegaConf.to_container(cfg, resolve=True))
     # CLI オーバーライド（例: "training.lr=5e-4, run_mode=full"）を wandb の
     # notes に記録し、run 一覧で「何を変えたか」を一目でわかるようにする
@@ -107,13 +108,37 @@ def main(cfg: DictConfig) -> None:
             project=cfg.wandb.project,
             entity=cfg.wandb.entity,
             group=group_name,
-            name=f"fold_{fold_idx}",
+            name=f"{exp_short}-{cfg.run_name}-f{fold_idx}",
+            # 決定的 id + resume="allow": 中断しても別マシンで同じ run に続きが記録される。
+            # ⚠ 設定を変えて仕切り直すときは新しい id を取る（docs/wandb-spec.md 参照）
+            id=f"{exp_short}-{cfg.run_name}-{cfg.run_mode}-f{fold_idx}",
+            resume="allow",
             job_type="train",
             config=wandb_config,
             notes=wandb_notes,
+            tags=[
+                t
+                for t in (
+                    exp_short,
+                    cfg.run_name,
+                    f"fold{fold_idx}",
+                    cfg.run_mode,
+                    cfg.data.fold_version,
+                    cfg.data.data_version,
+                    cfg.data.label_version,
+                )
+                if t
+            ],
             mode=run_cfg["wandb_mode"],
             reinit=True,
         )
+        # run テーブルの列を「最後の値」ではなく best にし、val 系の x 軸を epoch に固定する
+        wandb.define_metric("epoch")
+        wandb.define_metric("val/*", step_metric="epoch")
+        wandb.define_metric(
+            f"val/{metric_name}", step_metric="epoch", summary=cfg.metric.mode
+        )
+        wandb.define_metric("val/loss", step_metric="epoch", summary="min")
 
         fold_dir = output_dir / f"fold{fold_idx}"
         fold_dir.mkdir(parents=True, exist_ok=True)
@@ -201,7 +226,9 @@ def main(cfg: DictConfig) -> None:
             project=cfg.wandb.project,
             entity=cfg.wandb.entity,
             group=group_name,
-            name="summary",
+            name=f"{exp_short}-{cfg.run_name}-summary",
+            id=f"{exp_short}-{cfg.run_name}-{cfg.run_mode}-summary",
+            resume="allow",
             job_type="summary",
             config=wandb_config,
             notes=wandb_notes,
@@ -217,6 +244,8 @@ def main(cfg: DictConfig) -> None:
         )
         wandb.summary[f"cv/{metric_name}"] = cv_mean
         wandb.summary[f"cv/{metric_name}_std"] = cv_std
+        # CV の代表値は OOF pooled スコア（docs/wandb-spec.md）。
+        # OOF を算出したら wandb.summary[f"oof/{metric_name}"] に記録する
         for fi, score in fold_scores.items():
             wandb.summary[f"fold{fi}/best_val_{metric_name}"] = score
         wandb.finish()
