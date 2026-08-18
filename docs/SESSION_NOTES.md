@@ -4,7 +4,8 @@ This file tracks context across Claude Code sessions. Update at the end of each 
 
 ## Current Focus
 
-テンプレート自体の品質改善フェーズ（コンペ未参加）。PR #6〜#10 で大規模リファクタリングを実施し、すべて main にマージ済み。直近セッションでスキル・CLAUDE.md の整合性レビューを実施し、以下を修正（コミット前）。
+実コンペ 1 本の運用知見を還流した直後。次のコンペでは `/kaggle:init` が
+`workflow` を対話で埋めるので、fold0 既定・提出者・ブランチ運用を口頭で指示し直す必要はない。
 
 ## Recent Decisions
 
@@ -36,9 +37,16 @@ This file tracks context across Claude Code sessions. Update at the end of each 
 - **提出ガード**: `.claude/settings.json` で提出系 MCP ツールを ask（確認必須）に設定
 - **unonao/kaggle-template 由来の改善（PR #10）**: config スキーマ検証（`config_schema.py` の dataclass、タイポ・型違いを起動時検出。config.yaml とキーを同期する規約）、`INPUT_DIR` 環境変数によるパス切替、`tools/` スタンドアロン CLI（提出監視・チェックポイントアップロード。`/kaggle:upload-checkpoints` はラッパー化）、wandb notes への Hydra オーバーライド自動記録、`utils/env.py`・`logger.py`・`timing.py` 追加。**Docker 導入はユーザー判断で見送り**
 
+- **Kaggle のマウントパスを実測で確定（本 PR）**: コンペデータは
+  `/kaggle/input/competitions/{slug}`、Dataset は `/kaggle/input/datasets/{user}/{dataset-slug}`。
+  従来の想定 `/kaggle/input/{slug}` は誤り。前者の誤りは全レコードが欠損値埋めになるため
+  提出が静かに壊れる
+- **実コンペ 1 本（画像系・約 2 ヶ月）の運用知見を還流（本 PR）**: docs の lifecycle 二層化、
+  `workflow` / `metric.noise` の profile スキーマ、exp/run 分割基準の差し替え、
+  提出 manifest、hooks、`/kaggle:harvest-template` を追加
+
 ## Open Questions
 
-- Kaggle Notebook のマウントパス形式（`/kaggle/input/{slug}` を採用中）は実環境で未検証。`/kaggle:upload-checkpoints` / `create-inference-notebook` 初回実行時にサイドバーの実パスを確認すること
 - 外部スキル（`.agents/skills/`）は commit/tag のピンがなく陳腐化検知はハッシュのみ。更新運用は未整備
 
 ## Next Steps

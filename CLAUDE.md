@@ -56,55 +56,49 @@ uv run python tools/check_submission.py                         # 最新提出�
 uv run python tools/upload_checkpoints.py {exp} {run} -m "..."  # チェックポイントを Dataset 化
 ```
 
+## 必読ドキュメント（作業の前に読む）
+
+| これをする前に | 読む |
+|---|---|
+| 実験を実装・修正・提案する | `docs/guardrails.md` + `docs/experiment-methodology.md` |
+| 学習ジョブをリモートに投入する | `docs/remote-training-ops.md` |
+| 結果を「効いた/効かない」と判定する | `docs/experiment-methodology.md`（効果の帰属・判定の資格） |
+| 学習コードを書く | `docs/training-conventions.md` |
+| 提出 notebook を作る・更新する | `docs/training-conventions.md`（提出 notebook の規約） |
+| エージェントの既定の振る舞いを確認する | `docs/competition-profile.yaml` の `workflow` + `docs/ai-agent-guidelines.md` |
+
+`docs/` は **lifecycle 二層**になっている（詳細は `docs/README.md`）。
+`invariant` はコンペを跨いで持ち越し、`per-competition` は `/kaggle:init` がリセットする。
+
 ## ディレクトリ構成
 
-```
-kaggle-template/
-├── input/              # データ格納（gitignore）
-├── sandbox/            # AI Agent 検証用スクリプト（gitignore）
-├── app/                # Web アプリ → 詳細は app/README.md
-├── docs/               # コンペ情報・知見・仕様
-│   ├── competition-profile.yaml  # コンペ固有設定（SSOT、/kaggle:init が書く）
-│   ├── guardrails.md   # コンペ固有ガードレール（評価関数の正誤・禁止事項。実装前に必読）
-│   ├── submissions.md  # 提出ログ（全提出の SSOT。CV-LB 分析・最終提出選定の元データ）
-│   ├── guides/         # ガイド・分析レポート（ダッシュボードの Guides に自動表示）→ docs/guides/README.md
-│   ├── official/       # Kaggle 公式情報
-│   ├── discussion/     # 外部情報（Discussion・論文サーベイ、YYYY-MM-DD_topic.md）
-│   └── insights/       # 実験知見（YYYY-MM-DD_topic.md。例外: past_solutions_{slug}.md）
-├── tools/              # スタンドアロン CLI（提出監視・チェックポイントアップロード）→ tools/README.md
-├── src/
-│   ├── exp000_sample/  # サンプル実験（テンプレート）
-│   └── utils/          # 共有ユーティリティ
-├── tests/              # src/utils の単体テスト（make test）
-├── .claude/
-│   ├── skills/         # Claude Code スキル
-│   └── agents/         # Claude Code エージェント
-└── .agents/skills/     # 外部スキル（wandb-primary, runpodctl, flash）
-```
+構造そのものは `ls` で分かるので、**コードから読み取れない約束だけ**を挙げる。
 
-### src/utils（共有ユーティリティ）
-
-| モジュール | 用途 |
-|-----------|------|
-| `cv.py` | K-fold 分割（stratified, group, timeseries 等） |
-| `metrics_logger.py` | wandb 並行のローカルメトリクスログ |
-| `ensemble.py` | 予測のブレンド・ランク平均アンサンブル（id 列でアライン） |
-| `postprocess.py` | クリッピング・閾値最適化・argmax・許容値スナップ |
-| `submission.py` | sample_submission.csv との形式バリデーション |
-| `seeding.py` | 再現性のためのシード固定（random, numpy, torch） |
-| `checkpoint.py` | チェックポイントの軽量化・重み読み込み |
-| `env.py` | 実行環境検出・パス解決（INPUT_DIR / Kaggle Notebook 判定） |
-| `logger.py` | ファイル + 標準出力ロガー（logs_dir にタイムスタンプ付き保存） |
-| `timing.py` | 処理時間・メモリ使用量の計測（`timer` / `trace`） |
+- `input/` `sandbox/` `src/*/output/` `src/*/logs/` は gitignore
+- `docs/insights/` `docs/discussion/` のファイル名は `YYYY-MM-DD_topic.md`（例外: `past_solutions_{slug}.md`）
+- `docs/guides/` に置いたレポートはダッシュボードの Guides に自動表示される → `docs/guides/README.md`
+- `.agents/skills/` は外部スキルのベンダーコピーで、`.claude/skills/` から symlink されている
+- 共有ユーティリティは `src/utils/`、スタンドアロン CLI は `tools/`（用途は各 docstring と `tools/README.md`）
 
 ## Kaggle 情報の取得
 
-**Kaggle 公式 MCP サーバー（`.mcp.json` で定義済み）を優先使用**。Web 検索より最新かつ正確。
+**`kaggle` CLI（dev 依存に同梱）を主経路にする**。Web 検索より最新かつ正確。
 
-- 一次情報は MCP から取得し、要点をまとめて `docs/official/` or `docs/discussion/` に保存する
+```bash
+uv run kaggle competitions list -s <keyword>             # 締切・チーム数・自分の順位
+uv run kaggle competitions submissions -c <slug>         # 提出履歴と publicScore
+uv run kaggle competitions leaderboard -c <slug> --show  # LB 上位
+```
+
+- **LB・提出状況はまず `docs/submissions.md`（提出ログの SSOT）を読む**。CLI はその照合と更新に使う
+- 一次情報（Discussion・公式アナウンス）は要点をまとめて `docs/official/` or `docs/discussion/` に保存する
 - ダウンロード物は `input/` or `sandbox/` に保存（gitignore）
-- 提出系ツール（`submit_to_competition` 等）は明示的な指示があるまで呼ばない
-- **MCP 不通時のフォールバック**: `kaggle`（dev 依存に同梱）→ `WebFetch`
+- **提出は行わない**: `kaggle competitions submit` も MCP の `submit_to_competition` 等も呼ばない。
+  `docs/competition-profile.yaml` の `workflow.submission_by` が `user` の間は、明示的な指示があっても
+  notebook の commit・出力確認までで止めて引き渡す（読み取り専用の監視は `tools/check_submission.py`）
+- `.mcp.json` の Kaggle MCP サーバーは**補助**。認証が通っていれば使えるが、未認証だと公開ツールが
+  `authenticate` のみになる。`/mcp` で認証すれば使える
+- クラウド（GCP 等）も同様に **CLI を主経路**にする
 
 ## 実験ディレクトリの規則
 
@@ -150,7 +144,10 @@ training:
 - ベース config は `defaults: [base_schema, _self_]` で `config_schema.py` の dataclass を継承しており、yaml・CLI オーバーライドのタイポや型違いは起動時にエラーになる
 - **config.yaml にキーを追加・削除したら `config_schema.py` も同期する**（不一致は ConfigKeyError になる）
 - 実験を新規作成する際は `config_schema` の import パスを新実験のものに更新する
-- データパスは `data.input_dir`（環境変数 `INPUT_DIR` で上書き可能）を経由する。未設定時はローカルの `input/`、Kaggle Notebook では `INPUT_DIR=/kaggle/input/{slug}` を指定
+- データパスは `data.input_dir`（環境変数 `INPUT_DIR` で上書き可能）を経由する。未設定時はローカルの `input/`、
+  Kaggle Notebook では **`INPUT_DIR=/kaggle/input/competitions/{slug}`** を指定する
+  （実機で確認済み。`{slug}` 直下ではなく `competitions/` が挟まる）。
+  Kaggle Dataset は **`/kaggle/input/datasets/{user}/{dataset-slug}`**
 
 ### 実行モード
 
@@ -160,7 +157,10 @@ training:
 | `fold0`（デフォルト） | fold0 のみ、通常量 | 性能確認 |
 | `full` | 全 fold | CV スコア算出・OOF 生成 |
 
-`debug` → `fold0` → `full` の順で進める。非 supervised コンペでの解釈は `docs/competition-types.md` を参照。
+`debug` → `fold0` の順で進める。**`full` への昇格は `docs/competition-profile.yaml` の
+`workflow.default_run_mode` に従う**（既定 `fold0` = fold0 で有望と分かった run だけを、
+ユーザーの明示指示で full に昇格させる。GPU 時間の節約）。
+非 supervised コンペでの解釈は `docs/competition-types.md` を参照。
 
 ### wandb ログ
 
@@ -228,7 +228,12 @@ sandbox/ で生成した分析画像・図は `docs/guides/{slug}/assets/` に�
 
 ## Git 規則
 
-- **ブランチ**: `main`（デフォルト）、`exp/{番号}_{subtitle}`、`feature/{名前}`、`fix/{内容}`
+- **ブランチ**: `docs/competition-profile.yaml` の `workflow.branching` に従う。
+  既定 `main-only` = `main` に直接コミットする（実験ブランチは同内容が別 SHA で
+  二重コミットされマージ衝突を起こしたため既定から外した）。
+  `feature-branches` を選んだ場合は `exp/{番号}_{subtitle}` / `feature/{名前}` / `fix/{内容}`
+- **`git add` は常にパスを明示する**（`workflow.concurrent_sessions: true` のとき、
+  `git add -A` は併走セッションの未コミット作業を巻き込む。hooks で deny している）
 - **コミット**: gitmoji + 日本語。1コミット = 1つの論理的な変更。例: `🧪 exp001_baseline を追加`
 - **push**: 作業の区切りごと、実験完了時
 
@@ -273,21 +278,10 @@ LLM は過去の実験結果に引きずられ探索空間を狭めがち。
 
 ### Kaggle スキル（プロジェクト固有）
 
-| スキル | 説明 |
-|--------|------|
-| `/kaggle:init` | テンプレート初期化（コンペ名・データ・docs セットアップ） |
-| `/kaggle:new-experiment` | 新しい実験を対話的に設計・作成 |
-| `/kaggle:record-result` | 実験結果を記録（README・EXP_SUMMARY・insights 更新） |
-| `/kaggle:commit` | 変更を論理単位でコミット＆プッシュ |
-| `/kaggle:check-commands` | 実行コマンドの確認 |
-| `/kaggle:add-app-page` | ダッシュボードに新ページ追加 |
-| `/kaggle:create-guide` | ガイド・分析レポートを作成（docs/guides/ → ダッシュボードに自動表示） |
-| `/kaggle:upload-checkpoints` | チェックポイントを Kaggle Datasets にアップロード |
-| `/kaggle:create-inference-notebook` | 推論ノートブック作成 |
-| `/kaggle:ensemble` | 複数実験の OOF をブレンドしアンサンブル submission を作成 |
-| `/kaggle:review-strategy` | 実験ポートフォリオの俯瞰レビュー（探索多様性・停滞検出） |
-| `/kaggle:scout-approaches` | 手法チェックリスト生成・探索率追跡 |
-| `/kaggle:past-solutions {slug}` | 過去コンペ上位解法を収集 → `docs/insights/` に保存 |
+`/kaggle:*` 系のスキル一式（init / new-experiment / record-result / commit / check-commands /
+add-app-page / create-guide / ensemble / upload-checkpoints / create-inference-notebook /
+review-strategy / scout-approaches / past-solutions / harvest-template）は
+セッション開始時のスキル一覧に説明つきで載る。定義は `.claude/skills/kaggle-*/`。
 
 ### 外部スキル
 

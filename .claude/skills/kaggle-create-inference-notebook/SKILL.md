@@ -45,11 +45,12 @@ Kaggle Notebooks 環境で動作する自己完結型の inference notebook を�
 ユーザーに以下を確認する:
 
 1. **Kaggle コンペデータのパス**
-   - 通常は `/kaggle/input/{competition-slug}`（slug は `docs/competition-profile.yaml` の `competition.slug`）
+   - 通常は `/kaggle/input/competitions/{competition-slug}`（slug は `docs/competition-profile.yaml` の `competition.slug`。
+     `{slug}` 直下ではなく `competitions/` が挟まる。実機で確認済み）
    - **注意**: マウントパスの形式は Kaggle の UI 更新で変わることがある。Notebook で **Add Data** した後、サイドバーに表示される実際のパスで必ず確認・修正するようユーザーに案内する
 
 2. **Kaggle モデル Dataset のパス**
-   - 通常は `/kaggle/input/{dataset-slug}`（例: `/kaggle/input/{comp_slug}-{exp_name_kebab}`）
+   - 通常は `/kaggle/input/datasets/{user}/{dataset-slug}`（例: `/kaggle/input/datasets/{user}/{comp_slug}-{exp_name_kebab}`）
    - `dataset-metadata.json` が存在すればそこから slug を取得
 
 **Notebook 先頭セルのパス設定パターン**:
@@ -59,8 +60,8 @@ from pathlib import Path
 
 # ==== Path Configuration ====
 # Kaggle 環境のパス（Add Data 後にサイドバーの実パスを確認して修正してください）
-KAGGLE_COMP_DIR = "/kaggle/input/{competition-slug}"
-KAGGLE_MODEL_DIR = "/kaggle/input/{dataset-slug}"
+KAGGLE_COMP_DIR = "/kaggle/input/competitions/{competition-slug}"
+KAGGLE_MODEL_DIR = "/kaggle/input/datasets/{user}/{dataset-slug}"
 
 # 自動検出（変更不要）
 if Path("/kaggle/input").exists():
