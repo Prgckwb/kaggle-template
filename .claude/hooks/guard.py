@@ -35,19 +35,28 @@ import sys
 # `git -C <path> add -A` / `git --git-dir=... add .` を素通しさせないため
 # （`/kaggle:harvest-template` は `git -C "$TMPL"` の書き方を教えている）。
 # `-C <path>` のように値が別トークンになる形も 1 要素として食う。
-_GIT = r"git\s+(?:(?:-[A-Za-z]|--[A-Za-z][\w-]*)(?:[=\s]+\S+)?\s+)*"
+# 繰り返しは `{0,6}` で打ち切る。`*` にすると `git -a -a -a ...` のような並びで
+# 「値つきオプション」との解釈が二分岐し続けて指数バックトラックし（40 個で 70 秒）、
+# hook がタイムアウト＝fail-open してガードが消える。実運用のグローバルオプションは
+# 高々 1〜2 個なので、上限を付けても判定は変わらない。
+_GIT = r"git\s+(?:(?:-[A-Za-z]|--[A-Za-z][\w-]*)(?:[=\s]+\S+)?\s+){0,6}"
 
 # (正規表現, deny の理由) の並び。先に一致したものが採用される。
 RULES: list[tuple[str, str]] = [
     (
-        _GIT + r"add\s+(-A\b|--all\b|\.(\s|$))",
-        "git add -A / git add . は併走セッションの未コミット作業を巻き込みます。"
-        "コミットしたいパスを明示してください"
+        # まとめたショートオプション束の中の `A`（--all）と `u`（--update）を拾う。
+        # `-Av` のように後ろに別の文字が続く形は `-A\b` では境界が立たず素通しした。
+        # git add のショートオプションで `A` / `u` を含むのはこの 2 つだけなので、
+        # 文字クラス `[Au]` が他のオプション（-n / -p / -i / -v / -f / -N）を巻き込むことはない。
+        # `git add -u` は `git commit -a` と同じ危険クラス（追跡中の全変更を巻き込む）。
+        _GIT + r"add\s+(-[A-Za-z]*[Au][A-Za-z]*\b|--all\b|--update\b|\.(\s|$))",
+        "git add -A / git add . / git add -u は併走セッションの未コミット作業を"
+        "巻き込みます。コミットしたいパスを明示してください"
         "（docs/ai-agent-guidelines.md の「運用の合意」）。",
     ),
     (
         # `-a` を含む短オプション束（-a / -am / -va）と `--all`。`--amend` は素通しする。
-        _GIT + r"commit\s+(?:-[^\s]*\s+|--\S+\s+)*(?:-[A-Za-z]*a[A-Za-z]*|--all)\b",
+        _GIT + r"commit\s+(?:-[^\s]*\s+|--\S+\s+){0,6}(?:-[A-Za-z]*a[A-Za-z]*|--all)\b",
         "git commit -a / -am は追跡中の全変更を巻き込みます（git add -A と同じ危険）。"
         "パスを明示して git add してから git commit してください"
         "（docs/ai-agent-guidelines.md の「運用の合意」）。",

@@ -15,8 +15,44 @@ from omegaconf import DictConfig
 from src.exp000_sample.config_schema import register_config_schema
 from src.utils.seeding import seed_everything
 from src.utils.submission import validate_submission
+from src.utils.submission_manifest import parse_ckpt_name
 
 register_config_schema()
+
+
+def select_best_ckpt(fold_dir: Path, mode: str) -> Path:
+    """fold ディレクトリから best の ckpt を 1 つ選ぶ。
+
+    ckpt 名は `{exp番号}-{run_name}-f{k}[-ep{NN}][-val_{評価指標名}-{score}].ckpt`
+    （`docs/training-conventions.md`）。スコアを含む名前だけを候補にし、
+    `cfg.metric.mode`（max/min）に従って選ぶ。スコアは負にもなり得る（R2・相関係数）。
+
+    ⚠ `next(fold_dir.glob("*.ckpt"))` で任意の 1 個を読んではいけない。
+    `save_top_k` が 2 以上なら best 以外を掴み、「best という名前の非 best」で提出することになる。
+
+    Raises:
+        FileNotFoundError: ckpt が 1 つも無い。
+        RuntimeError: 規約どおりに解析できスコアを持つ ckpt が 1 つも無い
+            （黙って任意の 1 個を選ばず、命名を直すよう促す）。
+    """
+    ckpts = sorted(fold_dir.glob("*.ckpt"))
+    if not ckpts:
+        raise FileNotFoundError(f"ckpt が見つかりません: {fold_dir}")
+
+    scored = [
+        (ref.score, path)
+        for path in ckpts
+        if (ref := parse_ckpt_name(path.name)) and ref.score is not None
+    ]
+    if not scored:
+        names = ", ".join(p.name for p in ckpts)
+        raise RuntimeError(
+            f"スコア入りの ckpt 名が {fold_dir} にありません（見つかったのは {names}）。"
+            "docs/training-conventions.md の命名規約に合わせてから再実行してください。"
+        )
+
+    pick = max if mode == "max" else min
+    return pick(scored, key=lambda item: item[0])[1]
 
 
 @hydra.main(version_base=None, config_path="config", config_name="config")
@@ -33,7 +69,7 @@ def main(cfg: DictConfig) -> None:
     # predictions = []
     # for fold_idx in range(cfg.data.n_folds):
     #     fold_dir = output_dir / f"fold{fold_idx}"
-    #     ckpt_path = next(fold_dir.glob("*.ckpt"))
+    #     ckpt_path = select_best_ckpt(fold_dir, cfg.metric.mode)
     #     model = BaselineModel.load_from_checkpoint(ckpt_path)
     #     model.eval()
     #     preds = model.predict(test_dataloader)

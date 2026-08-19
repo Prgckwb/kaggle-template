@@ -4,6 +4,8 @@
     "deny": [
       "Bash(git add -A*)",
       "Bash(git add --all*)",
+      "Bash(git add -u*)",
+      "Bash(git add --update*)",
       "Bash(git add .)",
       "Bash(git add . *)",
       "Bash(git commit -a*)",
