@@ -92,6 +92,36 @@ print(f'missing={result.missing} extra={result.extra}')
 - `LineageCheck` の `ok` / `n_varied` は property なので `dataclasses.asdict()` では落ちる。
   上のように属性アクセスで取り出す
 
+**⚠ `lineage.parent` が `config`（ベース）ではなく兄弟 run のときは、上のコマンドでは足りない。**
+走査対象は子に存在するキーだけなので、**子が「ベースの値に戻したキー」が差分から消える**:
+
+```
+run001: model.name=a, training.lr=5e-4   （base の lr は 1e-3）
+run002: model.name=b                      ← lr は base の 1e-3 に戻っている
+片向きの差分 = [model.name] → 1 変数差分に見えるが、実際は lr も動いている 2 変数差分
+```
+
+親が兄弟 run のときは **A→B と B→A の両向きを実行して和を取る**:
+
+```bash
+uv run python -c "
+import sys, yaml
+from src.utils.lineage import diff_config_keys
+child = yaml.safe_load(open(sys.argv[1]))
+parent = yaml.safe_load(open(sys.argv[2]))
+declared = sorted(set(child.get('lineage', {}).get('varied', []) or []))
+actual = sorted(set(diff_config_keys(child, parent)) | set(diff_config_keys(parent, child)))
+print(f'n_varied={len(actual)} ok={actual == declared}')
+print(f'actual={actual}')
+print(f'missing={sorted(set(actual) - set(declared))} extra={sorted(set(declared) - set(actual))}')
+" src/{exp}/config/{run}.yaml src/{exp}/config/{parent}.yaml
+```
+
+判定（`ok=False` なら記録を止める / `n_varied >= 2` なら 1 変数の名前で呼ばない）は片向きのときと同じ。
+**親が `config` のときにこの両向き版を使ってはいけない** — ベースにしか無いキーが
+すべて「差分」として現れ、`n_varied` が水増しされる（同じ注意が
+`.claude/skills/kaggle-review-strategy/SKILL.md` の「較正点の統制度」にもある）。
+
 ## フェーズ 3: 考察のヒアリング（最重要）
 
 ユーザーから以下を引き出す。答えが薄い場合は掘り下げる質問をする:

@@ -64,6 +64,11 @@
     （`{exp番号}-...-val_r2--0.1234.ckpt` は score = -0.1234）
 - **ckpt ファイルは上書きしない**: epoch とスコア入りの命名なので、
   同じ run を焼き直しても epoch かスコアが違えば別ファイルとして残る。同期に削除系フラグを使わない
+  - ⚠ ただし**残る個数を決めるのは命名ではなく `ModelCheckpoint(save_top_k=...)`**。
+    Lightning は `save_top_k=N` を超えた ckpt を自分で削除するので、
+    `save_top_k=1`（`src/exp000_sample/train.py` の既定）なら fold あたり 1 個しか残らない。
+    prune や best 監査のレシピを「古い epoch が溜まっている」前提で組む前に、
+    その実験の `save_top_k` を確認する（1 なら監査対象は常に 1 ファイルで空振りする）
   - ただし **run ディレクトリ（`output/{run_name}/`）自体は再実行で上書きされる**
     （`train.csv` / `val.csv` / `oof_predictions.csv` は同名で書き直される）。
     パラメータを変えて比較したいなら小実験（別 `run_name`）を立てる → `CLAUDE.md` の「チェックポイントと出力」

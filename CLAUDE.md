@@ -197,7 +197,8 @@ src/{exp_name}/output/{run_name}/
 ```
 
 再実行時、**run ディレクトリ（`output/{run_name}/`）の中身は上書きされる**（`train.csv` / `val.csv` / `oof_predictions.csv` は同名で書き直される）。
-一方 **ckpt ファイル名は epoch とスコアを含むので衝突しない**（＝古い epoch の ckpt は残る。削除は `docs/training-conventions.md` の掃除方針に従う）。
+一方 **ckpt ファイル名は epoch とスコアを含むので衝突しない**（＝残った ckpt は上書きされない。削除は `docs/training-conventions.md` の掃除方針に従う）。
+⚠ **fold あたり実際に何個残るかは `ModelCheckpoint(save_top_k=...)` 次第**。`src/exp000_sample/train.py` は `save_top_k=1` なので Lightning が前の best を削除し、fold あたり 1 個しか残らない。「古い epoch が溜まる」前提で prune / best 監査のレシピを組む前に、その実験の `save_top_k` を確認する。
 パラメータを変えて比較したい場合は小実験（別 `run_name`）を追加する。
 
 ### 実験後の更新（必須）
@@ -235,7 +236,8 @@ sandbox/ で生成した分析画像・図は `docs/guides/{slug}/assets/` に�
   二重コミットされマージ衝突を起こしたため既定から外した）。
   `feature-branches` を選んだ場合は `exp/{番号}_{subtitle}` / `feature/{名前}` / `fix/{内容}`
 - **`git add` は常にパスを明示する**（`workflow.concurrent_sessions: true` のとき、
-  `git add -A` は併走セッションの未コミット作業を巻き込む。hooks で deny している）
+  `git add -A` / `git add .` / `git add -u` / `git commit -a` は併走セッションの
+  未コミット作業を巻き込む。`permissions.deny` と hooks の二重で deny している）
 - **コミット**: gitmoji + 日本語。1コミット = 1つの論理的な変更。例: `🧪 exp001_baseline を追加`
 - **push**: 作業の区切りごと、実験完了時
 

@@ -45,8 +45,10 @@ deny が外側の網になる。一方 deny の glob は先頭一致なので
 | パターン | 止める場所 | 理由 |
 |---|---|---|
 | `git add -A` / `git add .` / `git add --all` | deny + hook | 併走セッションの未コミット作業を巻き込む。常にパスを明示する |
+| `git add -u` / `git add --update` | deny + hook | 追跡中の全変更をステージする（`git commit -a` と同じ危険）。短く打ちやすいぶん事故りやすい |
+| `git add -Av` / `git add -vu` 等、まとめたショートオプション束 | deny + hook | 同上。hook は束の中の `A` / `u` を見る（`-A\b` だけでは `-Av` の境界が立たない） |
 | `git -C <path> add -A` 等、オプションが挟まった形 | hook のみ（deny の glob は先頭一致で拾えない） | 同上。`/kaggle:harvest-template` が `git -C` の書き方を教えているため実際に起きる |
-| `git commit -a` / `git commit -am` | deny + hook | 追跡中の全変更を巻き込む（`git add -A` と同じ危険）。`--amend` は素通しする |
+| `git commit -a` / `git commit -am` / `git commit --all` | deny + hook | 追跡中の全変更を巻き込む（`git add -A` と同じ危険）。`--amend` は素通しする |
 | `git stash` / `git reset --hard` / `git checkout -- <file>` | deny + hook | 相手の未コミット作業を即座に消す |
 | `kaggle competitions submit` | deny + hook | 提出はユーザーの専管。notebook の commit までで止める |
 | `mcp__kaggle__submit_to_competition` / `mcp__kaggle__create_code_competition_submission` | deny のみ（hook は Bash 専用） | 同上。`mcp__kaggle__upload_dataset_file` は重みの Dataset 化に必要なので `ask` のまま |

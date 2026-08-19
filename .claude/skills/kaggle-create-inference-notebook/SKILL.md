@@ -122,7 +122,18 @@ else:
 - GPU/CPU 自動切り替え: `torch.device("cuda" if torch.cuda.is_available() else "cpu")`
 - チェックポイント名は `{exp番号}-{run_name}-f{k}[-ep{NN}][-val_{評価指標名}-{score}].ckpt`（`docs/training-conventions.md`）を前提にする。
   **`=` を含む名前は作らない** — Kaggle がファイル名の `=` を除去することがあり、Dataset 経由の重み配布が壊れる。
-  fold ごとの best は `glob("*-f{k}-*.ckpt")` で引き、`src/utils/submission_manifest.parse_ckpt_name` でスコアを読んで選ぶ
+  fold ごとの best は **`glob("*.ckpt")` で全部を引いてから `src/utils/submission_manifest.parse_ckpt_name` で fold とスコアを読んで選ぶ**。
+  `glob("*-f{k}-*.ckpt")` は使わない — `[-ep{NN}][-val_...]` は任意なので、規約上合法な
+  `exp000-run000-base-f0.ckpt` を取りこぼす:
+
+  ```python
+  refs = [(p, parse_ckpt_name(p.name)) for p in ckpt_dir.glob("*.ckpt")]
+  scored = [(r.score, p) for p, r in refs if r and r.fold == k and r.score is not None]
+  best = (max if metric_mode == "max" else min)(scored, key=lambda x: x[0])[1]
+  ```
+
+  スコアを持つ ckpt が 1 つも無いときは**黙って任意の 1 個を読まない**（エラーで止め、命名を直す）。
+  スコアは負にもなり得る（R2・相関係数）ので `abs()` で比べない
 - `num_workers`: Kaggle 環境では `2` 程度が安定
 
 ## フェーズ 4: 完了報告

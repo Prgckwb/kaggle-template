@@ -138,14 +138,30 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    FORK=<sha>
    # 固定パスは併走セッションと衝突する（相手の展開先を rm -rf しかねない）ので mktemp を使う。
    # パスは次のブロックで使うので、標準出力に出したうえでメモしておく
-   SRC=$(mktemp -d -t harvest-src)
+   # `mktemp -d -t harvest-src` は GNU coreutils だと XXX を 3 つ以上要求してエラーになる。
+   # テンプレートを移植する形（macOS / Linux の両方で動く）:
+   SRC=$(mktemp -d "${TMPDIR:-/tmp}/harvest-src.XXXXXX")
    git archive "$FORK" | tar -x -C "$SRC"
    echo "fork 点のスナップショット: $SRC"
    ```
 
    使い終わったら `rm -rf "$SRC"` で片付ける（`$SRC` は `mktemp` が返した実パスに置き換える）。
 
-3. **固有名詞の除去を検証する**。コンペ略称・データセット名・バケット名・ユーザー名・
+3. **フェーズ 2 の分類に従って変更を書き込む**（このステップが本体。以降は検証と記録）:
+
+   - ① 矛盾の訂正 → 該当ファイルを直接編集する（`$SRC` の fork 点と読み比べて、
+     テンプレート側の記述のどこが実運用と食い違っていたかを特定してから直す）
+   - ② 汎用の方法論 → `docs/experiment-methodology.md` / `docs/remote-training-ops.md` に追記する
+   - ③ 働き方の合意 → `docs/ai-agent-guidelines.md`「運用の合意」の表と
+     `docs/competition-profile.yaml` の `workflow` を**必ず対で**更新する
+   - ④ コンペ固有 → **書き込まない**（per-competition テンプレには骨格だけ残す）
+   - 規約・レシピを直したら、それを参照している側（`CLAUDE.md` の表・`README.md`・
+     各 `.claude/skills/*/SKILL.md`）も同じ改訂で揃える。片方だけ直すと次のコンペで
+     「矛盾の訂正」がもう 1 件増える
+
+   書き込みが済んでから 4. 以降の検証に進む。
+
+4. **固有名詞の除去を検証する**。コンペ略称・データセット名・バケット名・ユーザー名・
    ラベル名・ドメイン用語・backbone 名を列挙して grep する:
 
    ```bash
@@ -158,7 +174,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
    実測値を引くときは「あるコンペでの実測例」と匿名化する。
 
-4. `per-competition` のファイルは**骨格だけ**還流する（中身は持ち込まない）。
+5. `per-competition` のファイルは**骨格だけ**還流する（中身は持ち込まない）。
    `lifecycle` マーカーが全ファイルにあることを確認する:
 
    ```bash
@@ -167,7 +183,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    head -1 "$TMPL"/docs/*.md | grep -c "lifecycle:"   # 上と一致すること
    ```
 
-5. **コミットの前に**品質チェックを通す（`make fix` は formatter がファイルを書き換えるので、
+6. **コミットの前に**品質チェックを通す（`make fix` は formatter がファイルを書き換えるので、
    コミット後に走らせるとその変更がコミットに入らない）:
 
    ```bash
@@ -178,7 +194,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
    `make typecheck` は既存の diagnostics 件数を**増やしていない**ことだけを見る（0 件が条件ではない）。
 
-6. **分類ごとに 1 コミット**にする（gitmoji + 日本語）。順序は①→②→③。
+7. **分類ごとに 1 コミット**にする（gitmoji + 日本語）。順序は①→②→③。
    `git add` は**常にパスを明示する**（`git add -A` / `git commit -a` は使わない。
    併走セッションの未コミット作業を巻き込むため、テンプレート側の hook も拒否する）。
 
@@ -189,19 +205,16 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    git -C "$TMPL" commit -m "🔧 ..."
    ```
 
-7. PR を作る。本文には**分類の根拠**（なぜ②で、なぜ④でないか）と、
+8. PR を作る。本文には**分類の根拠**（なぜ②で、なぜ④でないか）と、
    閉じられた Open Question を書く。`--repo` はプレースホルダのままにせず、
    テンプレートの origin から解決する:
 
    ```bash
    TMPL=<template-path>
-   # origin の URL から owner/repo を取り出す（SSH 形式・HTTPS 形式の両方に対応）。
-   # ⚠ 末尾の .git を先に落としてから最後の 2 要素を取る。1 本の式で `[^/]+?` と
-   #    書くと BSD sed（macOS 既定）が "repetition-operator operand invalid" で落ちる
-   REPO=$(git -C "$TMPL" remote get-url origin \
-          | sed -E 's#\.git$##' | sed -E 's#^.*[:/]([^/]+/[^/]+)$#\1#')
+   # origin の URL の分解は `gh` に任せる（自前の sed は origin がローカルパスや
+   # 末尾スラッシュ付き URL のときに owner を取り違える。`gh` はどのみち直後に使う）
+   REPO=$(cd "$TMPL" && gh repo view --json nameWithOwner -q .nameWithOwner)
    echo "PR 先: $REPO"                      # 期待どおりか目で確認する
-   #                                        （origin がローカルパスだと owner が別物になる）
    git -C "$TMPL" push -u origin HEAD
    gh pr create --repo "$REPO" --title "..." --body "..."
    ```
