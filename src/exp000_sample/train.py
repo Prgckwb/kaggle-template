@@ -77,6 +77,7 @@ def main(cfg: DictConfig) -> None:
 
     # wandb group name（全 fold を束ねるキー）
     group_name = f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}"
+    exp_short = cfg.exp_name.split("_")[0]  # "exp000_sample" -> "exp000"
     wandb_config = cast(dict[str, Any], OmegaConf.to_container(cfg, resolve=True))
     # CLI オーバーライド（例: "training.lr=5e-4, run_mode=full"）を wandb の
     # notes に記録し、run 一覧で「何を変えたか」を一目でわかるようにする
@@ -107,13 +108,37 @@ def main(cfg: DictConfig) -> None:
             project=cfg.wandb.project,
             entity=cfg.wandb.entity,
             group=group_name,
-            name=f"fold_{fold_idx}",
+            name=f"{exp_short}-{cfg.run_name}-f{fold_idx}",
+            # 決定的 id + resume="allow": 中断しても別マシンで同じ run に続きが記録される。
+            # ⚠ 設定を変えて仕切り直すときは新しい id を取る（docs/wandb-spec.md 参照）
+            id=f"{exp_short}-{cfg.run_name}-{cfg.run_mode}-f{fold_idx}",
+            resume="allow",
             job_type="train",
             config=wandb_config,
             notes=wandb_notes,
+            tags=[
+                t
+                for t in (
+                    exp_short,
+                    cfg.run_name,
+                    f"fold{fold_idx}",
+                    cfg.run_mode,
+                    cfg.data.fold_version,
+                    cfg.data.data_version,
+                    cfg.data.label_version,
+                )
+                if t
+            ],
             mode=run_cfg["wandb_mode"],
             reinit=True,
         )
+        # run テーブルの列を「最後の値」ではなく best にし、val 系の x 軸を epoch に固定する
+        wandb.define_metric("epoch")
+        wandb.define_metric("val/*", step_metric="epoch")
+        wandb.define_metric(
+            f"val/{metric_name}", step_metric="epoch", summary=cfg.metric.mode
+        )
+        wandb.define_metric("val/loss", step_metric="epoch", summary="min")
 
         fold_dir = output_dir / f"fold{fold_idx}"
         fold_dir.mkdir(parents=True, exist_ok=True)
@@ -131,14 +156,23 @@ def main(cfg: DictConfig) -> None:
         # TODO: Create model
         # TODO: Create PyTorch Lightning Trainer with ModelCheckpoint
         #
-        # チェックポイント名は CLAUDE.md の規約 {exp_name}-val_{metric}={score}.ckpt に従う。
+        # チェックポイント名は docs/training-conventions.md の規約
+        #   {exp番号}-{run_name}-f{k}[-ep{NN}][-val_{評価指標名}-{score}].ckpt
+        # に従う（src/utils/submission_manifest.py がこの形をパースして提出構成を復元する）。
+        # ⚠ メトリクス名とスコアの区切りの "-" は必須（区切りが無いと f1 のような
+        #    数字入りメトリクス名でスコアの境界が決まらず、静かに誤った値になる）。
+        # ⚠ "=" は使わない（Kaggle がファイル名の "=" を除去することがあり、
+        #    Dataset 経由の重み配布が壊れる）。
         # monitor には学習ループで log しているキー（metric_key = "val/{metric}"）を渡すこと。
         # キーに "/" を含むため auto_insert_metric_name=False が必須。
         #
         # from lightning.pytorch.callbacks import ModelCheckpoint
         # checkpoint_callback = ModelCheckpoint(
         #     dirpath=str(fold_dir),
-        #     filename=f"{cfg.exp_name}-val_{metric_name}={{{metric_key}:.4f}}",
+        #     filename=(
+        #         f"{exp_short}-{cfg.run_name}-f{fold_idx}"
+        #         f"-ep{{epoch:02d}}-val_{metric_name}-{{{metric_key}:.4f}}"
+        #     ),
         #     auto_insert_metric_name=False,
         #     monitor=metric_key,
         #     mode=metric_mode,
@@ -195,13 +229,38 @@ def main(cfg: DictConfig) -> None:
     #     oof_df.to_csv(output_dir / "oof_predictions.csv", index=False)
     #     print(f"\nOOF predictions saved to {output_dir / 'oof_predictions.csv'}")
 
-    # Summary run（full モードかつ wandb 有効時のみ。CLAUDE.md / docs/wandb-spec.md 参照）
-    if cfg.run_mode == "full" and run_cfg["wandb_mode"] != "disabled" and fold_scores:
+    # CV の集計はローカルには常に出す（wandb の有無・fold 数に依存させない）。
+    # summary run の条件（fold >= 2 かつ wandb 有効）に載せると、1 fold の full や
+    # wandb 無効時にスコアが 1 行も残らない。
+    if cfg.run_mode == "full" and fold_scores:
+        local_scores = list(fold_scores.values())
+        local_mean = sum(local_scores) / len(local_scores)
+        if len(local_scores) == 1:
+            logger.info(
+                "Single-fold score: %.4f（CV ではない。fold 1 本の値）", local_mean
+            )
+        else:
+            local_std = (
+                sum((s - local_mean) ** 2 for s in local_scores)
+                / (len(local_scores) - 1)
+            ) ** 0.5
+            logger.info("CV score: %.4f ± %.4f", local_mean, local_std)
+
+    # Summary run（full モード && wandb 有効 && fold >= 2 のときだけ。docs/wandb-spec.md 参照）
+    # 1 fold しか回っていない CV に summary run を作ると、fold run と同じ値が
+    # "CV スコア" として並び、単一 fold の値を CV と見誤る。
+    if (
+        cfg.run_mode == "full"
+        and run_cfg["wandb_mode"] != "disabled"
+        and len(fold_scores) >= 2
+    ):
         wandb.init(
             project=cfg.wandb.project,
             entity=cfg.wandb.entity,
             group=group_name,
-            name="summary",
+            name=f"{exp_short}-{cfg.run_name}-summary",
+            id=f"{exp_short}-{cfg.run_name}-{cfg.run_mode}-summary",
+            resume="allow",
             job_type="summary",
             config=wandb_config,
             notes=wandb_notes,
@@ -210,17 +269,15 @@ def main(cfg: DictConfig) -> None:
         )
         scores = list(fold_scores.values())
         cv_mean = sum(scores) / len(scores)
-        cv_std = (
-            (sum((s - cv_mean) ** 2 for s in scores) / (len(scores) - 1)) ** 0.5
-            if len(scores) > 1
-            else 0.0
-        )
+        # このブロックは len(fold_scores) >= 2 が保証されているので不偏分散が定義できる
+        cv_std = (sum((s - cv_mean) ** 2 for s in scores) / (len(scores) - 1)) ** 0.5
         wandb.summary[f"cv/{metric_name}"] = cv_mean
         wandb.summary[f"cv/{metric_name}_std"] = cv_std
+        # CV の代表値は OOF pooled スコア（docs/wandb-spec.md）。
+        # OOF を算出したら wandb.summary[f"oof/{metric_name}"] に記録する
         for fi, score in fold_scores.items():
             wandb.summary[f"fold{fi}/best_val_{metric_name}"] = score
         wandb.finish()
-        logger.info("CV score: %.4f ± %.4f", cv_mean, cv_std)
 
     metrics_logger.finish()
     logger.info("Training complete. Output dir: %s", output_dir)

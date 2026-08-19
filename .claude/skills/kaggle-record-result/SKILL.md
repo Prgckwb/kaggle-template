@@ -57,11 +57,70 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
    - Kaggle MCP が利用可能なら submission 一覧からの取得を試みてもよい
    - `uv run python tools/check_submission.py` でも最新提出のステータス・public LB を取得できる（読み取り専用）
    - 未提出の場合は `-` として記録し、「後で submit したら教えてください、更新します」と伝える
-   - **提出があった場合は提出日・提出ファイル名・提出理由も確認する**（4-3 で `docs/submissions.md` に追記するため）
+   - **提出があった場合は提出日・提出理由・`submission_manifest.json` の場所も確認する**（4-3 で `docs/submissions.md` に追記するため。提出物の構成は manifest から読む＝時系列やログから事後推測しない）
 
 3. **Split 方法**
    - README.md にすでに記載があればそれを確認
    - なければ質問する
+
+### 系譜と差分の照合（必須）
+
+対象 run と `lineage.parent` の config を読み、宣言と実際の差分を照合する:
+
+```bash
+uv run python -c "
+import sys, yaml
+from src.utils.lineage import check_varied
+child = yaml.safe_load(open(sys.argv[1]))
+parent = yaml.safe_load(open(sys.argv[2]))
+result = check_varied(child, parent, declared=child.get('lineage', {}).get('varied', []))
+print(f'n_varied={result.n_varied} ok={result.ok}')
+print(f'actual={result.actual}')
+print(f'missing={result.missing} extra={result.extra}')
+" src/{exp}/config/{run}.yaml src/{exp}/config/{parent}.yaml
+```
+
+- `ok=False` なら**記録を止めて** `lineage.varied` を実態に合わせる（宣言漏れは
+  「1 変数差分のつもりが 2 変数だった」事故そのもの）
+- `n_varied >= 2` なら、README・`EXP_SUMMARY.md`・`docs/experiment-log.md` に
+  **「この Δ は N 変数の合計」**と明記し、**1 変数の名前で呼ばない**。
+  中間 run があるなら段に分解して各段の差を併記する
+  （`docs/experiment-methodology.md` の「効果の帰属」）
+- Hydra の `defaults` は解決前の yaml では効かないので、親 config を明示的に読むこと。
+  **差分 config（変えたキーだけ書いた子）をそのまま `yaml.safe_load` で渡してよい** —
+  `diff_config_keys` は親にしか無いキーを継承とみなし差分に数えないため、compose は不要
+- `LineageCheck` の `ok` / `n_varied` は property なので `dataclasses.asdict()` では落ちる。
+  上のように属性アクセスで取り出す
+
+**⚠ `lineage.parent` が `config`（ベース）ではなく兄弟 run のときは、上のコマンドでは足りない。**
+走査対象は子に存在するキーだけなので、**子が「ベースの値に戻したキー」が差分から消える**:
+
+```
+run001: model.name=a, training.lr=5e-4   （base の lr は 1e-3）
+run002: model.name=b                      ← lr は base の 1e-3 に戻っている
+片向きの差分 = [model.name] → 1 変数差分に見えるが、実際は lr も動いている 2 変数差分
+```
+
+親が兄弟 run のときは **A→B と B→A の両向きを実行して和を取る**:
+
+```bash
+uv run python -c "
+import sys, yaml
+from src.utils.lineage import diff_config_keys
+child = yaml.safe_load(open(sys.argv[1]))
+parent = yaml.safe_load(open(sys.argv[2]))
+declared = sorted(set(child.get('lineage', {}).get('varied', []) or []))
+actual = sorted(set(diff_config_keys(child, parent)) | set(diff_config_keys(parent, child)))
+print(f'n_varied={len(actual)} ok={actual == declared}')
+print(f'actual={actual}')
+print(f'missing={sorted(set(actual) - set(declared))} extra={sorted(set(declared) - set(actual))}')
+" src/{exp}/config/{run}.yaml src/{exp}/config/{parent}.yaml
+```
+
+判定（`ok=False` なら記録を止める / `n_varied >= 2` なら 1 変数の名前で呼ばない）は片向きのときと同じ。
+**親が `config` のときにこの両向き版を使ってはいけない** — ベースにしか無いキーが
+すべて「差分」として現れ、`n_varied` が水増しされる（同じ注意が
+`.claude/skills/kaggle-review-strategy/SKILL.md` の「較正点の統制度」にもある）。
 
 ## フェーズ 3: 考察のヒアリング（最重要）
 
@@ -78,6 +137,30 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
 3. **次のアクション**
    - 「この結果を踏まえて、次に何を試したいですか？」
    - ただし、具体的な次の実験の設計には踏み込まない（それは `kaggle:new-experiment` の役割）
+
+## フェーズ 3.5: 知見の routing（必須）
+
+考察のヒアリングで出た学びを **4 分類し、書き込み先を決める**。
+ここを飛ばすと汎用知見がコンペ固有ファイル（`/kaggle:init` がリセットする層）に埋まり、
+次のコンペで失われる。実際に起きた: 汎用の実験作法 400 行が `guardrails.md` に埋もれ、
+2 ヶ月のコンペで `.claude/` が 0 コミットのままテンプレートへ還流しなかった。
+
+分類の表をユーザーに提示して確認を取る:
+
+| 分類 | 例 | 書き込み先 |
+|---|---|---|
+| ① コンペ固有の禁止事項・バグパターン | 推論時に使えない特権情報、ラベルと矛盾する augmentation、壊れた入力データ | `docs/guardrails.md`（per-competition） |
+| ② 汎用の実験作法（他コンペでも通用する） | 判定の資格、対照群の設計、循環評価、collapse の検出軸、アンサンブルの型 | `docs/experiment-methodology.md`（invariant）の該当節に追記し、**`<!-- harvest -->` マーカーを付ける** |
+| ③ 働き方・運用の合意 | 「今後は fold0 だけ」「提出は自分でやる」等のユーザー指示 | `docs/ai-agent-guidelines.md`「運用の合意」+ `docs/competition-profile.yaml` の `workflow` |
+| ④ 実装知見（このコンペのコード固有） | 前処理の工夫、ライブラリの罠 | `docs/insights/YYYY-MM-DD_exp{番号}_{subtitle}.md`（4-4 で作成） |
+
+- 迷ったら問う: **「次のコンペが全く別のドメイン（表形式・NLP・時系列）でも、この文は意味を持つか」**。
+  No なら①か④、Yes なら②
+- ②に書くときは**固有名詞（コンペ名・ラベル名・データ形式・backbone 名）を落とし、
+  実測値は「あるコンペでの実測例」として匿名化する**
+- ③はユーザーの指示そのものなので、**profile の `workflow` の該当キーも同時に書き換える**
+  （合意がエージェントの memory にしか残らないと、次のセッション・次のコンペで失われる）
+- ②③ は `/kaggle:harvest-template` がテンプレートへ還流する対象になる
 
 ## フェーズ 4: 記録の実行
 
@@ -128,12 +211,33 @@ EXP_SUMMARY.md の Experiments テーブルには大実験の best run のスコ
 
 ### 4-3. docs/submissions.md への追記（提出があった場合）
 
-LB スコアが得られた提出については、`docs/submissions.md` の Submissions テーブルに 1 行追記する:
+**提出物の構成は manifest から読む。時系列・ログ・記憶からの事後推測をしない**
+（`docs/experiment-methodology.md` の「成果物は照合する」）。
+notebook が出力した `submission_manifest.json` を読み、`describe_manifest` の 1 行を得る:
 
-```markdown
-| {提出日} | {exp_name} / {run_name} | {submission ファイル名} | {cv} | {lb} | {提出理由・メモ} |
+```bash
+uv run python -c "
+import json, sys
+from src.utils.submission_manifest import describe_manifest
+print(describe_manifest(json.load(open(sys.argv[1]))))
+" path/to/submission_manifest.json
 ```
 
+`docs/submissions.md` の Submissions テーブルに 1 行追記する。
+**`Exp / Run` 列には上の出力をそのまま貼る**:
+
+```markdown
+| {提出日} | {describe_manifest の出力} | {submission ファイル名} | {cv} | {lb} | {提出理由・メモ} |
+```
+
+- 出力例: `V20 exp006-run004-highres(2f) + exp010-run000-base(1f) | mean w=0.5/0.5 | tta=off`
+- **manifest が無い提出は「構成不明」として記録する**（推測で構成を書かない）。
+  次回から notebook が manifest を出すよう `/kaggle:create-inference-notebook` を案内する
+- `manifest['unparsed']` が空でない場合は ckpt 命名規約
+  （`{exp番号}-{run_name}-f{k}[-ep{NN}][-val_{評価指標名}-{score}].ckpt`）から
+  外れた ckpt が混ざっている。構成が欠けたまま記録せず、命名を直してから manifest を作り直す
+- 同じ manifest から「CV-LB の写像」テーブルにも Δ(LB−CV) を追記する。
+  ただし**較正点は統制された 1 変数差分からのみ採る**（フェーズ 2 の `n_varied` を見る）
 - 初回追記時はプレースホルダー行（「まだ提出なし」）を削除する
 - 過去の提出の記録漏れに気づいた場合も、この機会に追記を提案する
 
@@ -178,19 +282,42 @@ LB スコアが得られた提出については、`docs/submissions.md` の Sub
 
 ### 5-1. 停滞チェック
 
+#### 前提: 判定の資格を確認する
+
+`docs/competition-profile.yaml` の `metric.noise.seed_spread` を読む。
+
+- **`null`（未測定）の場合**: 「dead-end」「棄却」「確定」「決着」を**出力してはいけない**。
+  代わりに次を提案する:
+  > 判定の分母がまだ無いので、**同一設定で seed のみ変えた run を 1 本焼く**ことを提案します。
+  > その差が `metric.noise.seed_spread` になり、以後すべての判定の分母になります。
+  > 測ったら `docs/experiment-log.md` の「ノイズの較正記録」と profile に書き込みます。
+- **値がある場合**: 停滞・改善の判定に必ず **`差 / seed_spread`** を併記する。
+  `差 < seed_spread` なら「改善は検出されなかった（null 結果）」であって「棄却」ではない
+- ⚠ `seed_spread` を測る前に下した dead-end 判定は、**遡って信頼度を下げる**
+  （あるコンペでは seed 揺れが `meaningful_delta` の 1.8 倍あり、既存判定を撤回した）
+
+詳細は `docs/experiment-methodology.md` の「判定の資格」。
+
+#### 停滞の計算
+
 対象実験の Runs テーブル（README.md）を確認し、直近 3 run の CV スコアを比較する。
-**改善の方向と基準は `docs/competition-profile.yaml` の `metric.mode` と `meaningful_delta` に従う**（`min` 指標では減少が改善であることに注意）:
+**改善の方向は `docs/competition-profile.yaml` の `metric.mode` に従い、基準値は下の優先順位で決める**（`min` 指標では減少が改善であることに注意）:
 
 1. CV スコアが数値として記録されている直近 3 run を取得（Runs テーブルは実行順に追記される前提。順序が怪しい場合はユーザーに確認する）
 2. 最新 run の CV と 3 つ前の run の CV の「改善量」（mode を考慮した符号）を計算
 3. **停滞判定の基準値**は次の優先順位で決める:
-   1. `meaningful_delta`（profile に設定済みの場合）
-   2. 未設定なら **fold 間ばらつきから自動推定する**: `src/{exp-name}/logs/{run_name}/run_summary.json` の `folds` から各 fold の best スコアの標準偏差 `std` を計算し、`ノイズフロア = std / sqrt(n_folds)` を基準値とする（CV 平均の標準誤差。これ未満の改善は fold 間ノイズと区別できない）。この値を profile の `meaningful_delta` に記録することをユーザーに提案する
-   3. run_summary.json も取れなければ、そのコンペのスコアスケールで有意な差かをユーザーに確認する
-4. **改善量が基準値未満の場合**、以下の警告を表示する:
+   1. `metric.noise.seed_spread`（実測済みなら最優先。単一 fold・単一 seed の run どうしを
+      比べる判定の分母はこれ）
+   2. `meaningful_delta`（profile に設定済みの場合）
+   3. どちらも未設定なら **fold 間ばらつきから自動推定する**: `src/{exp-name}/logs/{run_name}/run_summary.json` の `folds` から各 fold の best スコアの標準偏差 `std` を計算し、`ノイズフロア = std / sqrt(n_folds)` を基準値とする（CV 平均の標準誤差。これ未満の改善は fold 間ノイズと区別できない）。この値を profile の `meaningful_delta` に記録することをユーザーに提案する
+   4. run_summary.json も取れなければ、そのコンペのスコアスケールで有意な差かをユーザーに確認する
+4. **改善量が基準値未満の場合**、以下の警告を表示する。
+   `seed_spread` が未測定なら、警告の文面から「dead-end」の断定を外し、
+   上の「前提: 判定の資格」の較正 run の提案に差し替える:
 
 ```
-⚠ 行き詰まり検出: この実験の直近 3 run の CV 改善量は {差分} です（meaningful_delta = {値} 未満）。
+⚠ 行き詰まり検出: この実験の直近 3 run の CV 改善量は {差分} です
+（基準値 {基準値の種類} = {値} 未満。差 / seed_spread = {比}）。
 この実験は収穫逓減（diminishing returns）に達している可能性があります。
 
 推奨アクション:
@@ -231,4 +358,6 @@ LB スコアが得られた提出については、`docs/submissions.md` の Sub
 - 更新・作成したファイルの一覧を表示
 - スコアのサマリーを表示
 - Experiment Tree の現在の状態を簡潔に説明（どの実験が best か等）
-- 行き詰まり検出の結果（該当した場合）
+- 行き詰まり検出の結果（該当した場合。`seed_spread` 未測定なら較正 run の提案）
+- **知見の routing の結果**: 分類ごとにどこへ書いたか。②に書いた項目は
+  コンペ終了時に `/kaggle:harvest-template` でテンプレートへ還流することを添える

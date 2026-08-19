@@ -14,6 +14,13 @@ seed: 42
 # - full: 全 fold 実行
 run_mode: fold0
 
+# 系譜（親 run と、親から変えたキー）。
+# ベース config は parent: config / varied: [] のまま。
+# 小実験（run{NNN}-*.yaml）では親 run 名と変えたキーを必ず書く。
+lineage:
+  parent: config
+  varied: []
+
 # Debug settings (run_mode=debug 時に適用)
 debug:
   epochs: 1
@@ -29,16 +36,30 @@ debug:
 metric:
   name: loss
   mode: min
+  # docs/competition-profile.yaml の metric.noise を転記する。
+  # 最初のベースラインが完走したら seed のみ変えた run を焼いて seed_spread を埋める。
+  noise:
+    seed_spread: null
+    fold0_resolution: null
+    proxy_resolution: null
 
 # Data
 # input_dir は環境変数 INPUT_DIR で上書きできる（例: Kaggle Notebook では
-# INPUT_DIR=/kaggle/input/{slug}）。未設定ならローカルの input/ を使う。
+# INPUT_DIR=/kaggle/input/competitions/{slug}）。未設定ならローカルの input/ を使う。
+# ⚠ コンペデータは /kaggle/input/competitions/{slug}、Dataset は
+#   /kaggle/input/datasets/{user}/{dataset-slug} にマウントされる。
+#   /kaggle/input/{slug} は誤りで、全レコードが欠損値埋めになり提出が静かに壊れる。
 data:
   input_dir: ${oc.env:INPUT_DIR,${hydra:runtime.cwd}/input}
   train_path: ${data.input_dir}/train.csv
   test_path: ${data.input_dir}/test.csv
   sample_submission_path: ${data.input_dir}/sample_submission.csv
   n_folds: 5
+  # データの世代（任意）。設定すると wandb の tags に入り、世代跨ぎの比較を防げる。
+  # ⚠ 異なるバージョン間で CV スコアを比較しない
+  fold_version: null
+  data_version: null
+  label_version: null
 
 # Model
 model:

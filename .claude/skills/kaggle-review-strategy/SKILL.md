@@ -35,7 +35,8 @@ AI エージェントは以下の認知バイアスに陥りやすい:
    - `docs/competition-profile.yaml` を Read して `competition.type`・`metric`・`selection.policy` を確認（SSOT）
    - `docs/official/overview.md` を Read してタスクの詳細・評価指標・制約を確認
    - `docs/official/data.md` を Read してデータの特性を確認
-   - `docs/guardrails.md` を Read して「やってはいけないこと」を確認
+   - `docs/guardrails.md` を Read して「やってはいけないこと」（コンペ固有）を確認
+   - `docs/experiment-methodology.md` を Read して判定作法（コンペ非依存）を確認。2-2c で使う
    - `docs/discussion/` があれば最新の議論を確認
 
 ## フェーズ 2: 分析（内部処理、以下の全項目を必ず実施）
@@ -81,14 +82,16 @@ AI エージェントは以下の認知バイアスに陥りやすい:
 
 ### 2-2. 改善軌跡の分析
 
-まず `docs/competition-profile.yaml` を Read し、`metric.mode`（max/min）と `meaningful_delta` を確認する。
+まず `docs/competition-profile.yaml` を Read し、`metric.mode`（max/min）・`meaningful_delta`・`metric.noise` を確認する。
 
 - 全実験の CV/LB スコアを時系列に並べ、改善トレンドを分析（`min` 指標では減少が改善）
 - 直近 3 実験の CV 改善量（mode を考慮した符号）を計算
 - **停滞検出**: 直近 3 実験の CV 改善量が合計で基準値未満の場合、「停滞状態」としてフラグを立てる。基準値の優先順位:
-  1. `meaningful_delta`（設定済みの場合）
-  2. 未設定なら best 実験の `logs/{run_name}/run_summary.json` の `folds` から fold 間標準偏差 `std` を計算し、`ノイズフロア = std / sqrt(n_folds)` を使う（これ未満の改善は fold 間ノイズと区別できない）
-  3. それも取れなければ、そのコンペのスコアスケールで有意といえる幅をユーザーに確認する
+  1. `metric.noise.seed_spread`（実測済みなら最優先）。`std / sqrt(n_folds)` は**平均の標準誤差**なので単一 fold の個体差より小さく出る。単一 fold・単一 seed の run どうしの比較では、個体レベルの seed 揺れが正しい分母（あるコンペでは seed 揺れが `meaningful_delta` の 1.8 倍あった）
+  2. `meaningful_delta`（設定済みの場合）
+  3. どちらも未設定なら best 実験の `logs/{run_name}/run_summary.json` の `folds` から fold 間標準偏差 `std` を計算し、`ノイズフロア = std / sqrt(n_folds)` を使う（全 fold 平均どうしの比較用。これ未満の改善は fold 間ノイズと区別できない）
+  4. それも取れなければ、そのコンペのスコアスケールで有意といえる幅をユーザーに確認する
+- **`seed_spread` が `null` の場合は「棄却」「dead-end」「決着」を出力しない**。同一設定で seed のみ変えた run を 1 本焼いて分母を作ることを提案する（`docs/experiment-methodology.md` の「判定の資格」）
 
 ### 2-2b. 時間軸の分析
 
@@ -99,6 +102,59 @@ AI エージェントは以下の認知バイアスに陥りやすい:
 - **序盤（残り > 60%）**: 探索重視。未探索アプローチファミリーへの投資を推奨
 - **中盤（残り 20〜60%）**: 有望アプローチの深掘りと、アンサンブル素材の多様性確保を並行
 - **終盤（残り < 20% または 2 週間未満）**: 新規大実験より、既存 best の安定化（seed 平均・全 fold 学習）、アンサンブル（`/kaggle:ensemble`）、`docs/submissions.md` に基づく final submission 選定を優先
+
+### 2-2c. 判定の健全性チェック（必須）
+
+これまでの「効いた／効かない」の判定そのものを点検する。汚染された判定は探索方向を誤らせる。
+根拠は `docs/experiment-methodology.md` の「循環評価」「効果の帰属」「アンサンブルの型」。
+
+**循環評価の検出**: 改善を主張している差について「その介入は、**評価に使ったのと同じ集合**から
+得た知見で設計されたか」を問う。Yes なら、統計的な有意性がどれだけ高くても
+較正表・順位づけの根拠にしてはいけない（あるコンペでは P(Δ>0)=96.4% の差が LB 寄与 ±0.000 だった）。
+paired bootstrap はこの歪みを検出できない（「その n 件が介入設計に使われた」事実が入力に入らない）。
+
+**較正点の統制度**: 「A より B が良い」を較正点として使う前に、A と B の config 差分の個数を数える:
+
+```bash
+uv run python -c "
+import sys, yaml
+from src.utils.lineage import diff_config_keys
+a = yaml.safe_load(open(sys.argv[1]))
+b = yaml.safe_load(open(sys.argv[2]))
+keys = diff_config_keys(a, b)
+print(f'n_varied={len(keys)} keys={keys}')
+" src/{exp}/config/{runA}.yaml src/{exp}/config/{runB}.yaml
+```
+
+**差分 config をそのまま渡してよい**（`diff_config_keys` は親にしか無いキーを継承とみなし
+差分に数えないので、Hydra の compose は不要）。ただし走査は第 1 引数側のキーだけなので、
+兄弟 run 同士を比べるときは両向き（A,B と B,A）を実行して和を取る。
+
+`n_varied >= 2` の比較は較正点に採らない。
+**交絡を含む比較から較正点を作ると較正表そのものが汚染される。**
+
+**アンサンブルの型**: アンサンブル系の run を「部品の質を上げる」型と
+「異種部品を追加・置換する」型と「fold ens（分散を削る）」型に分類し、**型ごとに Δ を並べる**。
+後者（異種部品）が連続して効いていない場合、それは多様性不足ではなく
+**その軸自体が飽和している**可能性が高い（あるコンペでは異種部品の追加・置換が
+4 例連続 ±0.000、fold ens は毎回有効だった）。計算資源と提出枠を効いている型に寄せることを提案する。
+⚠ 型ごとの Δ は**このコンペで測った値だけ**を使う。他コンペの結論を一般則として持ち込まない。
+
+### 2-2d. exp の肥大化チェック（必須）
+
+```bash
+for d in src/exp*/; do
+  n=$(ls "$d"config/run*.yaml 2>/dev/null | wc -l | tr -d ' ')
+  echo "$(basename "$d"): $n runs"
+done
+```
+
+`docs/competition-profile.yaml` の `workflow.max_runs_per_exp`（既定 8）を超えた exp について:
+
+- `lineage.parent` チェーンを辿り、系譜が分岐している箇所を分割候補として提示する
+- 特に **backbone / 入力 / 教師 / アーキ構成要素を変えている run** は
+  新 exp に切り出すべきだったもの（`/kaggle:new-experiment` の昇格トリガー表）
+- 「run 番号は増えているのに README で 1 変数差分が追えない」状態になっていないか確認する
 
 ### 2-3. 未探索領域の特定（最重要）
 
@@ -136,6 +192,15 @@ AI エージェントは以下の認知バイアスに陥りやすい:
 
 ■ 時間軸
 - 締切: {deadline}（残り {N} 日、進行度 {X}%）→ フェーズ: {序盤|中盤|終盤}
+
+■ 判定の健全性
+- 判定の分母: seed_spread = {値 or 未測定}（未測定なら較正 run の提案を必ず添える）
+- 循環評価の疑いがある判定: {該当する主張。無ければ「なし」}
+- 較正点に採れない比較（n_varied >= 2）: {該当する比較}
+- アンサンブルの型別 Δ: 部品の質 {Δ} / fold ens {Δ} / 異種部品 {Δ}
+
+■ exp の肥大化
+- `max_runs_per_exp`（{値}）超過: {exp 名と run 数}。分割候補: {系譜の分岐点}
 
 ■ 探索カバレッジ
 - 探索済み: {N}/{M} カテゴリ（{X}%）

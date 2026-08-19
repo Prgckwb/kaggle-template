@@ -25,6 +25,8 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 | 8 | `docs/competition-profile.yaml` が設定済み | `competition.slug` と `metric.name` / `metric.mode` が空・デフォルトでないこと |
 | 9 | 実験 config の wandb project が設定済み | `src/exp000_sample/config/config.yaml` の `wandb.project` が `kaggle-competition` のままでないこと（`metric` はサンプル動作用に `loss`/`min` のままでよい） |
 | 10 | 実験用 extra 依存がインストール済み | `uv pip list` に torch（`--extra torch`）または lightgbm 等（`--extra tabular`）があること。`src/utils/cv.py` 等は scikit-learn に依存するため、コア依存のみでは実験を実行できない |
+| 11 | `workflow` が設定済み | `docs/competition-profile.yaml` の `workflow` が全キー埋まっていること（2-A で対話的に確認する） |
+| 12 | per-competition ドキュメントがテンプレート状態 or 記入済み | `docs/guardrails.md` 等（1 行目が `<!-- lifecycle: per-competition -->` のファイル）に前のコンペの内容が残っていないこと |
 
 ## フェーズ 1: 現在の状態を診断
 
@@ -37,6 +39,8 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    - `docs/official/data.md` の内容を Read し、プレースホルダーか確認
    - `docs/competition-profile.yaml` を Read し、`competition.slug` / `metric.name` が設定済みか確認
    - `EXP_SUMMARY.md` の Validation Strategy セクションがプレースホルダーか確認（`supervised` タイプのみ）
+   - `docs/competition-profile.yaml` の `workflow` が全キー埋まっているか確認
+   - `head -1 docs/*.md` で lifecycle マーカーを確認し、`per-competition` のファイルに前のコンペの内容が残っていないか確認（残っていれば 2-1 の 5 で扱う）
 
 2. 結果をサマリーとして表示:
    ```
@@ -86,6 +90,31 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
      - wandb ログは episode ベースで解釈する（`docs/competition-types.md` 参照）
      - 実験テンプレートで `model.py` の代わりに `agent.py` を案内
 
+### 2-A. 運用の合意（workflow）の設定
+
+**コンペの中で口頭指示として蓄積される「働き方」を、最初に機械可読な形で置く。**
+ここを飛ばすと合意がエージェントの memory にしか残らず、セッションが変わるたびに失われる。
+
+`docs/competition-profile.yaml` の `workflow` をユーザーに 1 問ずつ確認して埋める。
+既定値をそのまま採るなら「既定でよい」と答えてもらう。各項目の理由は
+`docs/ai-agent-guidelines.md` の「運用の合意」に書いてある（そこも併せて提示する）。
+
+1. `default_run_mode` — 既定 `fold0`（有望な run だけを明示指示で full に昇格）/ `full`
+2. `submission_by` — 既定 `user`（エージェントは提出せず notebook の commit までで止める）/ `agent`
+3. `branching` — 既定 `main-only` / `feature-branches`
+4. `concurrent_sessions` — 既定 `true`（複数セッションが同じ作業ディレクトリを共有する）
+5. `remote_training` — 既定 `none` / `herdr`（運用は `docs/remote-training-ops.md`）
+6. `max_runs_per_exp` — 既定 `8`（超過は `/kaggle:review-strategy` が分割を提案する）
+
+- `concurrent_sessions` を `false` にした場合は、`.claude/settings.json` の git 系ガード
+  （`permissions.deny` の `git add -A` / `git commit -a` / `git stash` / `git reset --hard` /
+  `git checkout --` と、`.claude/hooks/guard.py` の同等の git 規則）を
+  外してよいことを案内する
+- `submission_by` を `agent` にした場合は、同じく提出のガードを外してよいことを案内する
+- **`metric.noise` は null のまま置く**。最初のベースラインが完走した後に
+  「同一設定・seed のみ変更した run」で実測して埋める、と案内する
+  （`/kaggle:record-result` が誘導する。`docs/experiment-methodology.md` の「判定の資格」）
+
 ### 2-1. コンペティション情報の収集と反映
 
 1. **情報収集**: $ARGUMENTS または質問でコンペティション情報を取得
@@ -126,9 +155,24 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
 4. **ローカルキャッシュの掃除**: 前のコンペの残骸があれば `.cache/` ディレクトリを削除する（gitignore 済みのローカルキャッシュ）。
 
-5. **ガードレールのリセット**: `docs/guardrails.md` に前のコンペの記載が残っていればテンプレート状態（各セクション「（まだなし）」）に戻す。
+5. **lifecycle マーカーでリセット対象を決める**（ファイル名をハードコードしない）:
 
-6. **ガイドの掃除**: `docs/guides/` に前のコンペのガイドが残っていれば削除する（`README.md` と `sample-guide/` は残す）。`docs/submissions.md` もテンプレート状態に戻す。
+   ```bash
+   head -1 docs/*.md docs/competition-profile.yaml | grep -B1 "lifecycle:"
+   ```
+
+   - **`<!-- lifecycle: invariant -->` のファイルは編集しない。** 前のコンペで得た
+     コンペ非依存の知見が入っているのが正しい状態（消すと蓄積がゼロに戻る）
+   - **`<!-- lifecycle: per-competition -->` のファイルに前のコンペの内容が残っていたら、
+     テンプレート状態へのリセットをユーザーに確認する**（各セクションを「（まだなし）」や
+     見出しだけの骨格に戻す）
+   - ⚠ **リセットの前に必ず問う**: 「この中に、汎用化して `docs/experiment-methodology.md`
+     （invariant）へ移すべき節はありませんか？」。移し忘れるとそのまま失われる
+     （実際にあった事故: 汎用の実験作法が per-competition 層に埋もれ、リセットで消えかけた）。
+     移す判定は `/kaggle:harvest-template` の 4 分類と同じ基準を使う
+   - マーカーが無いファイルを見つけたら、どちらの層かをユーザーに確認して 1 行目に付ける
+
+6. **ガイドの掃除**: `docs/guides/` に前のコンペのガイドが残っていれば削除する（`README.md` と `sample-guide/` は残す）。`docs/insights/` の前コンペ分も同様に確認する（汎用知見の移送を先に問う）。
 
 ### 2-2. 環境セットアップ
 

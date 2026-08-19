@@ -1,3 +1,4 @@
+<!-- lifecycle: invariant -->
 # コンペティションタイプ別ガイド
 
 コンペティションタイプが `simulation` または `optimization` の場合、通常の train/predict/submit パイプラインは適用されない。`/kaggle:init` 実行時にタイプを選択する。

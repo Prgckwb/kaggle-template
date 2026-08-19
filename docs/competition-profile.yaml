@@ -1,3 +1,4 @@
+# lifecycle: per-competition
 # =============================================================
 # コンペティションプロファイル
 # =============================================================
@@ -11,6 +12,7 @@
 #   - app/config.py（ダッシュボードの COMPETITION_ID）
 #   - .claude/skills/*（best run 判定・停滞検出のメトリクス方向など）
 #   - CLAUDE.md（規約中の {評価指標名} はこのファイルの metric.name を指す）
+#   - .claude/skills/kaggle-*（workflow の既定値と metric.noise を判定に使う）
 
 competition:
   name: ""            # 正式名称（例: "Spaceship Titanic"）
@@ -23,11 +25,23 @@ competition:
   deadline: null
 
 metric:
-  name: score         # メトリクスキー名（短い英小文字。例: auc, f1, rmse, map）
+  # メトリクスキー名（短い英小文字。例: auc, f1, rmse, map）。
+  # ⚠ ハイフンを使わない（`macro_f1` と書き `macro-f1` と書かない）。
+  #   チェックポイント名 `-val_{name}-{score}.ckpt` の区切りと区別できず、
+  #   src/utils/submission_manifest.py が提出構成を復元できなくなる。
+  name: score
   mode: max           # max = 大きいほど良い / min = 小さいほど良い
   # 「改善した/停滞している」を判断する際の目安となる変化幅（絶対値）。
   # 例: AUC なら 0.001、RMSE なら競技のスコアスケールに合わせて設定する。
   meaningful_delta: null
+  # 判定の分解能。同一設定・seed のみ変更した run 2 本で実測して書き込む。
+  # seed_spread が null の間は「棄却」「dead-end」「確定」を宣言してはいけない
+  # （docs/experiment-methodology.md「判定の資格」）。判定時は必ず「差 / seed_spread」を併記する。
+  # 測った経緯は docs/experiment-log.md の「ノイズの較正記録」に残す。
+  noise:
+    seed_spread: null        # 単一 fold の seed 揺れ（実測値）
+    fold0_resolution: null   # 単一 fold で判定可能な最小 Δ の目安
+    proxy_resolution: null   # 小規模 holdout 等のプロキシ指標の分解能
 
 # best run / final submission の選定方針。
 # public LB は test の一部でしか計算されないため、原則 CV を信頼する（Trust your CV）。
@@ -43,3 +57,20 @@ selection:
 
 wandb:
   project: kaggle-competition   # /kaggle:init で kaggle-{略称} に変更する
+
+# エージェントの働き方の既定値。/kaggle:init が対話で埋める。
+# 各項目の理由は docs/ai-agent-guidelines.md の「運用の合意」を参照。
+workflow:
+  # fold0 = 既定は単一 fold のみ学習し、有望な run だけをユーザーの明示指示で full に昇格させる
+  default_run_mode: fold0     # fold0 | full
+  # user = エージェントは提出しない（notebook の commit・出力確認までで止める）
+  submission_by: user         # user | agent
+  # main-only = 実験ブランチを作らず main に直接コミットする
+  branching: main-only        # main-only | feature-branches
+  # true = 複数セッションが同じ作業ディレクトリの同一実体を編集する
+  # （git add はパス明示。破壊的 git は相手の未コミット作業を消す）
+  concurrent_sessions: true
+  # herdr = リモート GPU 学習を herdr 上で運用する（docs/remote-training-ops.md）
+  remote_training: none       # none | herdr
+  # 1 exp あたりの run 上限。超えたら /kaggle:review-strategy が肥大化として分割を提案する
+  max_runs_per_exp: 8

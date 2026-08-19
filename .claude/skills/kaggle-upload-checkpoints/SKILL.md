@@ -63,6 +63,6 @@ uv run python tools/upload_checkpoints.py {exp_name} {run_name} -m "{message}"
 
 - アップロードした Dataset の情報:
   - slug: `{kaggle_user}/{comp_slug}-{exp_name_kebab}`
-  - Kaggle Notebook 上のマウントパス: 通常 `/kaggle/input/{dataset-slug}/`（**Add Data 後に Notebook のサイドバーで実際のパスを必ず確認する**。Kaggle の UI 更新でパス形式が変わることがある）
+  - Kaggle Notebook 上のマウントパス: 通常 `/kaggle/input/datasets/{user}/{dataset-slug}/`（コンペデータは `/kaggle/input/competitions/{slug}/`）（**Add Data 後に Notebook のサイドバーで実際のパスを必ず確認する**。Kaggle の UI 更新でパス形式が変わることがある）
 - アップロード内容（fold 数、チェックポイントファイル一覧）
 - Notebook から参照する際のパス例

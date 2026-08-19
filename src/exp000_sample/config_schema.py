@@ -26,9 +26,22 @@ class DebugConfig:
 
 
 @dataclass
+class NoiseConfig:
+    """判定の分解能（docs/competition-profile.yaml の metric.noise と揃える）。
+
+    seed_spread が None の間は「棄却」「dead-end」を宣言してはいけない。
+    """
+
+    seed_spread: float | None = None
+    fold0_resolution: float | None = None
+    proxy_resolution: float | None = None
+
+
+@dataclass
 class MetricConfig:
     name: str = "score"
     mode: str = "max"  # "max" | "min"
+    noise: NoiseConfig = field(default_factory=NoiseConfig)
 
 
 @dataclass
@@ -38,6 +51,11 @@ class DataConfig:
     test_path: str = "input/test.csv"
     sample_submission_path: str = "input/sample_submission.csv"
     n_folds: int = 5
+    # データの世代。wandb の tags に入れてクロスフィルタに使う（docs/wandb-spec.md）。
+    # ⚠ 異なるバージョン間で CV スコアを比較しない（docs/experiment-methodology.md「判定の資格」）
+    fold_version: str | None = None
+    data_version: str | None = None
+    label_version: str | None = None
 
 
 @dataclass
@@ -60,11 +78,26 @@ class WandbConfig:
 
 
 @dataclass
+class LineageConfig:
+    """この run の系譜。親との差分を宣言する（docs/experiment-methodology.md「効果の帰属」）。
+
+    parent: 親 run の名前。ベース config を直接継承する場合は "config"
+    varied: 親から変えたキーのドット表記（例: ["training.lr"]）。
+            src/utils/lineage.py が実際の差分と照合し、宣言漏れを検出する。
+            要素が 2 つ以上ある run の Δ を 1 変数の名前で呼んではいけない。
+    """
+
+    parent: str = "config"
+    varied: list[str] = field(default_factory=list)
+
+
+@dataclass
 class ExpConfig:
     exp_name: str = "exp000_sample"
     run_name: str = "run000-base"
     seed: int = 42
     run_mode: str = "fold0"  # debug | fold0 | full
+    lineage: LineageConfig = field(default_factory=LineageConfig)
     debug: DebugConfig = field(default_factory=DebugConfig)
     metric: MetricConfig = field(default_factory=MetricConfig)
     data: DataConfig = field(default_factory=DataConfig)

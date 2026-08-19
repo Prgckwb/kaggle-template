@@ -100,18 +100,27 @@ exp{XXX} ですでに探索済みです。同じファミリー内での改良�
 
 議論の内容を踏まえ、**大実験にするか小実験にするかを判断・提案する**:
 
-### 大実験にすべきケース
-- 新しいモデルアーキテクチャやフレームワークを導入する
-- データパイプラインや前処理が大幅に異なる
-- バリデーション戦略（分割方法・fold 数）を変更する
-- 既存のどの大実験にも属さない独立したアプローチ
-- train.py や model.py 等のコード変更が必要
+### 判定基準: 「config で書けるか」ではなく「比較可能性が保てるか」
 
-### 小実験にすべきケース
-- 既存大実験のモデル名やサイズを変更するだけ
-- ハイパーパラメータ（lr, batch_size, epochs 等）のチューニング
-- 前処理のパラメータ変更（augmentation の強度等）
-- config の差分のみで表現できる変更
+**新 exp（メジャー）への昇格トリガー — 1 つでも該当したら新 exp にする**:
+
+| トリガー | 理由 |
+|---|---|
+| backbone / モデル族の変更 | lr の再調整が必要で 1 変数差分にならない（実コンペで一律 lr は事前学習重みを壊し、backbone_lr を分離して +0.010 回復した） |
+| 入力の変更（解像度・入力長・チャネル構成） | コスト構造とキャッシュが変わる（VRAM より先にディスクが律速することがある） |
+| 教師ラベル・ターゲット定義の世代変更 | スコアの土俵が変わる（世代跨ぎの比較は禁止） |
+| アーキ構成要素の追加・交換（集約機構・層数・補助ヘッド） | 早期打ち切りゲートの較正が流用できない |
+| **2 変数以上を同時に変える（combo）** | 効果を帰属できない。中間 run で段に分解できるなら分解する |
+| バリデーション戦略・fold 定義の変更 | 既存 run と CV を比較できない |
+| `train.py` / `model.py` / `data.py` のコード変更が必要 | config 差分で表現できていない |
+
+**run（マイナー）に留めていいもの — 要するにスカラー 1 個**:
+lr / batch 分割（**実効バッチ = batch_size × accumulate_grad_batches は維持する**）/
+epochs / seed / augmentation 強度 1 種 / dropout 率。
+
+**迷ったら新 exp を切る**（大きく分ける方向に倒す）。
+`docs/competition-profile.yaml` の `workflow.max_runs_per_exp`（既定 8）を超えている exp に
+run を足そうとしている場合は、**まず分割を提案する**。
 
 判断結果をユーザーに提示し、確認する。
 
@@ -126,6 +135,9 @@ exp{XXX} ですでに探索済みです。同じファミリー内での改良�
 2. **Run 番号**: 対象大実験の既存 run の最大番号 + 1（3桁ゼロ埋め）
 3. **サブタイトル**: 変更内容を端的に表す英語名
 4. **変更する config パラメータ**: ベース config との差分
+5. **系譜の宣言**: config に `lineage.parent`（親 run 名。ベース config 直下なら `config`）と
+   `lineage.varied`（親から変えたキーのドット表記）を書く。
+   `varied` が 2 要素以上になる場合は、そもそも新 exp にすべきでないかを再検討する
 
 確定内容をユーザーに提示し、承認を得る。
 
@@ -211,9 +223,29 @@ exp{XXX} ですでに探索済みです。同じファミリー内での改良�
 
    run_name: run{NNN}-{subtitle}
 
+   # 系譜（必須）: 親 run 名（ベース config 直下なら config）と、
+   # 親から変えたキーのドット表記。`/kaggle:record-result` が実差分と照合する
+   lineage:
+     parent: {親 run 名 or config}
+     varied:
+       - model.name
+
    # 変更するパラメータのみ記述
    model:
      name: xxx
+   ```
+
+   `lineage.varied` は「実際に変えたキー」と一致させる。書いた後に検算する:
+
+   ```bash
+   uv run python -c "
+   import sys, yaml
+   from src.utils.lineage import check_varied
+   child = yaml.safe_load(open(sys.argv[1]))
+   parent = yaml.safe_load(open(sys.argv[2]))
+   r = check_varied(child, parent, declared=child.get('lineage', {}).get('varied', []))
+   print(f'ok={r.ok} n_varied={r.n_varied} actual={r.actual} missing={r.missing} extra={r.extra}')
+   " src/{exp}/config/run{NNN}-{subtitle}.yaml src/{exp}/config/config.yaml
    ```
 
 2. **実験 README.md の Runs テーブルに行を追加**

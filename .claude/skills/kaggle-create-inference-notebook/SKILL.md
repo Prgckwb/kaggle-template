@@ -17,6 +17,16 @@ Kaggle Notebooks 環境で動作する自己完結型の inference notebook を�
 - **パスは先頭セルで設定**: Kaggle 環境のパスはコンペ・データセットごとに異なるため、先頭セルで変数として定義し、ユーザーが簡単に変更できるようにする
 - **サブパスはローカルと同一**: `INPUT_DIR` 以下（`sample_submission.csv` 等）、`MODEL_DIR` 以下（`fold0/{ckpt}` 等）のサブパスはローカルの構造と同一
 - **nn.Module に簡略化**: LightningModule の training 関連メソッドを除外し、`forward()` のみの `nn.Module` として定義。Lightning checkpoint から `state_dict` を読み込む
+- **置き場所**: 単一実験の推論は `src/exp{N}_{subtitle}/inference_notebook.ipynb`。
+  **複数実験のアンサンブルは、構成員のうち実験番号が大きい方のディレクトリに置く**
+  （番号がより大きい実験を新たに混ぜたら notebook をそちらへ移し、以後そこを更新する）。
+  Kaggle 上のタイトルに最新の構成員が出るので、提出一覧で実験を取り違えない
+- **説明を必ず入れる**: 各コードセルの直前に日本語の markdown で「何をするか」を書く。
+  先頭は概要セル（どの実験・どの ckpt 構成・前提条件・環境要件）
+- **manifest を必ず書く**: `src/utils/submission_manifest.py` の
+  `build_manifest` / `write_manifest` / `describe_manifest` を使い、
+  `submission.csv` と同じディレクトリに `submission_manifest.json` を出す。
+  構成は ckpt 名から復元されるので追加入力は不要
 
 ## フェーズ 1: 対象実験の特定とコード確認
 
@@ -45,11 +55,12 @@ Kaggle Notebooks 環境で動作する自己完結型の inference notebook を�
 ユーザーに以下を確認する:
 
 1. **Kaggle コンペデータのパス**
-   - 通常は `/kaggle/input/{competition-slug}`（slug は `docs/competition-profile.yaml` の `competition.slug`）
+   - 通常は `/kaggle/input/competitions/{competition-slug}`（slug は `docs/competition-profile.yaml` の `competition.slug`。
+     `{slug}` 直下ではなく `competitions/` が挟まる。実機で確認済み）
    - **注意**: マウントパスの形式は Kaggle の UI 更新で変わることがある。Notebook で **Add Data** した後、サイドバーに表示される実際のパスで必ず確認・修正するようユーザーに案内する
 
 2. **Kaggle モデル Dataset のパス**
-   - 通常は `/kaggle/input/{dataset-slug}`（例: `/kaggle/input/{comp_slug}-{exp_name_kebab}`）
+   - 通常は `/kaggle/input/datasets/{user}/{dataset-slug}`（例: `/kaggle/input/datasets/{user}/{comp_slug}-{exp_name_kebab}`）
    - `dataset-metadata.json` が存在すればそこから slug を取得
 
 **Notebook 先頭セルのパス設定パターン**:
@@ -59,8 +70,8 @@ from pathlib import Path
 
 # ==== Path Configuration ====
 # Kaggle 環境のパス（Add Data 後にサイドバーの実パスを確認して修正してください）
-KAGGLE_COMP_DIR = "/kaggle/input/{competition-slug}"
-KAGGLE_MODEL_DIR = "/kaggle/input/{dataset-slug}"
+KAGGLE_COMP_DIR = "/kaggle/input/competitions/{competition-slug}"
+KAGGLE_MODEL_DIR = "/kaggle/input/datasets/{user}/{dataset-slug}"
 
 # 自動検出（変更不要）
 if Path("/kaggle/input").exists():
@@ -86,44 +97,43 @@ else:
 コードセルの前には必ず **マークダウンセル** を挿入し、そのセルで何をしているかを日本語で説明する。
 特に実験固有の工夫（モデル構造、損失関数、データ処理、後処理等）がある場合は、**なぜそうしているか** を含めて説明する。
 
-1. **タイトルセル**（Markdown）
-   - `# {exp_name} Inference`
-   - 実験の概要を日本語で記述:
-     - アプローチの概要
-     - 主な工夫点の箇条書き
-     - バリデーション戦略の概要
+| # | 種類 | 内容 |
+|---|---|---|
+| 1 | markdown | タイトル + 概要（実験・ckpt 構成・前提・環境要件・提出手順） |
+| 2 | markdown | 「環境と構成を記録する」 |
+| 3 | code | パス設定 → ckpt を rglob → `parse_ckpt_name` で fold/epoch/score の表を print → GPU 名・主要パッケージ版・`INPUT_DIR`・code_sha を print → ログファイルを開く |
+| 4 | markdown | 「モデルを構築して重みを読む」 |
+| 5 | code | `pretrained=False` で構築（internet off）→ fold ごとに best ckpt をロード |
+| 6 | markdown | 「推論する」 |
+| 7 | code | レコードループ。try/except で失敗は中立値埋め + 理由 1 行、N 件ごとに進捗 1 行、確定した予測は即座に行として append、ループ末尾で `del` + `gc.collect()` |
+| 8 | markdown | 「提出ファイルを検証して書き出す」 |
+| 9 | code | `sample_submission.csv` と列名・行数を突合 → `submission.csv` を書く → `write_manifest` → `describe_manifest` の 1 行を print → 失敗件数と ID 一覧を print |
 
-2. **設定セルの説明**（Markdown） + **設定セル**（Code）
-   - マークダウン: パス設定の説明、ハイパーパラメータの概要
-   - コード: import 文、パス設定（フェーズ 2 のパターン）、モデル・データ・推論パラメータ、DEVICE 検出
+**実行機の性能を落とさないための決め事**（生成時に必ず守る）:
 
-3. **モデル定義の説明**（Markdown） + **モデル定義セル**（Code）
-   - マークダウン: モデルアーキテクチャの日本語説明
-     - backbone の選択理由
-     - 分類ヘッドの構造
-     - 推論時の処理フロー
-   - コード: `nn.Module` としてインライン化、`load_model()` 関数
-
-4. **データ処理の説明**（Markdown） + **データ処理セル**（Code）
-   - マークダウン: 前処理パイプラインの日本語説明
-     - データの変換方法や前処理パラメータの選択理由
-     - テストデータの読み込み・分割方法
-   - コード: Transform クラス、Dataset クラス
-
-5. **推論の説明**（Markdown） + **推論セル**（Code）
-   - マークダウン: 推論フローの説明
-     - fold アンサンブルの有無
-     - 確率値の計算方法
-   - コード: テストデータ取得、バッチ推論ループ、submission.csv 保存
-
-6. **後処理の説明**（Markdown） + **後処理セル**（Code、該当する場合のみ）
-   - マークダウン: 後処理の手法と効果の説明
-   - コード: `inference.py` の後処理をインライン化（デフォルト OFF ならコメントアウト）
+- ログは `print(..., flush=True)` + ファイル append で逐次書き出す。メモリに溜めない
+- **1 レコード 1 行のログを出さない**（出力が膨らんで notebook が重くなる）。既定 50 件間隔
+- 配列・画像をログに残さない。形状と min/max/mean のみ
+- 全レコードの予測を辞書で抱えず、DataFrame は最後に組む
+- ログの実体は `/kaggle/working/submission_log.txt`（Kaggle の出力に残る）
 
 ### 注意点
 
 - GPU/CPU 自動切り替え: `torch.device("cuda" if torch.cuda.is_available() else "cpu")`
-- Kaggle 上のファイル名: `=` が除去される場合がある。チェックポイント名に `=` を含む場合は `glob("*.ckpt")` で検索するパターンも検討
+- チェックポイント名は `{exp番号}-{run_name}-f{k}[-ep{NN}][-val_{評価指標名}-{score}].ckpt`（`docs/training-conventions.md`）を前提にする。
+  **`=` を含む名前は作らない** — Kaggle がファイル名の `=` を除去することがあり、Dataset 経由の重み配布が壊れる。
+  fold ごとの best は **`glob("*.ckpt")` で全部を引いてから `src/utils/submission_manifest.parse_ckpt_name` で fold とスコアを読んで選ぶ**。
+  `glob("*-f{k}-*.ckpt")` は使わない — `[-ep{NN}][-val_...]` は任意なので、規約上合法な
+  `exp000-run000-base-f0.ckpt` を取りこぼす:
+
+  ```python
+  refs = [(p, parse_ckpt_name(p.name)) for p in ckpt_dir.glob("*.ckpt")]
+  scored = [(r.score, p) for p, r in refs if r and r.fold == k and r.score is not None]
+  best = (max if metric_mode == "max" else min)(scored, key=lambda x: x[0])[1]
+  ```
+
+  スコアを持つ ckpt が 1 つも無いときは**黙って任意の 1 個を読まない**（エラーで止め、命名を直す）。
+  スコアは負にもなり得る（R2・相関係数）ので `abs()` で比べない
 - `num_workers`: Kaggle 環境では `2` 程度が安定
 
 ## フェーズ 4: 完了報告
@@ -137,3 +147,6 @@ else:
   3. 先頭セルのパスが正しいか確認
   4. **Submit** で提出
 - パス設定の変更が必要な場合の案内
+- **`describe_manifest` の 1 行をそのまま報告に載せる**（ユーザーが提出時の description に貼れる形）
+- `docs/competition-profile.yaml` の `workflow.submission_by` が `user` の間は、
+  **notebook の commit と出力確認までで止める**。`kaggle competitions submit` は呼ばない
