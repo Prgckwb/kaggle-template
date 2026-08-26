@@ -183,16 +183,17 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
    head -1 "$TMPL"/docs/*.md | grep -c "lifecycle:"   # 上と一致すること
    ```
 
-6. **コミットの前に**品質チェックを通す（`make fix` は formatter がファイルを書き換えるので、
-   コミット後に走らせるとその変更がコミットに入らない）:
+6. **コミットの前に**任意で整形をかける（テンプレートは自動チェックを全廃したので必須ではない。
+   ただし ruff format はファイルを書き換えるため、コミット後に走らせるとその変更がコミットに入らない）:
 
    ```bash
    TMPL=<template-path>
-   make -C "$TMPL" fix && make -C "$TMPL" lint \
-     && make -C "$TMPL" test && make -C "$TMPL" typecheck
+   uv run --directory "$TMPL" --with ruff ruff check --fix src/ app/ tools/ .claude/hooks/
+   uv run --directory "$TMPL" --with ruff ruff format src/ app/ tools/ .claude/hooks/
    ```
 
-   `make typecheck` は既存の diagnostics 件数を**増やしていない**ことだけを見る（0 件が条件ではない）。
+   `tests/` と CI は廃止済みなので、テスト・型チェックの通過確認は行わない。
+   実験パイプラインに触る変更を持ち込んだ場合は `run_mode=debug` を 1 回通して動作を確認する。
 
 7. **分類ごとに 1 コミット**にする（gitmoji + 日本語）。順序は①→②→③。
    `git add` は**常にパスを明示する**（`git add -A` / `git commit -a` は使わない。
@@ -200,7 +201,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 
    ```bash
    TMPL=<template-path>
-   git -C "$TMPL" status --short          # make fix の書き換えも含まれていることを確認
+   git -C "$TMPL" status --short          # ruff の書き換えも含まれていることを確認
    git -C "$TMPL" add <path> <path> ...
    git -C "$TMPL" commit -m "🔧 ..."
    ```

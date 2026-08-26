@@ -26,4 +26,4 @@ You are an error diagnosis specialist for Kaggle competition pipelines. Your job
 ## Output Format
 - Diagnosis summary with root cause
 - Specific fix recommendation with code location
-- Prevention suggestion (what to add to docs/guardrails.md or pre-commit hooks)
+- Prevention suggestion (what to add to docs/guardrails.md; the repo has no pre-commit or CI hooks)

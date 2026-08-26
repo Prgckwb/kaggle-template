@@ -28,7 +28,6 @@ Kaggle コンペティション用テンプレート。Hydra + Wandb で実験�
 - **Web アプリ**: FastAPI, htmx, Jinja2
 - **オプション依存**: `torch`（PyTorch + Lightning + scikit-learn）、`tabular`（LightGBM, XGBoost, CatBoost + scikit-learn）
   - `src/utils/cv.py` 等は scikit-learn に依存するため、実験前に `uv sync --extra torch` or `--extra tabular` が必要
-- **pre-commit**: ruff lint/format、大容量ファイル・秘密鍵チェック、notebook 出力除去（nbstripout）を自動実行
 
 ## コマンド
 
@@ -37,13 +36,6 @@ uv sync                        # 依存関係インストール（コア依存�
 uv sync --extra torch          # PyTorch 系を含めてインストール
 uv sync --extra tabular        # GBDT 系を含めてインストール
 make app                       # Web アプリ起動（空きポート自動選択）
-
-# Lint / Format / Test
-make lint                      # ruff check
-make format                    # ruff format
-make fix                       # ruff check --fix + format
-make typecheck                 # ty check
-make test                      # pytest（src/utils の単体テスト）
 
 # 実験実行
 uv run python -m src.exp001_xxx.train                           # fold0（デフォルト）
@@ -241,10 +233,13 @@ sandbox/ で生成した分析画像・図は `docs/guides/{slug}/assets/` に�
 - **コミット**: gitmoji + 日本語。1コミット = 1つの論理的な変更。例: `🧪 exp001_baseline を追加`
 - **push**: 作業の区切りごと、実験完了時
 
-## テスト方針
+## 品質チェック方針
 
-- `src/utils/` の共有ユーティリティは `tests/` に単体テストを置く（`make test`）。ユーティリティを変更したらテストも更新する
-- 実験コード（`src/exp*`）には TDD を適用しない。`run_mode=debug` でパイプライン全体の動作確認を行うことで代替する
+- **自動チェックは置かない**。CI（GitHub Actions）・pre-commit・`tests/` はいずれも廃止済みで、lint / format / 型チェック / 単体テストのどれも自動では走らない
+- lint や format を走らせたいときは dev 依存に固定せず都度足す: `uv run --with ruff ruff check src/ app/ tools/ .claude/hooks/` / `uv run --with ruff ruff format ...`
+- コードの動作確認は `run_mode=debug` でパイプライン全体を通すことで代替する（実験コードに TDD は適用しない）
+- **notebook の出力除去は手動**。nbstripout が自動で走らなくなったので、`inference_notebook.ipynb` をコミットする前に出力をクリアする（`uv run --with nbstripout nbstripout <path>`）
+- `git add` のガード（`.claude/hooks/guard.py` + `permissions.deny`）は自動チェック廃止の対象外で、そのまま有効
 
 ## AI エージェントへの注意
 

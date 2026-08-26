@@ -46,6 +46,14 @@ This file tracks context across Claude Code sessions. Update at the end of each 
   `workflow` / `metric.noise` の profile スキーマ、exp/run 分割基準の差し替え、
   提出 manifest、hooks、`/kaggle:harvest-template` を追加
 
+- **自動チェックを全廃（2026-08-27）**: GitHub Actions の CI（`.github/workflows/ci.yml`）、
+  pre-commit（`.pre-commit-config.yaml`）、`tests/`（16 ファイル・1159 行）をすべて削除。
+  Makefile の `lint` / `format` / `fix` / `typecheck` / `test` ターゲットと dev 依存の
+  ruff / ty / pre-commit / pytest、pyproject の `[tool.ruff]` / `[tool.pytest.ini_options]` も撤去。
+  `.claude/hooks/guard.py`（`git add` ガード）は対象外として維持。
+  **副作用**: nbstripout が走らなくなったため notebook の出力除去は手動（CLAUDE.md「品質チェック方針」参照）。
+  テストは git 履歴（本コミットの親）から復元できる
+
 ## Open Questions
 
 - 外部スキル（`.agents/skills/`）は commit/tag のピンがなく陳腐化検知はハッシュのみ。更新運用は未整備
@@ -57,6 +65,6 @@ This file tracks context across Claude Code sessions. Update at the end of each 
 
 ## Known Issues
 
-- ty の型チェックは未配線のまま既知の警告が多数（`make typecheck` はあるが CI に含めていない）
+- 自動チェックが一切ないため、lint 崩れ・型エラー・ユーティリティの回帰は人間かエージェントが気づくまで検出されない
 - `docs/official/` のプレースホルダ docs が Home の「最近更新されたドキュメント」に出る（実コンペで init すれば実データに置き換わるため許容）
 - CLAUDE.md は ARS プラグインの scope guard により Edit/Write 不可。ユーザー許可のうえ Bash 経由で更新する運用（本セッションで2回実施）

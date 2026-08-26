@@ -84,11 +84,6 @@ uv sync
 # Web ダッシュボード起動
 make app
 
-# Lint / Format / Test
-make lint
-make format
-make test
-
 # 実験実行
 uv run python -m src.exp001_xxx.train                              # fold0（デフォルト）
 uv run python -m src.exp001_xxx.train run_mode=debug               # デバッグモード
