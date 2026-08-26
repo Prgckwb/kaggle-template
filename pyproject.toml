@@ -31,28 +31,10 @@ tabular = [
 [dependency-groups]
 dev = [
     "jupyter",
-    "ruff",
-    "ty",
-    "pre-commit",
     "fastapi",
     "uvicorn",
     "jinja2",
     "kaggle",
     "markdown",
     "nh3",
-    "pytest",
 ]
-
-[tool.ruff]
-target-version = "py312"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "SIM", "NPY"]
-ignore = ["E501"]  # 行長は formatter に任せる
-
-[tool.ruff.lint.isort]
-known-first-party = ["src", "app", "tools"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
