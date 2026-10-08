@@ -1,87 +1,179 @@
 #!/usr/bin/env python3
-"""PreToolUse hook: 共有作業ツリーと提出枠を守るガード。
+"""PreToolUse hook: 共有作業ツリーと提出枠を守るガード（ガード規則の唯一の正本）。
 
-Bash ツールに渡されたコマンドを検査し、次の 2 種類を実行前に止める。
+止めるもの:
+1. 併走セッションの未コミット作業を巻き込む・消す git 操作
+   （profile の `workflow.concurrent_sessions: true` のとき）
+   - `git add -A` / `--all` / `-u` / `--update` / `.`（パスを明示させる）
+   - `git commit -a` / `--all`
+   - `git stash`（list / show 以外）/ `git reset --hard` / `git checkout -- …` / `git checkout .`
+   - `git restore …`（`--staged` だけのものは許可）/ `git clean -f…`
+2. Kaggle への提出（profile の `workflow.submission_by: user` のとき）
+   - Bash の `kaggle competitions submit`
+   - Kaggle MCP の提出系ツール（submit / submission upload）
 
-1. 併走セッションの未コミット作業を壊す git 操作
-   （`git add -A` / `git add .` / `git commit -a` / `git stash` /
-   `git reset --hard` / `git checkout --`）
-2. Kaggle への提出（提出はユーザーの専管）
+判定はコマンドを引用符の外の `&&` `||` `;` `|` `$(` 改行で区切った**各セグメントの先頭**に対して行う。
+`grep 'git add -A' docs` や `echo`・引用符・ヒアドキュメント本文の中の文字列では発火しない。
+`git -C <path> add -A` のようにサブコマンドの前に挟まるグローバルオプションは吸収する。
 
-判定は `.claude/settings.json` の `permissions.deny` と二重の網になっている。
-deny は宣言的にパターンを弾き、この hook は理由を添えて止める。
-hook 側だけが見られるのは `git -C <path> add -A` のように**グローバルオプションが
-サブコマンドの前に挟まった形**である（deny の glob は先頭一致なので拾えない）。
-逆に hook は fail-open（スクリプトに届かなければ黙って通る）なので、
-deny 側が外側の網として必要になる。どちらも欠かせない。
-
-前提の設定は `docs/competition-profile.yaml` の `workflow` にある。
-`concurrent_sessions: false` なら git 系の規則、`submission_by: agent` なら
-提出の規則をそれぞれ外してよい（理由は `docs/ai-agent-guidelines.md` の「運用の合意」）。
-
-stdin から PreToolUse の payload（JSON）を読み、抵触したときだけ
-`permissionDecision: deny` の JSON を stdout に出す。抵触しなければ何も出さない
-（= 通常の許可フローに委ねる）。判定できない入力では黙って通す
-（hook 自身の失敗でエージェントの作業を止めないため）。
+stdlib のみで動く（hook は system の python3 で実行されるため）。判定できない入力は通す。
+profile が読めない場合は安全側（両方のガードを有効）に倒す。
 """
 
 from __future__ import annotations
 
 import json
 import re
+import shlex
 import sys
+from pathlib import Path
 
-# git のサブコマンドの前に挟まるグローバルオプションを吸収する接頭辞。
-# `git -C <path> add -A` / `git --git-dir=... add .` を素通しさせないため
-# （`/kaggle:harvest-template` は `git -C "$TMPL"` の書き方を教えている）。
-# `-C <path>` のように値が別トークンになる形も 1 要素として食う。
-# 繰り返しは `{0,6}` で打ち切る。`*` にすると `git -a -a -a ...` のような並びで
-# 「値つきオプション」との解釈が二分岐し続けて指数バックトラックし（40 個で 70 秒）、
-# hook がタイムアウト＝fail-open してガードが消える。実運用のグローバルオプションは
-# 高々 1〜2 個なので、上限を付けても判定は変わらない。
-_GIT = r"git\s+(?:(?:-[A-Za-z]|--[A-Za-z][\w-]*)(?:[=\s]+\S+)?\s+){0,6}"
+PROFILE = Path(__file__).resolve().parents[2] / "docs" / "competition-profile.yaml"
 
-# (正規表現, deny の理由) の並び。先に一致したものが採用される。
-RULES: list[tuple[str, str]] = [
-    (
-        # まとめたショートオプション束の中の `A`（--all）と `u`（--update）を拾う。
-        # `-Av` のように後ろに別の文字が続く形は `-A\b` では境界が立たず素通しした。
-        # git add のショートオプションで `A` / `u` を含むのはこの 2 つだけなので、
-        # 文字クラス `[Au]` が他のオプション（-n / -p / -i / -v / -f / -N）を巻き込むことはない。
-        # `git add -u` は `git commit -a` と同じ危険クラス（追跡中の全変更を巻き込む）。
-        _GIT + r"add\s+(-[A-Za-z]*[Au][A-Za-z]*\b|--all\b|--update\b|\.(\s|$))",
-        "git add -A / git add . / git add -u は併走セッションの未コミット作業を"
-        "巻き込みます。コミットしたいパスを明示してください"
-        "（docs/ai-agent-guidelines.md の「運用の合意」）。",
-    ),
-    (
-        # `-a` を含む短オプション束（-a / -am / -va）と `--all`。`--amend` は素通しする。
-        _GIT + r"commit\s+(?:-[^\s]*\s+|--\S+\s+){0,6}(?:-[A-Za-z]*a[A-Za-z]*|--all)\b",
-        "git commit -a / -am は追跡中の全変更を巻き込みます（git add -A と同じ危険）。"
-        "パスを明示して git add してから git commit してください"
-        "（docs/ai-agent-guidelines.md の「運用の合意」）。",
-    ),
-    (
-        _GIT + r"(stash|reset\s+--hard|checkout\s+--)",
-        "この操作は併走セッションの未コミット作業を消します。共有ファイルには打たず、"
-        "必要ならユーザーに確認してください"
-        "（docs/ai-agent-guidelines.md の「併走セッション前提の作業規律」）。",
-    ),
-    (
-        r"kaggle\s+competitions\s+submit",
-        "提出はユーザーの専管です"
-        "（docs/competition-profile.yaml の workflow.submission_by）。"
-        "notebook の commit と出力確認までで止めてください。",
-    ),
-]
+GIT_REASON = (
+    "併走セッションの未コミット作業を巻き込む／消す git 操作です。"
+    "パスを明示して git add するか、必要ならユーザーに確認してください"
+    "（docs/competition-profile.yaml の workflow.concurrent_sessions）。"
+)
+SUBMIT_REASON = (
+    "提出はユーザーの専管です（docs/competition-profile.yaml の workflow.submission_by）。"
+    "notebook の commit と出力確認までで止めてください。"
+)
+SUBMIT_MCP = re.compile(
+    r"^mcp__kaggle__(submit|start_competition_submission|create_.*submission)"
+)
+SEPARATORS = ";&|()`\n"
+HEREDOC = re.compile(r"<<-?\s*(['\"]?)(\w+)\1")
+GIT_OPTS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 
 
-def decide(command: str) -> str | None:
-    """コマンドに抵触する規則があればその理由を返す。無ければ None。"""
-    for pattern, reason in RULES:
-        if re.search(pattern, command):
-            return reason
+def workflow_flags() -> tuple[bool, bool]:
+    """(concurrent_sessions, submission_by_user) を profile から読む（YAML パーサ無しの簡易読み）。"""
+    try:
+        text = PROFILE.read_text()
+    except OSError:
+        return True, True
+    concurrent = re.search(r"^\s*concurrent_sessions:\s*(\w+)", text, re.MULTILINE)
+    submission = re.search(r"^\s*submission_by:\s*(\w+)", text, re.MULTILINE)
+    return (
+        concurrent is None or concurrent.group(1).lower() != "false",
+        submission is None or submission.group(1).lower() != "agent",
+    )
+
+
+def _git_args(tokens: list[str]) -> list[str] | None:
+    """`git [global opts] <sub> args...` なら [<sub>, args...] を返す。"""
+    if not tokens or Path(tokens[0]).name != "git":
+        return None
+    i = 1
+    while i < len(tokens) and tokens[i].startswith("-"):
+        i += 2 if tokens[i] in GIT_OPTS_WITH_VALUE else 1
+    return tokens[i:] or None
+
+
+def _short_flags(args: list[str]) -> str:
+    return "".join(a[1:] for a in args if a.startswith("-") and not a.startswith("--"))
+
+
+def dangerous_git(args: list[str]) -> bool:
+    sub, rest = args[0], args[1:]
+    flags = _short_flags(rest)
+    if sub == "add":
+        return (
+            any(a in ("--all", "--update", ".", "./", ":/") for a in rest)
+            or "A" in flags
+            or "u" in flags
+        )
+    if sub == "commit":
+        return "--all" in rest or "a" in flags
+    if sub == "stash":
+        return not rest or rest[0] not in ("list", "show")
+    if sub == "reset":
+        return "--hard" in rest
+    if sub == "checkout":
+        return "--" in rest or "." in rest
+    if sub == "restore":
+        return (
+            not ("--staged" in rest or "S" in flags)
+            or "--worktree" in rest
+            or "W" in flags
+        )
+    if sub == "clean":
+        return "f" in flags or "--force" in rest
+    return False
+
+
+def is_submit(tokens: list[str]) -> bool:
+    words = [t for t in tokens if not t.startswith("-")]
+    while words and words[0] in ("uv", "run", "uvx", "python", "python3", "-m"):
+        words = words[1:]
+    return words[:3] == ["kaggle", "competitions", "submit"]
+
+
+def _tokenize(command: str) -> list[str]:
+    """引用符を尊重してトークン化し、制御演算子（; & | ( ) ` 改行）を独立トークンにする。"""
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=SEPARATORS)
+    lexer.whitespace = " \t\r"
+    lexer.whitespace_split = True
+    try:
+        return list(lexer)
+    except ValueError:  # 閉じていない引用符など。素朴な分割で判定を続ける
+        return re.split(r"\s+|(?=[;&|()`\n])|(?<=[;&|()`\n])", command)
+
+
+def _strip_heredocs(command: str) -> str:
+    """ヒアドキュメントの本文はコマンドではないので判定対象から外す（本文中の文字列で誤検知させない）。"""
+    lines = command.split("\n")
+    kept: list[str] = []
+    terminator: str | None = None
+    for line in lines:
+        if terminator is not None:
+            if line.strip() == terminator:
+                terminator = None
+            continue
+        kept.append(line)
+        match = HEREDOC.search(line)
+        if match:
+            terminator = match.group(2)
+    return "\n".join(kept)
+
+
+def segments(command: str) -> list[list[str]]:
+    result: list[list[str]] = [[]]
+    for token in _tokenize(_strip_heredocs(command)):
+        if token and set(token) <= set(SEPARATORS):
+            result.append([])
+        elif token:
+            result[-1].append(token)
+    cleaned = []
+    for tokens in result:
+        # 先頭の環境変数代入（FOO=1 cmd）を読み飛ばす
+        while tokens and re.match(r"^\w+=", tokens[0]):
+            tokens = tokens[1:]
+        if tokens:
+            cleaned.append(tokens)
+    return cleaned
+
+
+def decide_bash(command: str, guard_git: bool, guard_submit: bool) -> str | None:
+    for tokens in segments(command):
+        git = _git_args(tokens)
+        if guard_git and git and dangerous_git(git):
+            return GIT_REASON
+        if guard_submit and is_submit(tokens):
+            return SUBMIT_REASON
     return None
+
+
+def decide(payload: dict) -> str | None:
+    guard_git, guard_submit = workflow_flags()
+    tool = payload.get("tool_name", "")
+    if tool.startswith("mcp__kaggle__"):
+        return SUBMIT_REASON if guard_submit and SUBMIT_MCP.match(tool) else None
+    command = (payload.get("tool_input") or {}).get("command")
+    if not isinstance(command, str):
+        return None
+    return decide_bash(command, guard_git, guard_submit)
 
 
 def main() -> int:
@@ -91,29 +183,20 @@ def main() -> int:
         return 0
     if not isinstance(payload, dict):
         return 0
-    tool_input = payload.get("tool_input")
-    if not isinstance(tool_input, dict):
-        return 0
-    command = tool_input.get("command")
-    if not isinstance(command, str):
-        return 0
-
-    reason = decide(command)
-    if reason is None:
-        return 0
-
-    print(
-        json.dumps(
-            {
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "deny",
-                    "permissionDecisionReason": reason,
-                }
-            },
-            ensure_ascii=False,
+    reason = decide(payload)
+    if reason:
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "deny",
+                        "permissionDecisionReason": reason,
+                    }
+                },
+                ensure_ascii=False,
+            )
         )
-    )
     return 0
 
 
