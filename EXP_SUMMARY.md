@@ -1,18 +1,26 @@
+<!-- lifecycle: per-competition -->
+<!--
+書式（このファイルの書式の正本。書き換えるスキル・人はここに従う）
+- Experiments Table: 1 exp 1 行。スコアはその exp の best run（selection.policy と metric.mode で判定）。
+  CV は run_summary.json の oof_score。fold0 しか無い run は val 値に "(f0)" を付け、CV と呼ばない
+  Parent / Vars は best run の run_summary.json の lineage.parent / len(lineage.changed)。
+  Vars が 2 以上なら Key Change を単一の変数名で書かない
+- Experiment Tree: ノード "exp名<br/>Split | CV: x.xxx | LB: x.xxx"、エッジラベル = Key Change（2 変数以上なら "(2 vars)" を併記）。
+  全ノードに class を付ける: best（全実験中の best。太枠）/ good（完了）/ base（ベースライン）/ wip（進行中）/ dead（行き止まり）
+- exp000_sample は exp001 ができたら表とツリーから外す
+- 探索マップは /kaggle:review-strategy、探索バックログとノイズ較正記録は /kaggle:record-result も更新する
+-->
 # Experiments
 
 ## Validation Strategy
 
-> 検証データの作り方をここに記載
->
-> - どのようにデータを分割するか
-> - 学習データとの分布の違い
-> - リークの有無の確認方法
+> 分割方法・fold_version・リークの軸・train/test の分布差（`/kaggle:init` で決める）
 
 ## Experiments Table
 
-| Exp | Name | Split | Key Change | CV | LB |
-|-----|------|-------|------------|----|----|
-| exp000 | sample | - | テンプレート | - | - |
+| Exp | Name | Split | Parent | Vars | Key Change | CV | LB |
+|-----|------|-------|--------|-----:|------------|----|----|
+| exp000 | sample | 5-Fold SKF | - | 0 | テンプレート（合成データ） | - | - |
 
 ## Experiment Tree
 
@@ -29,14 +37,21 @@ graph TD
     class A base
 ```
 
-<!-- Experiment Tree ルール
-- ステータスごとに色分けしたカラフルなツリーにし、進捗・成果を視覚的に即座に判別できるようにする
-- ノード: "exp名<br/>Split | CV: x.xxx | LB: x.xxx"
-- エッジラベル: 前実験からの主な変更点（= Key Change）
-- classDef で色を定義し、全ノードにクラスを割り当てる:
-  - best(緑 #10b981)=全実験中の best（判定は docs/competition-profile.yaml の selection.policy と metric.mode。太枠で強調）
-  - good(青 #3b82f6)=完了
-  - base(灰 #64748b)=ベースライン
-  - wip(黄 #f59e0b、破線)=進行中
-  - dead(赤 #ef4444)=行き詰まり（dead-end）
--->
+## 探索マップ
+
+> `/kaggle:review-strategy` が更新する（最終更新日・アプローチ・チェックリストとカバレッジ・未探索の候補）
+
+## 探索バックログ
+
+| # | アイデア | 種別（exp / run） | 根拠 | 状態 |
+|---|---|---|---|---|
+
+## ノイズ較正記録
+
+profile の `metric.noise` に書いた値の出典。**`seed_spread` が空のまま「棄却」「dead-end」「確定」を書かない**。
+
+| 測った量 | 値 | 測り方（比較した run） |
+|---|---|---|
+| `seed_spread` | | 同一設定・seed のみ変えた run 2 本の差 |
+| `fold0_resolution` | | |
+| `proxy_resolution` | | |

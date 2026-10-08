@@ -9,11 +9,13 @@
 > `docs/experiment-methodology.md`（`invariant`）にある。ここに汎用ルールを書くと
 > 次のコンペのリセットで失われるので、**汎用化できる知見はそちらへ書く**
 > （`/kaggle:record-result` の「知見の routing」フェーズが振り分ける）。
-> 運用方針の詳細は `docs/ai-agent-guidelines.md` を参照。
+> 書き分けの基準は `docs/README.md` の「知見の routing」。
 
 ## 評価関数
 
-<!-- 正しい実装と間違った実装の両方を明記する。例:
+正しい実装は `src/metric.py` の `score()` だけにある（実験ごとに書き直さない）。ここには誤実装の罠を残す。
+
+<!-- 間違いやすい実装を理由付きで書く。例:
 正しい実装:
   sklearn.metrics.root_mean_squared_error(y_true, y_pred)
 間違った実装（過去に2回発生）:

@@ -21,81 +21,32 @@ Group: exp001_baseline/run001-lr2e4_full
 - `fold0` モードでは f0 の run のみ作成。summary run は作成しない
 - `debug` モードでは wandb 自体が disabled
 
-**wandb.init パラメータ**:
+**実装の正本は `src/exp000_sample/train.py`**（ここにコードを複製しない）。押さえるべき約束だけを書く:
 
-```python
-exp_short = cfg.exp_name.split("_")[0]  # "exp001"
-
-# fold run（各 fold の学習用）
-wandb.init(
-    project=cfg.wandb.project,
-    entity=cfg.wandb.entity,
-    group=f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}",
-    name=f"{exp_short}-{cfg.run_name}-f{fold_idx}",
-    # 決定的 id + resume="allow": ジョブが中断され別マシンで再実行されても
-    # 同じ run に続きが記録される（fold ごとに重複 run が増えない）
-    id=f"{exp_short}-{cfg.run_name}-{cfg.run_mode}-f{fold_idx}",
-    resume="allow",
-    job_type="train",
-    # tags でクロスフィルタ（fold 横断・データバージョン横断の比較用）
-    # データバージョン系のキーは未定義でも壊れないように falsy を除外する
-    tags=[
-        t
-        for t in (
-            exp_short,
-            cfg.run_name,
-            f"fold{fold_idx}",
-            cfg.run_mode,
-            # OmegaConf.select は struct モードでも未定義キーで例外を出さず default を返す
-            OmegaConf.select(cfg, "data.fold_version", default=None),   # 例: folds_v1
-            OmegaConf.select(cfg, "data.data_version", default=None),   # 前処理・特徴量のバージョン
-            OmegaConf.select(cfg, "data.label_version", default=None),  # 教師・擬似ラベルのバージョン
-        )
-        if t
-    ],
-    config=OmegaConf.to_container(cfg, resolve=True) | {"fold_idx": fold_idx},
-    mode=run_cfg["wandb_mode"],
-    reinit=True,  # 同一プロセスで複数回 init するために必須
-)
-
-# run テーブルの列を「最後の値」でなく best 値にする + val 系の x 軸を epoch に固定
-wandb.define_metric("epoch")
-wandb.define_metric("val/*", step_metric="epoch")
-wandb.define_metric(f"val/{cfg.metric.name}", step_metric="epoch", summary=cfg.metric.mode)
-wandb.define_metric("val/loss", step_metric="epoch", summary="min")
-
-# summary run（full モード && wandb 有効 && fold≥2 の場合のみ）
-wandb.init(
-    ...,
-    name=f"{exp_short}-{cfg.run_name}-summary",
-    id=f"{exp_short}-{cfg.run_name}-{cfg.run_mode}-summary",
-    resume="allow",
-    job_type="summary",
-)
-wandb.summary["cv/{評価指標名}"] = cv_mean          # fold ごとの best の平均
-wandb.summary["cv/{評価指標名}_std"] = cv_std       # ノイズ幅の把握に使う
-wandb.summary["oof/{評価指標名}"] = oof_score       # OOF pooled（**CV の代表値**）
-wandb.finish()
-```
-
-- `WandbLogger(experiment=wandb.run)` を Trainer に渡し、PL の `self.log()` を現在の fold run に記録
-- **CV の代表値は `oof/{評価指標名}`**（全 fold の予測を pooled して 1 回計算した値）にする。
-  `cv/{評価指標名}` と `cv/{評価指標名}_std` は**ばらつき幅の把握**に使う
+- fold ごとに `wandb.init(group=..., name=..., id=..., job_type="train", tags=..., config=...)` し、
+  Lightning には `WandbLogger(experiment=wandb.run)` と `CSVLogger`（ローカルの `logs/{run_name}/fold{k}/metrics.csv`）を
+  **両方**渡す。`self.log()` が両方に記録されるので、wandb を見られない環境でも曲線が残る
+- `group = "{exp_name}/{run_name}_{run_mode}"`、`name = "{exp番号}-{run_name}-f{k}"`
+- `tags` に `exp番号 / run_name / fold{k} / run_mode` と、設定されていれば
+  `data.fold_version` / `data_version` / `label_version` を入れる（世代跨ぎの比較を後からフィルタで防ぐ）
+- `config` には解決済みの config に加え、`lineage`（`src/utils/lineage.py` が自動計算した親と変えたキー）を入れる
+- `define_metric` で `val/*` の x 軸を `epoch` に固定し、`val/{評価指標名}` の summary を `metric.mode`（max/min）、
+  `val/loss` の summary を min にする（run テーブルの列が「最後の値」ではなく best になる）
+- `debug` は wandb disabled。`fold0` は f0 の run のみ。`full` かつ 2 fold 以上のときだけ summary run を作る
+  （1 fold の値を「CV」として並べない）
+- summary run（`job_type="summary"`、`name = "{exp番号}-{run_name}-summary"`）の `wandb.summary` に
+  `oof/{評価指標名}`・`cv/{評価指標名}`・`cv/{評価指標名}_std`・`fold{i}/best_val_{評価指標名}` を書く。
+  同じ値はローカルの `run_summary.json`（スキーマは `src/utils/run_summary.py`）にも書かれる
+- **CV の代表値は `oof/{評価指標名}`**（全 fold の予測を pooled して `src/metric.py` の `score` で 1 回計算した値）。
+  `cv/{評価指標名}` と `_std`（fold ごとの best の平均と標準偏差）は**ばらつき幅の把握**に使う
   （fold 平均は fold ごとのサンプル数差・指標の非線形性で pooled とずれる）
-- ⚠ **データバージョン系の tag（`fold_version` / `data_version` / `label_version`）を使うなら、
-  `config_schema.py` の `DataConfig` と `config.yaml` の両方にキーを追加する**
-  （片方だけだと起動時に ConfigKeyError になる）。上のスニペットは未定義でも落ちないが、
-  **バージョンを刻まないと世代を跨いだスコア比較を後から検算できない**
-  → `docs/experiment-methodology.md` の「プロキシ指標の分解能」
 - ⚠ **決定的 `id` + `resume="allow"` が安全なのは「同じ試行の継続」だけ**である。
-  中断されたジョブを別マシンで再実行する用途には正しく効くが、
-  **既存 id への resume は同じ history に追記される**ので、設定を変えて焼き直すと
-  捨てた試行の点が残り、`epoch` を x 軸にした `val/*` は x が重複し、
-  `define_metric(..., summary=cfg.metric.mode)` は**両試行を通した best** を拾う。
-  → **設定を変えて仕切り直すときは新しい id を取る**（`...-f{k}-a2` のように attempt を足す）。
+  中断されたジョブを別マシンで再実行する用途には正しく効くが、**既存 id への resume は同じ history に追記される**。
+  設定やコードを変えて焼き直すなら新しい run 名を切る（`docs/training-conventions.md`「exp / run の切り分け」）。
+  同じ run 名でやり直す必要があるときは id に attempt を足す（`...-f{k}-a2`）。
   投入直後に設定を見直す手順は `docs/remote-training-ops.md` の「投入前チェック」
 
-**メトリクスキー名規則**: `{split}/{metric}` 形式で全実験統一し、表記揺れ（`acc` vs `accuracy`、`valid` vs `val`）を避ける。wandb UI は `/` の前でパネルをグルーピングするため、`train` / `val` / `perf` / `time` / `cv` / `oof` の欄に自動整理される。本ドキュメント中の `{評価指標名}` は `docs/competition-profile.yaml` の `metric.name`（`/kaggle:init` で設定。例: `auc`, `f1`, `rmse`）を指す。各実験の config（`metric.name` / `metric.mode`）も同じ値に揃え、以降変更しない。
+**メトリクスキー名規則**: `{split}/{metric}` 形式で全実験統一し、表記揺れ（`acc` vs `accuracy`、`valid` vs `val`）を避ける。wandb UI は `/` の前でパネルをグルーピングするため、`train` / `val` / `perf` / `time` / `cv` / `oof` の欄に自動整理される。本ドキュメント中の `{評価指標名}` は `docs/competition-profile.yaml` の `metric.name`（`/kaggle:init` で設定。例: `auc`, `f1`, `rmse`）を指す。実験 config は `${profile:metric.name}` / `${profile:metric.mode}` で profile を読むので、手で揃える必要はない。
 
 | キー名 | 意味 | 記録場所 |
 |--------|------|----------|
@@ -156,24 +107,10 @@ if torch.cuda.is_available():
 wandb.log(perf_metrics)
 ```
 
-**ライフサイクル**:
-
-```python
-for fold_idx in folds:
-    wandb.init(...)          # fold run 開始
-    trainer.fit(...)         # PL が self.log() → WandbLogger 経由で記録
-    wandb.finish()           # fold run 終了
-
-# full モードのみ
-wandb.init(...)              # summary run 開始
-wandb.summary["cv/{評価指標名}"] = ...
-wandb.finish()               # summary run 終了
-```
-
 **run_mode ごとの挙動**:
 
 | run_mode | wandb_mode | fold 数 | 作成される run | summary run |
 |----------|------------|---------|---------------|-------------|
-| `debug` | disabled | 1 | なし | なし |
+| `debug` | disabled | 1（fold0。出力は `-debug` に隔離） | なし | なし |
 | `fold0` | online | 1 | `...-f0` のみ | なし |
 | `full` | online | N | `...-f0` 〜 `...-f{N-1}` | あり |

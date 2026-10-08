@@ -38,7 +38,7 @@ placeholder の一覧:
 |---|---|---|
 | wandb | メトリクス・config | 実験比較（`docs/wandb-spec.md`） |
 | オブジェクトストレージ `experiments/` | チェックポイント・OOF・ログ | resume・再現・アンサンブル素材 |
-| Kaggle Datasets | 提出に使う最終重みのみ | 推論 notebook から参照（`tools/upload_checkpoints.py`） |
+| Kaggle Datasets | 提出に使う最終重みのみ | 推論 notebook から参照（`uv run python -m tools.upload_checkpoints`） |
 
 7. **前処理の固定費は 1 回だけ払う**。毎 epoch 払う前処理（デコード・並べ替え・QC・正規化）は
    CPU インスタンスで 1 回だけ実行してアーカイブし、バージョン名（`v{NNN}_{短い説明}`）を刻む。

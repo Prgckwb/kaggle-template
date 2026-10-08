@@ -1,89 +1,51 @@
 <!-- lifecycle: invariant -->
 # docs ディレクトリ
 
-このディレクトリはコンペティションに関する情報を整理して管理します。
-
 ## lifecycle 二層
 
-各ドキュメントの 1 行目に lifecycle マーカーがある。
+各ドキュメントの 1 行目に lifecycle マーカーを置く（YAML / Python は `# lifecycle: ...` のコメント形式）。
 
 | マーカー | 意味 |
 |---|---|
-| `<!-- lifecycle: invariant -->` | コンペを跨いで持ち越す。`/kaggle:init` は触らない |
-| `<!-- lifecycle: per-competition -->` | コンペ固有。`/kaggle:init` がテンプレート状態にリセットする |
-
-**YAML ファイルでは HTML コメントが構文エラーになるので、`# lifecycle: per-competition` の
-コメント形式を 1 行目に置く**（例: `docs/competition-profile.yaml`）。
+| `invariant` | コンペを跨いで持ち越す。`/kaggle:init` は触らない |
+| `per-competition` | コンペ固有。`/kaggle:init` がテンプレート状態にリセットする |
 
 | ファイル | lifecycle | 役割 |
 |---|---|---|
-| `README.md`（このファイル） | invariant | docs の地図と lifecycle の規約 |
-| `ai-agent-guidelines.md` | invariant | 人間と AI の分担 + 運用の合意（Working Agreements） |
-| `experiment-methodology.md` | invariant | 効果の帰属・判定の資格・対照群の設計（コンペ非依存の実験作法） |
-| `remote-training-ops.md` | invariant | リモート GPU 学習の運用と監視（herdr 前提） |
-| `wandb-spec.md` | invariant | wandb の k-fold ログ方針 |
-| `experiment-formats.md` | invariant | EXP_SUMMARY の記述フォーマット |
+| `README.md`（このファイル） | invariant | docs の地図・lifecycle・知見の routing |
+| `ai-agent-guidelines.md` | invariant | 人間と AI の分担・運用の合意の理由 |
+| `experiment-methodology.md` | invariant | 効果の帰属・判定の資格・停滞の定義などコンペ非依存の作法 |
+| `remote-training-ops.md` | invariant | リモート GPU 学習の運用と監視 |
+| `wandb-spec.md` | invariant | wandb のログ方針 |
 | `competition-types.md` | invariant | supervised / optimization / simulation の解釈 |
-| `competition-profile.yaml` | per-competition | コンペ固有値の SSOT（`/kaggle:init` が書く） |
-| `training-conventions.md` | per-competition | 学習実験の規約（コンペ固有の穴埋めつき） |
-| `guardrails.md` | per-competition | 評価関数の正誤・既知のバグパターン・やってはいけないこと |
-| `submissions.md` | per-competition | 全提出のログ（SSOT） |
-| `experiment-log.md` | per-competition | 実験台帳（時系列 + 探索バックログ） |
-| `SESSION_NOTES.md` | per-competition | セッション間の引き継ぎメモ |
-| `official/` `discussion/` `insights/` `guides/` | per-competition | 収集物・知見・レポート（マーカー不要） |
+| `competition-profile.yaml` | per-competition | コンペ固有値の SSOT |
+| `training-conventions.md` | per-competition | 学習・出力契約・ckpt・提出 notebook・実行環境の規約 |
+| `guardrails.md` | per-competition | 評価関数の罠・既知のバグ・やってはいけないこと |
+| `submissions.md` | per-competition | 全提出のログ |
+| `SESSION_NOTES.md` | per-competition | セッション間の引き継ぎ |
+| `../EXP_SUMMARY.md` | per-competition | 実験一覧・ツリー・探索マップ・バックログ・ノイズ較正 |
+| `../src/metric.py` | per-competition | 競技指標の実装 |
+| `official/` `discussion/` `insights/` | per-competition | 収集物と知見（マーカー不要） |
 
 **新しいドキュメントを `docs/` 直下に置いたら、マーカーとこの表の行を必ず追加する。**
 
-## ディレクトリ構成
+## 知見の routing（どこに書くか）
 
-### `official/`
+`/kaggle:record-result` と `/kaggle:harvest-template` はこの表だけを基準に振り分ける。
 
-Kaggle 公式から提供される情報を記載します。
+| 知見の種類 | 書く先 | テンプレートへ還流するか |
+|---|---|---|
+| コンペ固有の罠（評価関数の誤実装・データの癖・LB を下げた施策） | `docs/guardrails.md` | しない |
+| コンペ非依存の判定作法・実験設計の教訓 | `docs/experiment-methodology.md` | する |
+| 人間と AI の働き方の合意（理由） | `docs/ai-agent-guidelines.md`（値は profile の `workflow`） | する |
+| 実装上の工夫・ハマりどころ・分析レポート | `docs/insights/YYYY-MM-DD_topic.md` | 汎用部分だけ methodology / training-conventions へ |
+| 学習・推論の規約の追加 | `docs/training-conventions.md` | 穴埋め部分以外はする |
+| テンプレート自体の誤り（docs・スキル・コードの矛盾） | 該当の正本を直す | する |
 
-- コンペティションの概要・ルール
-- 評価指標の詳細
-- データの説明
-- 制約事項
+## ディレクトリ
 
-**例**: `overview.md`, `data.md`
-
-### `discussion/`
-
-外部から収集した情報を記載します（Kaggle Discussion のほか、`kaggle-researcher` エージェントによる論文・過去解法サーベイの成果物もここに置く）。
-
-- 他の参加者からの知見・Tips
-- 有用なコード片やアプローチ
-- バグ報告や注意点
-- データに関する追加情報
-- 論文・外部資料のサーベイ結果
-
-**命名規則**: `YYYY-MM-DD_topic.md`
-
-### `guides/`
-
-ダッシュボードの **Knowledge → Guides** に自動表示されるガイド・分析レポート置き場（1ガイド = 1ディレクトリ、`guide.json` + `index.html`）。評価指標の解説、EDA レポート、OOF エラー分析、リプレイビューア等の「HTML で見やすく表示して見返したいもの」はすべてここに置く。`/kaggle:create-guide` で作成できる。規約は `guides/README.md`。
-
-### `guardrails.md`
-
-コンペ進行中に発見した評価関数の正誤・既知のバグパターン・「やってはいけないこと」を蓄積するファイル。AI エージェントは実験の実装・修正・提案の前に必ず参照する。`/kaggle:init` がテンプレート状態にリセットする。運用方針は `ai-agent-guidelines.md` を参照。
-
-### `submissions.md`
-
-提出履歴の Single Source of Truth。すべての提出（日付・Exp/Run・ファイル・CV・Public LB・提出理由）を1行ずつ記録する。CV-LB 相関分析と終盤の final submission 選定の元データ。`/kaggle:record-result` が LB 記録時に追記する。
-
-### `ai-agent-guidelines.md`
-
-AI エージェント運用の詳細ガイド（人間と AI の役割分担、失敗履歴の読ませ方、ガードレール運用）。CLAUDE.md の「AI エージェントへの注意」を補完する。
-
-### `insights/`
-
-自分の実験から得られた知見を記載します。
-
-- 実験結果の考察
-- 失敗した試みとその理由
-- 有効だったテクニック
-- 今後試すべきアイデア
-
-**命名規則**: `YYYY-MM-DD_topic.md`
-
-**自動生成されるもの**: `past_solutions_{competition_slug}.md` は `/kaggle:past-solutions` スキルが Kaggle MCP（or `kaggle` パッケージによるフォールバック）経由で類似過去コンペの上位解法を収集して生成する。新コンペ開始時の初期仮説づくりに使う。
+- `official/`: Kaggle 公式の情報（概要・ルール・評価指標・データ説明・制約）。例: `overview.md`, `data.md`
+- `discussion/`: 外部から集めた情報（Discussion・公開 notebook・論文サーベイ。`kaggle-researcher` の成果物もここ）。
+  命名 `YYYY-MM-DD_topic.md`
+- `insights/`: 自分の実験・分析から得た知見とレポート（`kaggle-analyst` の成果物もここ。画像は `insights/assets/`）。
+  命名 `YYYY-MM-DD_topic.md`。例外: `/kaggle:past-solutions` が作る `past_solutions_{slug}.md`

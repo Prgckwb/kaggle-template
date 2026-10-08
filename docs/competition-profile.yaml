@@ -9,15 +9,15 @@
 # まずこのファイルを参照すること。
 #
 # 参照するもの:
-#   - app/config.py（ダッシュボードの COMPETITION_ID）
-#   - .claude/skills/*（best run 判定・停滞検出のメトリクス方向など）
-#   - CLAUDE.md（規約中の {評価指標名} はこのファイルの metric.name を指す）
-#   - .claude/skills/kaggle-*（workflow の既定値と metric.noise を判定に使う）
+#   - 実験 config（${profile:metric.name} / ${profile:metric.mode} / ${profile:wandb.project}。src/utils/profile.py）
+#   - tools/*（competition.slug・metric.mode）
+#   - .claude/hooks/guard.py（workflow.concurrent_sessions / submission_by でガードを有効化）
+#   - スキル（best 判定・停滞判定に metric と noise、既定の振る舞いに workflow を使う）
 
 competition:
   name: ""            # 正式名称（例: "Spaceship Titanic"）
   slug: ""            # Kaggle の competition slug（例: spaceship-titanic）
-  abbreviation: ""    # サイドバー表示等に使う短い略称（例: SpaceTitanic）
+  abbreviation: ""    # 短い略称（wandb project 名に使う。例: SpaceTitanic）
   url: ""             # https://www.kaggle.com/competitions/{slug}
   type: supervised    # supervised | optimization | simulation
   # 最終提出締切（YYYY-MM-DD）。/kaggle:review-strategy が残り時間に応じて
@@ -37,7 +37,7 @@ metric:
   # 判定の分解能。同一設定・seed のみ変更した run 2 本で実測して書き込む。
   # seed_spread が null の間は「棄却」「dead-end」「確定」を宣言してはいけない
   # （docs/experiment-methodology.md「判定の資格」）。判定時は必ず「差 / seed_spread」を併記する。
-  # 測った経緯は docs/experiment-log.md の「ノイズの較正記録」に残す。
+  # 測った経緯は EXP_SUMMARY.md の「ノイズ較正記録」に残す。
   noise:
     seed_spread: null        # 単一 fold の seed 揺れ（実測値）
     fold0_resolution: null   # 単一 fold で判定可能な最小 Δ の目安

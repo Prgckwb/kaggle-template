@@ -3,7 +3,7 @@
 
 > 提出履歴の Single Source of Truth。**すべての提出を1行ずつ記録する**（実験単位の best しか残らない EXP_SUMMARY.md とは役割が異なる）。
 > CV-LB 相関分析（`kaggle-analyst`）と終盤の final submission 選定はこのテーブルを元データにする。
-> LB 取得には `uv run python tools/check_submission.py` が使える（読み取り専用）。
+> LB 取得には `uv run python -m tools.check_submission` が使える（読み取り専用）。
 > `/kaggle:record-result` が LB スコアを記録する際にこのファイルにも追記する。
 > **記録は推測しない。** notebook が出力する `submission_manifest.json` を
 > `/kaggle:record-result` が読んで追記する（`src/utils/submission_manifest.py`）。
