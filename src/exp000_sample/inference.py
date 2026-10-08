@@ -1,7 +1,9 @@
-"""Inference script.
+"""推論スクリプト: 各 fold の best ckpt でテストを推論し、平均して submission.csv を書く。
 
-Loads trained checkpoints and generates submission.csv.
-Run: uv run python -m src.exp000_sample.inference
+Run: uv run python -m src.exp000_sample.inference [run_mode=debug] [--config-name=run001-xxx]
+- 対象 fold は学習時の run_summary.json に記録された fold（fold0 の run なら fold0 だけ）
+- run_mode=debug は *-debug の出力を読み、先頭数行だけ推論して形式を確認する
+提出 notebook はこのファイルを自己完結に書き直したもの（/kaggle:create-inference-notebook）。
 """
 
 from __future__ import annotations
@@ -9,88 +11,80 @@ from __future__ import annotations
 from pathlib import Path
 
 import hydra
+import lightning as L
 import pandas as pd
+import torch
 from omegaconf import DictConfig
 
-from src.exp000_sample.config_schema import register_config_schema
+from src.exp000_sample.data import feature_columns, make_loader, preprocess
+from src.exp000_sample.model import TabularMLP
+from src.utils.checkpoint import select_best_ckpt
+from src.utils.profile import register_profile_resolver
+from src.utils.run_summary import read_run_summary
 from src.utils.seeding import seed_everything
 from src.utils.submission import validate_submission
-from src.utils.submission_manifest import parse_ckpt_name
+from src.utils.submission_manifest import (
+    build_manifest,
+    describe_manifest,
+    write_manifest,
+)
 
-register_config_schema()
-
-
-def select_best_ckpt(fold_dir: Path, mode: str) -> Path:
-    """fold ディレクトリから best の ckpt を 1 つ選ぶ。
-
-    ckpt 名は `{exp番号}-{run_name}-f{k}[-ep{NN}][-val_{評価指標名}-{score}].ckpt`
-    （`docs/training-conventions.md`）。スコアを含む名前だけを候補にし、
-    `cfg.metric.mode`（max/min）に従って選ぶ。スコアは負にもなり得る（R2・相関係数）。
-
-    ⚠ `next(fold_dir.glob("*.ckpt"))` で任意の 1 個を読んではいけない。
-    `save_top_k` が 2 以上なら best 以外を掴み、「best という名前の非 best」で提出することになる。
-
-    Raises:
-        FileNotFoundError: ckpt が 1 つも無い。
-        RuntimeError: 規約どおりに解析できスコアを持つ ckpt が 1 つも無い
-            （黙って任意の 1 個を選ばず、命名を直すよう促す）。
-    """
-    ckpts = sorted(fold_dir.glob("*.ckpt"))
-    if not ckpts:
-        raise FileNotFoundError(f"ckpt が見つかりません: {fold_dir}")
-
-    scored = [
-        (ref.score, path)
-        for path in ckpts
-        if (ref := parse_ckpt_name(path.name)) and ref.score is not None
-    ]
-    if not scored:
-        names = ", ".join(p.name for p in ckpts)
-        raise RuntimeError(
-            f"スコア入りの ckpt 名が {fold_dir} にありません（見つかったのは {names}）。"
-            "docs/training-conventions.md の命名規約に合わせてから再実行してください。"
-        )
-
-    pick = max if mode == "max" else min
-    return pick(scored, key=lambda item: item[0])[1]
+register_profile_resolver()
 
 
 @hydra.main(version_base=None, config_path="config", config_name="config")
 def main(cfg: DictConfig) -> None:
     seed_everything(cfg.seed)
-    output_dir = Path(cfg.output_dir)
-    sample_sub_path = Path(cfg.data.sample_submission_path)
+    debug = cfg.run_mode == "debug"
+    suffix = "-debug" if debug else ""
+    output_dir = Path(f"{cfg.output_dir}{suffix}")
+    summary = read_run_summary(Path(f"{cfg.logs_dir}{suffix}") / "run_summary.json")
+    folds = [int(k) for k in summary["fold_scores"]]
 
-    sample_sub = pd.read_csv(sample_sub_path)
+    test_df = preprocess(pd.read_csv(cfg.data.test_path), cfg)
+    sample_sub = pd.read_csv(cfg.data.sample_submission_path)
+    if debug:
+        test_df = test_df.head(cfg.debug.samples)
+        sample_sub = sample_sub.head(cfg.debug.samples)
+    loader = make_loader(
+        test_df, cfg, features=feature_columns(test_df, cfg), train=False
+    )
 
-    # TODO: Load model checkpoints per fold and average predictions
-    # Example for fold-ensemble:
-    #
-    # predictions = []
-    # for fold_idx in range(cfg.data.n_folds):
-    #     fold_dir = output_dir / f"fold{fold_idx}"
-    #     ckpt_path = select_best_ckpt(fold_dir, cfg.metric.mode)
-    #     model = BaselineModel.load_from_checkpoint(ckpt_path)
-    #     model.eval()
-    #     preds = model.predict(test_dataloader)
-    #     predictions.append(preds)
-    #
-    # final_preds = np.mean(predictions, axis=0)
+    trainer = L.Trainer(accelerator="auto", logger=False, enable_progress_bar=False)
+    ckpts, fold_preds = [], []
+    for fold_idx in folds:
+        ckpt = select_best_ckpt(output_dir / f"fold{fold_idx}", cfg.metric.mode)
+        model = TabularMLP.load_from_checkpoint(ckpt)
+        fold_preds.append(torch.cat(trainer.predict(model, loader)).float().numpy())
+        ckpts.append(ckpt)
+        print(f"fold{fold_idx}: {ckpt.name}")
 
     submission = sample_sub.copy()
-    # TODO: Fill in predictions
-    # submission["target"] = final_preds
-
+    submission[cfg.data.target_col] = sum(fold_preds) / len(fold_preds)
     submission_path = output_dir / "submission.csv"
     submission.to_csv(submission_path, index=False)
 
-    errors = validate_submission(submission_path, sample_sub_path)
+    manifest = build_manifest(
+        ckpts,
+        notebook=f"{cfg.exp_name}/inference.py",
+        notebook_version=0,
+        code_sha=summary["git_sha"],
+        exp_names={cfg.exp_name.split("_")[0]: cfg.exp_name},
+    )
+    write_manifest(manifest, output_dir / "submission_manifest.json")
+
+    if debug:
+        print(
+            f"debug: {len(submission)} 行だけ推論しました（形式確認のみ）: {submission_path}"
+        )
+        return
+    errors = validate_submission(submission_path, cfg.data.sample_submission_path)
     if errors:
-        print("Submission validation errors:")
-        for e in errors:
-            print(f"  - {e}")
-    else:
-        print(f"Submission saved to {submission_path} (validated OK)")
+        raise SystemExit(
+            "Submission validation errors:\n" + "\n".join(f"  - {e}" for e in errors)
+        )
+    print(f"Submission saved: {submission_path} (validated OK)")
+    print(f"description: {describe_manifest(manifest)}")
 
 
 if __name__ == "__main__":

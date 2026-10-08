@@ -3,9 +3,9 @@
 読み取り専用（提出は行わない）。提出直後に実行してスコア確定を待つ用途。
 
 Usage:
-    uv run python tools/check_submission.py                # profile の slug を使用
-    uv run python tools/check_submission.py -c titanic     # コンペを明示指定
-    uv run python tools/check_submission.py -i 30          # ポーリング間隔 30 秒
+    uv run python -m tools.check_submission                # profile の slug を使用
+    uv run python -m tools.check_submission -c titanic     # コンペを明示指定
+    uv run python -m tools.check_submission -i 30          # ポーリング間隔 30 秒
 """
 
 from __future__ import annotations
@@ -13,23 +13,8 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-from pathlib import Path
 
-import yaml
-
-PROFILE_PATH = (
-    Path(__file__).resolve().parent.parent / "docs" / "competition-profile.yaml"
-)
-
-
-def default_competition() -> str | None:
-    """docs/competition-profile.yaml から competition.slug を読む。"""
-    if not PROFILE_PATH.exists():
-        return None
-    with open(PROFILE_PATH) as f:
-        profile = yaml.safe_load(f) or {}
-    slug = (profile.get("competition") or {}).get("slug") or ""
-    return slug or None
+from src.utils.profile import profile_value
 
 
 def latest_submission(api, competition: str):
@@ -60,7 +45,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    competition = args.competition or default_competition()
+    competition = args.competition or profile_value("competition.slug")
     if not competition:
         print(
             "コンペの slug が未指定です。-c で指定するか、"

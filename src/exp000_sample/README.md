@@ -2,38 +2,42 @@
 
 ## 目的
 
-サンプル実験。テンプレートとして、実験ディレクトリの構成と README のフォーマットを示す。
+テンプレートのサンプル実験。`docs/training-conventions.md` の規約（共有 fold・ckpt 命名・出力契約・
+`run_summary.json`・manifest）どおりに動く最小パイプラインを示す。合成データ（二値分類）を MLP で学習する。
 
 ## 仮説
 
 （実験開始時に記載する）
 
-> 例: XXX のアプローチにより、ベースラインの CV スコアが Y% 改善すると考える。
+> 例: XXX により、親 run の OOF スコアが meaningful_delta 以上改善すると考える。根拠: …
 
 ## 手法
 
-- データ: `input/train.csv`, `input/test.csv`
-- モデル: BaselineModel（テンプレート）
-- 学習: Hydra + Wandb で管理
+- データ: `uv run python -m src.exp000_sample.make_synthetic` が `sandbox/synthetic/` に作る合成データ
+- fold: `sandbox/synthetic/folds_v1.csv`（5-Fold Stratified。実コンペでは `data/folds/`）
+- モデル: `TabularMLP`（Lightning。`model.py`）
+- 指標: `src/metric.py:score()`
+
+```mermaid
+graph LR
+    X["特徴量 f0..f7"] --> L1["Linear(8→hidden)"] --> R["ReLU + Dropout"] --> L2["Linear(hidden→1)"] --> S["sigmoid"]
+```
 
 ## 結果
 
 | Metric | Value |
 |--------|-------|
-| Split  | -     |
-| CV     | -     |
-| LB     | -     |
-
-（実験完了時に記載する）
+| Split  | 5-Fold SKF (v1) |
+| CV (oof_score) | - |
+| LB     | - |
 
 ## Runs
 
-| Run | Key Change | CV | LB |
-|-----|-----------|----|----|
-| run000-base | ベースライン | - | - |
+| Run | Parent | Changed | Key Change | CV | LB | Command |
+|-----|--------|---------|-----------|----|----|---------|
+| run000-base | - | - | ベースライン | - | - | `uv run python -m src.exp000_sample.train run_mode=full` |
+| run001-wider | config | model.hidden_dim | 隠れ層 64→256 | - | - | `uv run python -m src.exp000_sample.train --config-name=run001-wider` |
 
 ## 考察
 
 （実験完了時に記載する）
-
-> 結果に対する分析、次の実験への示唆を記述する。

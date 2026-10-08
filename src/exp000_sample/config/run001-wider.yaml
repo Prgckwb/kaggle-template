@@ -1,0 +1,10 @@
+# 小実験: 親（defaults の先頭）から変えたキーだけを書く。
+# 親と変えたキーは src/utils/lineage.py が自動計算して run_summary.json / wandb に記録する。
+# 1 run = 1 変数。2 つ以上変えた run の Δ は単一の変数に帰属できない。
+defaults:
+  - config
+
+run_name: run001-wider
+
+model:
+  hidden_dim: 256

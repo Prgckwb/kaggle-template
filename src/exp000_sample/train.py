@@ -1,286 +1,257 @@
+"""学習スクリプト（実験の出力契約は docs/training-conventions.md）。
+
+Run: uv run python -m src.exp000_sample.train [run_mode=debug|fold0|full] [--config-name=run001-xxx]
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 import hydra
-
-# import numpy as np
-# import pandas as pd
+import lightning as L
+import pandas as pd
+import torch
 import wandb
 from hydra.core.hydra_config import HydraConfig
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers import CSVLogger, WandbLogger
 from omegaconf import DictConfig, OmegaConf
 
-from src.exp000_sample.config_schema import register_config_schema
-from src.utils.logger import get_logger, resolve_logs_dir
-from src.utils.metrics_logger import MetricsLogger
+from src.exp000_sample.data import feature_columns, make_loader, preprocess
+from src.exp000_sample.model import TabularMLP
+from src.metric import score
+from src.utils.cv import load_or_create_folds
+from src.utils.lineage import run_lineage
+from src.utils.logger import get_logger
+from src.utils.profile import register_profile_resolver
+from src.utils.run_summary import build_run_summary, write_run_summary
 from src.utils.seeding import seed_everything
 
-register_config_schema()
+register_profile_resolver()
+CONFIG_DIR = Path(__file__).parent / "config"
 
 
-def resolve_run_config(cfg: DictConfig) -> dict:
-    """run_mode に応じて実行パラメータを決定する。"""
-    mode = cfg.run_mode
-    if mode == "debug":
+def mode_settings(cfg: DictConfig) -> dict[str, Any]:
+    """run_mode ごとの実行パラメータ。debug は出力先を *-debug に隔離し本番の出力を上書きしない。"""
+    if cfg.run_mode == "debug":
         return {
             "epochs": cfg.debug.epochs,
-            "n_folds": cfg.debug.n_folds,
             "max_samples": cfg.debug.samples,
             "limit_train_batches": cfg.debug.limit_train_batches,
             "limit_val_batches": cfg.debug.limit_val_batches,
             "wandb_mode": "disabled",
-            "folds_to_run": [0],
+            "folds": [0],
+            "suffix": "-debug",
         }
-    elif mode == "fold0":
+    if cfg.run_mode in ("fold0", "full"):
         return {
             "epochs": cfg.training.epochs,
-            "n_folds": cfg.data.n_folds,
             "max_samples": None,
             "limit_train_batches": 1.0,
             "limit_val_batches": 1.0,
             "wandb_mode": cfg.wandb.mode,
-            "folds_to_run": [0],
+            "folds": [0] if cfg.run_mode == "fold0" else list(range(cfg.data.n_folds)),
+            "suffix": "",
         }
-    elif mode == "full":
-        return {
-            "epochs": cfg.training.epochs,
-            "n_folds": cfg.data.n_folds,
-            "max_samples": None,
-            "limit_train_batches": 1.0,
-            "limit_val_batches": 1.0,
-            "wandb_mode": cfg.wandb.mode,
-            "folds_to_run": list(range(cfg.data.n_folds)),
-        }
-    else:
-        raise ValueError(f"Unknown run_mode: {mode}")
+    raise ValueError(f"Unknown run_mode: {cfg.run_mode}")
 
 
 @hydra.main(version_base=None, config_path="config", config_name="config")
 def main(cfg: DictConfig) -> None:
+    started_at = datetime.now(UTC).isoformat()
+    mode = mode_settings(cfg)
+    output_dir = Path(f"{cfg.output_dir}{mode['suffix']}")
+    logs_dir = Path(f"{cfg.logs_dir}{mode['suffix']}")
+    logger = get_logger(cfg.exp_name, logs_dir)
     seed_everything(cfg.seed)
-    run_cfg = resolve_run_config(cfg)
-    output_dir = Path(cfg.output_dir)
 
-    # 実行ログ（進捗・警告）は logs_dir にタイムスタンプ付きで保存される
-    logger = get_logger(cfg.exp_name, resolve_logs_dir(cfg.logs_dir, cfg.run_mode))
-
-    # 評価指標（config.yaml の metric セクション。docs/competition-profile.yaml と揃える）
-    metric_name = cfg.metric.name
-    metric_mode = cfg.metric.mode  # "max" | "min"
-    metric_key = (
-        f"val/{metric_name}"  # wandb / MetricsLogger のキー名（{split}/{metric} 形式）
-    )
-
-    logger.info("Experiment: %s", cfg.exp_name)
-    logger.info("Run: %s", cfg.run_name)
-    logger.info("Run mode: %s", cfg.run_mode)
-    logger.info("Config:\n%s", OmegaConf.to_yaml(cfg))
-
-    # wandb group name（全 fold を束ねるキー）
-    group_name = f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}"
+    metric_key = f"val/{cfg.metric.name}"
     exp_short = cfg.exp_name.split("_")[0]  # "exp000_sample" -> "exp000"
+    overrides = list(HydraConfig.get().overrides.task)
+    lineage = run_lineage(CONFIG_DIR, HydraConfig.get().job.config_name, overrides)
+    if len(lineage["changed"]) >= 2:
+        logger.warning(
+            "親 %s から %d 変数を変えています %s。この run の Δ は単一の変数に帰属できません",
+            lineage["parent"],
+            len(lineage["changed"]),
+            lineage["changed"],
+        )
+    logger.info(
+        "Run %s/%s (%s) lineage=%s", cfg.exp_name, cfg.run_name, cfg.run_mode, lineage
+    )
+    logger.info("Config:\n%s", OmegaConf.to_yaml(cfg, resolve=True))
+
+    # fold は全行に対して共有ファイルから割り当ててから間引く（debug でも fold の定義を変えない）
+    df = preprocess(pd.read_csv(cfg.data.train_path), cfg)
+    df["fold"] = load_or_create_folds(
+        df,
+        path=cfg.data.folds_path,
+        id_col=cfg.data.id_col,
+        n_folds=cfg.data.n_folds,
+        strategy=cfg.data.cv_strategy,
+        target_col=cfg.data.target_col,
+        group_col=cfg.data.group_col,
+        seed=cfg.seed,
+    )
+    if mode["max_samples"]:
+        df = df.sample(n=min(mode["max_samples"], len(df)), random_state=cfg.seed)
+        df = df.reset_index(drop=True)
+    features = feature_columns(df.drop(columns="fold"), cfg)
+
     wandb_config = cast(dict[str, Any], OmegaConf.to_container(cfg, resolve=True))
-    # CLI オーバーライド（例: "training.lr=5e-4, run_mode=full"）を wandb の
-    # notes に記録し、run 一覧で「何を変えたか」を一目でわかるようにする
-    wandb_notes = ", ".join(HydraConfig.get().overrides.task) or None
-
-    # Initialize local metrics logger
-    metrics_logger = MetricsLogger(cfg)
-
-    # TODO: Load data
-    # 行を絞ったら必ず reset_index(drop=True) すること（fold 割り当ては位置ベース）
-    # df = pd.read_csv(cfg.data.train_path)
-    # if run_cfg["max_samples"]:
-    #     df = df.head(run_cfg["max_samples"]).reset_index(drop=True)
-
-    # TODO: Create folds (e.g., StratifiedKFold)
-    # from sklearn.model_selection import StratifiedKFold
-    # skf = StratifiedKFold(n_splits=run_cfg["n_folds"], shuffle=True, random_state=cfg.seed)
+    wandb_config["lineage"] = lineage
+    group = f"{cfg.exp_name}/{cfg.run_name}_{cfg.run_mode}"
+    tags = [
+        t
+        for t in (
+            exp_short,
+            cfg.run_name,
+            cfg.run_mode,
+            cfg.data.fold_version,
+            cfg.data.data_version,
+            cfg.data.label_version,
+        )
+        if t
+    ]
 
     fold_scores: dict[int, float] = {}
+    oof_parts: list[pd.DataFrame] = []
+    for fold_idx in mode["folds"]:
+        logger.info("===== Fold %d =====", fold_idx)
+        train_df = df[df["fold"] != fold_idx].reset_index(drop=True)
+        val_df = df[df["fold"] == fold_idx].reset_index(drop=True)
+        logger.info("train=%d val=%d", len(train_df), len(val_df))
+        fold_dir = output_dir / f"fold{fold_idx}"
+        fold_dir.mkdir(parents=True, exist_ok=True)
+        val_df[[cfg.data.id_col]].to_csv(fold_dir / "val_ids.csv", index=False)
 
-    for fold_idx in run_cfg["folds_to_run"]:
-        logger.info("=" * 50)
-        logger.info("Fold %d", fold_idx)
-        logger.info("=" * 50)
-
-        # Initialize wandb fold run
-        wandb.init(
+        # 決定的 id + resume="allow" は「同じ試行の継続」用。設定を変えたら新しい run_name を切る
+        run = wandb.init(
             project=cfg.wandb.project,
             entity=cfg.wandb.entity,
-            group=group_name,
+            group=group,
             name=f"{exp_short}-{cfg.run_name}-f{fold_idx}",
-            # 決定的 id + resume="allow": 中断しても別マシンで同じ run に続きが記録される。
-            # ⚠ 設定を変えて仕切り直すときは新しい id を取る（docs/wandb-spec.md 参照）
             id=f"{exp_short}-{cfg.run_name}-{cfg.run_mode}-f{fold_idx}",
             resume="allow",
             job_type="train",
-            config=wandb_config,
-            notes=wandb_notes,
-            tags=[
-                t
-                for t in (
-                    exp_short,
-                    cfg.run_name,
-                    f"fold{fold_idx}",
-                    cfg.run_mode,
-                    cfg.data.fold_version,
-                    cfg.data.data_version,
-                    cfg.data.label_version,
-                )
-                if t
+            config=wandb_config | {"fold_idx": fold_idx},
+            notes=", ".join(overrides) or None,
+            tags=[*tags, f"fold{fold_idx}"],
+            mode=mode["wandb_mode"],
+            reinit="finish_previous",
+        )
+        run.define_metric(metric_key, summary=cfg.metric.mode)
+        run.define_metric("val/loss", summary="min")
+
+        checkpoint = ModelCheckpoint(
+            dirpath=fold_dir,
+            # 命名規約は docs/training-conventions.md「チェックポイント」（submission_manifest がパースする）
+            filename=f"{exp_short}-{cfg.run_name}-f{fold_idx}-ep{{epoch:02d}}"
+            f"-val_{cfg.metric.name}-{{{metric_key}:.4f}}",
+            auto_insert_metric_name=False,
+            monitor=metric_key,
+            mode=cfg.metric.mode,
+            save_top_k=cfg.training.save_top_k,
+        )
+        model = TabularMLP(
+            n_features=len(features),
+            hidden_dim=cfg.model.hidden_dim,
+            dropout=cfg.model.dropout,
+            lr=cfg.training.lr,
+            metric_key=metric_key,
+        )
+        trainer = L.Trainer(
+            max_epochs=mode["epochs"],
+            accelerator="auto",
+            limit_train_batches=mode["limit_train_batches"],
+            limit_val_batches=mode["limit_val_batches"],
+            callbacks=[checkpoint],
+            logger=[
+                WandbLogger(experiment=run),
+                CSVLogger(save_dir=logs_dir, name=f"fold{fold_idx}", version=""),
             ],
-            mode=run_cfg["wandb_mode"],
-            reinit=True,
+            log_every_n_steps=10,
         )
-        # run テーブルの列を「最後の値」ではなく best にし、val 系の x 軸を epoch に固定する
-        wandb.define_metric("epoch")
-        wandb.define_metric("val/*", step_metric="epoch")
-        wandb.define_metric(
-            f"val/{metric_name}", step_metric="epoch", summary=cfg.metric.mode
+        val_loader = make_loader(val_df, cfg, features=features, train=False)
+        trainer.fit(
+            model, make_loader(train_df, cfg, features=features, train=True), val_loader
         )
-        wandb.define_metric("val/loss", step_metric="epoch", summary="min")
 
-        fold_dir = output_dir / f"fold{fold_idx}"
-        fold_dir.mkdir(parents=True, exist_ok=True)
-
-        # TODO: Split data into train/val for this fold
-        # train_idx, val_idx = list(skf.split(df, df["target"]))[fold_idx]
-        # train_df = df.iloc[train_idx]
-        # val_df = df.iloc[val_idx]
-
-        # Save train/val split for reproducibility
-        # train_df[["id"]].to_csv(fold_dir / "train.csv", index=False)
-        # val_df[["id"]].to_csv(fold_dir / "val.csv", index=False)
-
-        # TODO: Create DataLoaders
-        # TODO: Create model
-        # TODO: Create PyTorch Lightning Trainer with ModelCheckpoint
-        #
-        # チェックポイント名は docs/training-conventions.md の規約
-        #   {exp番号}-{run_name}-f{k}[-ep{NN}][-val_{評価指標名}-{score}].ckpt
-        # に従う（src/utils/submission_manifest.py がこの形をパースして提出構成を復元する）。
-        # ⚠ メトリクス名とスコアの区切りの "-" は必須（区切りが無いと f1 のような
-        #    数字入りメトリクス名でスコアの境界が決まらず、静かに誤った値になる）。
-        # ⚠ "=" は使わない（Kaggle がファイル名の "=" を除去することがあり、
-        #    Dataset 経由の重み配布が壊れる）。
-        # monitor には学習ループで log しているキー（metric_key = "val/{metric}"）を渡すこと。
-        # キーに "/" を含むため auto_insert_metric_name=False が必須。
-        #
-        # from lightning.pytorch.callbacks import ModelCheckpoint
-        # checkpoint_callback = ModelCheckpoint(
-        #     dirpath=str(fold_dir),
-        #     filename=(
-        #         f"{exp_short}-{cfg.run_name}-f{fold_idx}"
-        #         f"-ep{{epoch:02d}}-val_{metric_name}-{{{metric_key}:.4f}}"
-        #     ),
-        #     auto_insert_metric_name=False,
-        #     monitor=metric_key,
-        #     mode=metric_mode,
-        #     save_top_k=1,
-        # )
-        #
-        # trainer = pl.Trainer(
-        #     max_epochs=run_cfg["epochs"],
-        #     accelerator="auto",
-        #     limit_train_batches=run_cfg["limit_train_batches"],
-        #     limit_val_batches=run_cfg["limit_val_batches"],
-        #     callbacks=[checkpoint_callback],
-        #     logger=WandbLogger(experiment=wandb.run),
-        # )
-        #
-        # trainer.fit(model, train_dataloader, val_dataloader)
-
-        # TODO: Collect OOF predictions for this fold
-        # oof_predictions.append(val_predictions_df)
-
-        # Example: simulate training loop
-        # メトリクスの向き（metric_mode）に応じて best を更新する
-        best_score = float("-inf") if metric_mode == "max" else float("inf")
-        for epoch in range(run_cfg["epochs"]):
-            train_loss = 1.0 / (epoch + 1)
-            val_score = 1.1 / (epoch + 1)  # サンプルではダミー損失をスコアとして扱う
-            if metric_mode == "max":
-                best_score = max(best_score, val_score)
-            else:
-                best_score = min(best_score, val_score)
-
-            epoch_metrics = {
-                "epoch": epoch,
-                "train/loss": train_loss,
-                metric_key: val_score,
-            }
-            wandb.log(epoch_metrics)
-            metrics_logger.log_epoch(fold_idx, epoch_metrics)
-
-            logger.info(
-                "  Epoch %d: train_loss=%.4f, %s=%.4f",
-                epoch,
-                train_loss,
-                metric_key,
-                val_score,
+        # best ckpt で val 全体を推論し直し、競技指標を再計算する（ログの値は limit_val_batches の影響を受ける）
+        best = TabularMLP.load_from_checkpoint(checkpoint.best_model_path)
+        preds = torch.cat(trainer.predict(best, val_loader)).float().numpy()
+        fold_scores[fold_idx] = score(val_df[cfg.data.target_col].to_numpy(), preds)
+        logger.info(
+            "Fold %d score=%.5f best=%s",
+            fold_idx,
+            fold_scores[fold_idx],
+            checkpoint.best_model_path,
+        )
+        run.summary[f"best_{metric_key}"] = fold_scores[fold_idx]
+        oof_parts.append(
+            pd.DataFrame(
+                {cfg.data.id_col: val_df[cfg.data.id_col], cfg.data.target_col: preds}
             )
+        )
+        run.finish()
 
-        fold_scores[fold_idx] = best_score
-        wandb.finish()
+    # OOF と CV の代表値（oof_score）は全 fold を回したときだけ。fold0 の値を CV と呼ばない
+    oof_score = None
+    if cfg.run_mode == "full":
+        oof = pd.concat(oof_parts, ignore_index=True)
+        oof.to_csv(output_dir / "oof_predictions.csv", index=False)
+        truth = df.set_index(cfg.data.id_col).loc[
+            oof[cfg.data.id_col], cfg.data.target_col
+        ]
+        oof_score = score(truth.to_numpy(), oof[cfg.data.target_col].to_numpy())
 
-    # Save OOF predictions (full mode)
-    # if run_cfg["folds_to_run"] == list(range(run_cfg["n_folds"])) and oof_predictions:
-    #     oof_df = pd.concat(oof_predictions, ignore_index=True)
-    #     oof_df.to_csv(output_dir / "oof_predictions.csv", index=False)
-    #     print(f"\nOOF predictions saved to {output_dir / 'oof_predictions.csv'}")
+    summary = build_run_summary(
+        exp_name=cfg.exp_name,
+        run_name=cfg.run_name,
+        run_mode=cfg.run_mode,
+        metric_name=cfg.metric.name,
+        metric_mode=cfg.metric.mode,
+        fold_scores=fold_scores,
+        n_folds=cfg.data.n_folds,
+        oof_score=oof_score,
+        lineage=lineage,
+        overrides=overrides,
+        started_at=started_at,
+    )
+    write_run_summary(summary, logs_dir)
+    logger.info(
+        "fold_scores=%s cv_mean=%s cv_std=%s oof=%s",
+        summary["fold_scores"],
+        summary["cv_mean"],
+        summary["cv_std"],
+        oof_score,
+    )
 
-    # CV の集計はローカルには常に出す（wandb の有無・fold 数に依存させない）。
-    # summary run の条件（fold >= 2 かつ wandb 有効）に載せると、1 fold の full や
-    # wandb 無効時にスコアが 1 行も残らない。
-    if cfg.run_mode == "full" and fold_scores:
-        local_scores = list(fold_scores.values())
-        local_mean = sum(local_scores) / len(local_scores)
-        if len(local_scores) == 1:
-            logger.info(
-                "Single-fold score: %.4f（CV ではない。fold 1 本の値）", local_mean
-            )
-        else:
-            local_std = (
-                sum((s - local_mean) ** 2 for s in local_scores)
-                / (len(local_scores) - 1)
-            ) ** 0.5
-            logger.info("CV score: %.4f ± %.4f", local_mean, local_std)
-
-    # Summary run（full モード && wandb 有効 && fold >= 2 のときだけ。docs/wandb-spec.md 参照）
-    # 1 fold しか回っていない CV に summary run を作ると、fold run と同じ値が
-    # "CV スコア" として並び、単一 fold の値を CV と見誤る。
-    if (
-        cfg.run_mode == "full"
-        and run_cfg["wandb_mode"] != "disabled"
-        and len(fold_scores) >= 2
-    ):
-        wandb.init(
+    # summary run は全 fold を回し、wandb が有効なときだけ（1 fold の値を CV として並べない）
+    if oof_score is not None and mode["wandb_mode"] != "disabled":
+        run = wandb.init(
             project=cfg.wandb.project,
             entity=cfg.wandb.entity,
-            group=group_name,
+            group=group,
             name=f"{exp_short}-{cfg.run_name}-summary",
             id=f"{exp_short}-{cfg.run_name}-{cfg.run_mode}-summary",
             resume="allow",
             job_type="summary",
             config=wandb_config,
-            notes=wandb_notes,
-            mode=run_cfg["wandb_mode"],
-            reinit=True,
+            tags=tags,
+            mode=mode["wandb_mode"],
+            reinit="finish_previous",
         )
-        scores = list(fold_scores.values())
-        cv_mean = sum(scores) / len(scores)
-        # このブロックは len(fold_scores) >= 2 が保証されているので不偏分散が定義できる
-        cv_std = (sum((s - cv_mean) ** 2 for s in scores) / (len(scores) - 1)) ** 0.5
-        wandb.summary[f"cv/{metric_name}"] = cv_mean
-        wandb.summary[f"cv/{metric_name}_std"] = cv_std
-        # CV の代表値は OOF pooled スコア（docs/wandb-spec.md）。
-        # OOF を算出したら wandb.summary[f"oof/{metric_name}"] に記録する
-        for fi, score in fold_scores.items():
-            wandb.summary[f"fold{fi}/best_val_{metric_name}"] = score
-        wandb.finish()
+        run.summary[f"oof/{cfg.metric.name}"] = oof_score
+        run.summary[f"cv/{cfg.metric.name}"] = summary["cv_mean"]
+        run.summary[f"cv/{cfg.metric.name}_std"] = summary["cv_std"]
+        for k, v in fold_scores.items():
+            run.summary[f"fold{k}/best_val_{cfg.metric.name}"] = v
+        run.finish()
 
-    metrics_logger.finish()
-    logger.info("Training complete. Output dir: %s", output_dir)
+    logger.info("Done. output=%s logs=%s", output_dir, logs_dir)
 
 
 if __name__ == "__main__":

@@ -1,87 +1,68 @@
-# Experiment configuration
-defaults:
-  - base_schema  # config_schema.py の dataclass（タイポ・型違いを実行時に検出）
-  - _self_
+# exp000_sample のベース config（この実験の設定の唯一の置き場。スキーマ dataclass は持たない）
+# - CLI のタイポ（training.lrr=1）は Hydra の struct モードが起動時に弾く
+# - 小実験 yaml のタイポ（親に無いキー）は src/utils/lineage.py が起動時に弾く
+# - コンペ固有値は docs/competition-profile.yaml から ${profile:...} で読む（転記しない）
 
-# Experiment
 exp_name: exp000_sample
 run_name: run000-base
 seed: 42
 
-# Run mode: debug / fold0 / full
-# - debug: パイプライン確認（少数データ・少数バッチ・1エポック・1fold・wandb disabled）
-# - fold0: fold0 のみ実行（デフォルト）
-# - full: 全 fold 実行
+# debug: 少数データ・少数バッチで fold0 を 1 epoch（wandb 無効、出力は *-debug/ に隔離）
+# fold0: fold0 のみ（既定。docs/competition-profile.yaml の workflow.default_run_mode）
+# full : 全 fold + OOF + summary run
 run_mode: fold0
 
-# 系譜（親 run と、親から変えたキー）。
-# ベース config は parent: config / varied: [] のまま。
-# 小実験（run{NNN}-*.yaml）では親 run 名と変えたキーを必ず書く。
-lineage:
-  parent: config
-  varied: []
-
-# Debug settings (run_mode=debug 時に適用)
 debug:
   epochs: 1
-  samples: 100
+  samples: 256
   limit_train_batches: 2
   limit_val_batches: 2
-  n_folds: 1
 
-# Metric（docs/competition-profile.yaml と揃える。/kaggle:init で設定）
-# - name: wandb キー（val/{name}）・チェックポイント名・CV 集計に使う短い英小文字名
-# - mode: max = 大きいほど良い / min = 小さいほど良い
-# このサンプルはダミーの損失をスコアとして扱うため loss/min にしている
 metric:
-  name: loss
-  mode: min
-  # docs/competition-profile.yaml の metric.noise を転記する。
-  # 最初のベースラインが完走したら seed のみ変えた run を焼いて seed_spread を埋める。
-  noise:
-    seed_spread: null
-    fold0_resolution: null
-    proxy_resolution: null
+  name: ${profile:metric.name}
+  mode: ${profile:metric.mode}
 
-# Data
-# input_dir は環境変数 INPUT_DIR で上書きできる（例: Kaggle Notebook では
-# INPUT_DIR=/kaggle/input/competitions/{slug}）。未設定ならローカルの input/ を使う。
-# ⚠ コンペデータは /kaggle/input/competitions/{slug}、Dataset は
-#   /kaggle/input/datasets/{user}/{dataset-slug} にマウントされる。
-#   /kaggle/input/{slug} は誤りで、全レコードが欠損値埋めになり提出が静かに壊れる。
+# ⚠ このサンプルは合成データ（uv run python -m src.exp000_sample.make_synthetic）を読む。
+#   実コンペの exp では次の 2 行を実データ用に戻す:
+#     input_dir:  ${oc.env:INPUT_DIR,${hydra:runtime.cwd}/input}
+#     folds_path: ${hydra:runtime.cwd}/data/folds/folds_${data.fold_version}.csv
+#   Kaggle 上のマウントパスは docs/training-conventions.md の「実行環境」。
 data:
-  input_dir: ${oc.env:INPUT_DIR,${hydra:runtime.cwd}/input}
+  input_dir: ${hydra:runtime.cwd}/sandbox/synthetic
   train_path: ${data.input_dir}/train.csv
   test_path: ${data.input_dir}/test.csv
   sample_submission_path: ${data.input_dir}/sample_submission.csv
+  id_col: id
+  target_col: target
+  # fold 割当は全実験で共有するファイル（初回に作成、以後不変）。戦略を変えるなら fold_version を上げる
+  fold_version: v1
+  folds_path: ${data.input_dir}/folds_${data.fold_version}.csv
   n_folds: 5
-  # データの世代（任意）。設定すると wandb の tags に入り、世代跨ぎの比較を防げる。
-  # ⚠ 異なるバージョン間で CV スコアを比較しない
-  fold_version: null
+  cv_strategy: stratified  # kfold | stratified | group | stratified_group | timeseries
+  group_col: null
+  # 前処理・ラベルの世代（wandb tags に入る。世代を跨いで CV を比較しない）
   data_version: null
   label_version: null
 
-# Model
 model:
-  name: baseline
+  hidden_dim: 64
+  dropout: 0.1
 
-# Training
 training:
   epochs: 10
-  batch_size: 32
+  batch_size: 128
   lr: 1e-3
+  num_workers: 0
+  save_top_k: 1
 
-# Output
 output_dir: ${hydra:runtime.cwd}/src/${exp_name}/output/${run_name}
 logs_dir: ${hydra:runtime.cwd}/src/${exp_name}/logs/${run_name}
 
-# Wandb
 wandb:
-  project: kaggle-competition
-  entity: null  # Set your wandb entity
-  mode: online  # online, offline, disabled
+  project: ${profile:wandb.project}
+  entity: null
+  mode: online  # online | offline | disabled
 
-# Hydra settings
 hydra:
   run:
     dir: .

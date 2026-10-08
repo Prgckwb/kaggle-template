@@ -1,96 +1,40 @@
-"""Data loading and preprocessing.
+"""データの読み込みと Dataset / DataLoader。
 
-Replace the TODO sections with your competition-specific implementation.
-For PyTorch Lightning, use LightningDataModule.
-For GBM/tabular, use pandas/polars directly.
+学習（train.py）と推論（inference.py・提出 notebook）は同じ前処理関数を通す（train/serve skew 防止）。
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
+import torch
+from omegaconf import DictConfig
+from torch.utils.data import DataLoader, TensorDataset
 
 
-def load_data(
-    train_path: str | Path, test_path: str | Path
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Load train and test data."""
-    train_df = pd.read_csv(train_path)
-    test_df = pd.read_csv(test_path)
-    return train_df, test_df
+def feature_columns(df: pd.DataFrame, cfg: DictConfig) -> list[str]:
+    excluded = {cfg.data.id_col, cfg.data.target_col}
+    return [c for c in df.columns if c not in excluded]
 
 
-def preprocess(df: pd.DataFrame) -> pd.DataFrame:
-    """Preprocess dataframe. Override per competition."""
+def preprocess(df: pd.DataFrame, cfg: DictConfig) -> pd.DataFrame:
+    """学習・推論で共有する前処理（コンペごとに書き換える）。"""
     return df
 
 
-def create_folds(
-    df: pd.DataFrame,
-    n_folds: int,
-    seed: int,
-    strategy: str = "stratified",
-    target_col: str = "target",
-    group_col: str | None = None,
-) -> pd.DataFrame:
-    """Add a 'fold' column to the dataframe using src/utils/cv.py.
-
-    Note: sklearn の splitter が返す val_idx は「位置」インデックスなので、
-    ラベルベースの .loc ではなく .iloc で代入する（行をフィルタした
-    DataFrame でも正しく動作させるため）。
-    """
-    from src.utils.cv import create_folds as _create_folds
-
-    df = df.copy()
-    df["fold"] = -1
-    fold_col = df.columns.get_loc("fold")
-    for fold_idx, (_, val_idx) in enumerate(
-        _create_folds(
-            df,
-            n_folds=n_folds,
-            strategy=strategy,
-            target_col=target_col,
-            group_col=group_col,
-            seed=seed,
+def make_loader(
+    df: pd.DataFrame, cfg: DictConfig, *, features: list[str], train: bool
+) -> DataLoader:
+    x = torch.tensor(df[features].to_numpy(), dtype=torch.float32)
+    tensors = [x]
+    if cfg.data.target_col in df.columns:
+        tensors.append(
+            torch.tensor(df[cfg.data.target_col].to_numpy(), dtype=torch.float32)
         )
-    ):
-        df.iloc[val_idx, fold_col] = fold_idx
-    return df
-
-
-# ---------------------------------------------------------------------------
-# PyTorch Lightning DataModule example (uncomment and adapt):
-# ---------------------------------------------------------------------------
-#
-# import lightning as L
-# from torch.utils.data import DataLoader, Dataset
-#
-# class CompetitionDataModule(L.LightningDataModule):
-#     def __init__(self, cfg, train_df, val_df):
-#         super().__init__()
-#         self.cfg = cfg
-#         self.train_df = train_df
-#         self.val_df = val_df
-#
-#     def setup(self, stage=None):
-#         self.train_ds = CompetitionDataset(self.train_df)
-#         self.val_ds = CompetitionDataset(self.val_df)
-#
-#     def train_dataloader(self):
-#         return DataLoader(
-#             self.train_ds,
-#             batch_size=self.cfg.training.batch_size,
-#             shuffle=True,
-#             num_workers=self.cfg.data.get("num_workers", 4),
-#             pin_memory=self.cfg.data.get("pin_memory", True),
-#         )
-#
-#     def val_dataloader(self):
-#         return DataLoader(
-#             self.val_ds,
-#             batch_size=self.cfg.training.batch_size,
-#             shuffle=False,
-#             num_workers=self.cfg.data.get("num_workers", 4),
-#             pin_memory=self.cfg.data.get("pin_memory", True),
-#         )
+    return DataLoader(
+        TensorDataset(*tensors),
+        batch_size=cfg.training.batch_size,
+        shuffle=train,
+        num_workers=cfg.training.num_workers,
+        pin_memory=torch.cuda.is_available(),
+        persistent_workers=cfg.training.num_workers > 0,
+    )

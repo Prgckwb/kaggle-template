@@ -1,124 +1,54 @@
-"""Checkpoint utilities for export and management."""
+"""チェックポイントの選択と配布用の軽量化。
+
+ckpt 名の規約は docs/training-conventions.md の「チェックポイント」
+（`{exp番号}-{run_name}-f{k}-ep{NN}-val_{metric}-{score}.ckpt`）。
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+
+from src.utils.submission_manifest import parse_ckpt_name
+
+# 推論に必要なキーだけを残す（optimizer / scheduler / loops 等の学習状態は捨てる）
+SLIM_KEYS = ("state_dict", "hyper_parameters", "pytorch-lightning_version")
 
 
-def export_slim_checkpoint(
-    checkpoint_path: Path | str,
-    output_path: Path | str,
-    *,
-    keep_keys: list[str] | None = None,
-    remove_keys: list[str] | None = None,
-) -> Path:
-    """Export a slim checkpoint containing only model weights.
+def select_best_ckpt(fold_dir: str | Path, mode: str) -> Path:
+    """fold ディレクトリから、ファイル名のスコアが best の ckpt を選ぶ。
 
-    Strips optimizer state, scheduler state, and other training artifacts
-    to reduce file size for inference/submission.
-
-    Args:
-        checkpoint_path: Path to the full training checkpoint.
-        output_path: Path to write the slim checkpoint.
-        keep_keys: If specified, only these top-level keys are kept.
-            Defaults to ["state_dict", "hyper_parameters"].
-        remove_keys: Top-level keys to explicitly remove (applied after keep_keys).
-
-    Returns:
-        Path to the written slim checkpoint.
+    `next(glob("*.ckpt"))` で任意の 1 個を掴むと、save_top_k >= 2 のとき非 best で提出してしまう。
+    規約どおりの名前が 1 つも無ければ黙って選ばずエラーにする。
     """
+    fold_dir = Path(fold_dir)
+    ckpts = sorted(fold_dir.glob("*.ckpt"))
+    if not ckpts:
+        raise FileNotFoundError(f"ckpt が見つかりません: {fold_dir}")
+    scored = [
+        (ref.score, path)
+        for path in ckpts
+        if (ref := parse_ckpt_name(path.name)) and ref.score is not None
+    ]
+    if not scored:
+        names = ", ".join(p.name for p in ckpts)
+        raise RuntimeError(
+            f"スコア入りの ckpt 名が {fold_dir} にありません（{names}）。"
+            "docs/training-conventions.md の命名規約に合わせてください"
+        )
+    pick = max if mode == "max" else min
+    return pick(scored, key=lambda item: item[0])[1]
+
+
+def export_slim_checkpoint(src: str | Path, dst: str | Path) -> Path:
+    """推論用に学習状態を落とした ckpt を書き出す（Kaggle Dataset の容量節約）。"""
     import torch
 
-    checkpoint_path = Path(checkpoint_path)
-    output_path = Path(output_path)
-
-    ckpt: dict[str, Any] = torch.load(
-        checkpoint_path, map_location="cpu", weights_only=False
-    )
-
-    if keep_keys is None:
-        keep_keys = _detect_keep_keys(ckpt)
-
-    slim: dict[str, Any] = {k: ckpt[k] for k in keep_keys if k in ckpt}
-
-    if remove_keys:
-        for k in remove_keys:
-            slim.pop(k, None)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(slim, output_path)
-
-    original_mb = checkpoint_path.stat().st_size / (1024 * 1024)
-    slim_mb = output_path.stat().st_size / (1024 * 1024)
-    print(
-        f"Exported slim checkpoint: {original_mb:.1f}MiB -> {slim_mb:.1f}MiB "
-        f"({slim_mb / original_mb * 100:.0f}%)"
-    )
-
-    return output_path
-
-
-def _detect_keep_keys(ckpt: dict[str, Any]) -> list[str]:
-    """Auto-detect which keys to keep based on checkpoint format."""
-    keys = []
-
-    # PyTorch Lightning format
-    if "state_dict" in ckpt:
-        keys.append("state_dict")
-        if "hyper_parameters" in ckpt:
-            keys.append("hyper_parameters")
-        return keys
-
-    # Plain PyTorch format (model key)
-    if "model" in ckpt:
-        keys.append("model")
-        return keys
-
-    # HuggingFace Trainer format
-    if "model_state_dict" in ckpt:
-        keys.append("model_state_dict")
-        return keys
-
-    # Fallback: keep everything except known training artifacts
-    training_keys = {
-        "optimizer",
-        "optimizer_states",
-        "optimizer_state_dict",
-        "scheduler",
-        "scheduler_state_dict",
-        "lr_scheduler",
-        "lr_schedulers",
-        "scaler",
-        "grad_scaler",
-        "callbacks",
-        "loops",
-        "global_step",
-        "epoch",
-        "pytorch-lightning_version",
-    }
-    return [k for k in ckpt if k not in training_keys]
-
-
-def load_checkpoint_weights(
-    checkpoint_path: Path | str,
-) -> dict[str, Any]:
-    """Load only model weights from a checkpoint, auto-detecting format.
-
-    Returns the state dict regardless of checkpoint format
-    (Lightning, plain PyTorch, HuggingFace).
-    """
-    import torch
-
-    ckpt: dict[str, Any] = torch.load(
-        Path(checkpoint_path), map_location="cpu", weights_only=False
-    )
-
-    if "state_dict" in ckpt:
-        return ckpt["state_dict"]
-    if "model" in ckpt:
-        return ckpt["model"]
-    if "model_state_dict" in ckpt:
-        return ckpt["model_state_dict"]
-
-    return ckpt
+    ckpt = torch.load(Path(src), map_location="cpu", weights_only=False)
+    if "state_dict" not in ckpt:
+        raise ValueError(
+            f"Lightning 形式の ckpt ではありません（state_dict が無い）: {src}"
+        )
+    dst = Path(dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({k: ckpt[k] for k in SLIM_KEYS if k in ckpt}, dst)
+    return dst
