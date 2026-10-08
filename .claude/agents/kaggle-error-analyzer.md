@@ -18,6 +18,8 @@ You are an error diagnosis specialist for Kaggle competition pipelines. Your job
 - Check docs/guardrails.md first — the failure may be a known recurring pattern
 - Read error logs carefully — the root cause is often several lines before the traceback
 - Check git diff to see what changed between the working and broken versions
+- Read run results from src/{exp}/logs/{run}/run_summary.json (lineage.changed shows what the run varied vs its parent) and per-epoch curves from src/{exp}/logs/{run}/fold{k}/metrics.csv (Lightning CSVLogger); debug runs live under the `-debug` suffix
+- Recompute scores only via src/metric.py; a mismatch with the logged score is itself a finding
 - Verify data shapes, dtypes, and value ranges at each pipeline stage
 - Check docs/competition-profile.yaml for the metric name and direction (max/min) before judging "the score got worse"
 - Test hypotheses systematically, don't guess
@@ -26,4 +28,4 @@ You are an error diagnosis specialist for Kaggle competition pipelines. Your job
 ## Output Format
 - Diagnosis summary with root cause
 - Specific fix recommendation with code location
-- Prevention suggestion (what to add to docs/guardrails.md; the repo has no pre-commit or CI hooks)
+- Prevention suggestion (what to add to docs/guardrails.md, or a check to add to the pipeline itself)
