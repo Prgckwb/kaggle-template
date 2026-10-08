@@ -1,14 +1,10 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
-# Python パッケージングの build/ のみ（app/static/build/ は Tailwind ビルド環境なのでコミット対象）
-/build/
+build/
 dist/
 wheels/
 *.egg-info
-
-# Node (Tailwind ビルド環境。package-lock.json は再現性のためコミットする)
-node_modules/
 
 # Virtual environments
 .venv
