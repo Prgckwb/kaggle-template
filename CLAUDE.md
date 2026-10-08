@@ -46,6 +46,10 @@ Kaggle コンペティション用テンプレート。Hydra + wandb で実験�
 
 ## コマンド
 
+**Python は必ず `uv run` 経由で実行する**（`uv run python -m ...` / `uv run script.py` / `uv run --with X ...`）。
+`python` / `python3` / `pip` / `.venv/bin/python` の直接呼び出しは guard.py が止める。
+`uv run` は既定で extra を外さない（外すのは `--exact` のときだけ）ので、`--extra torch` で入れた環境はそのまま使える。
+
 ```bash
 uv sync --extra torch          # PyTorch 系込みでインストール（GBDT なら --extra tabular）
 

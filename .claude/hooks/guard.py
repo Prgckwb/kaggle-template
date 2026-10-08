@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --no-project
 """PreToolUse hook: 共有作業ツリーと提出枠を守るガード（ガード規則の唯一の正本）。
 
 止めるもの:
@@ -11,12 +11,16 @@
 2. Kaggle への提出（profile の `workflow.submission_by: user` のとき）
    - Bash の `kaggle competitions submit`
    - Kaggle MCP の提出系ツール（submit / submission upload）
+3. `uv run` を通さない Python の実行（常に有効）
+   - `python` / `python3` / `pip` / `.venv/bin/python` などの直接呼び出し。
+     `uv run python ...` / `uv run script.py` / `uv run --with X ...` を使わせる
 
 判定はコマンドを引用符の外の `&&` `||` `;` `|` `$(` 改行で区切った**各セグメントの先頭**に対して行う。
 `grep 'git add -A' docs` や `echo`・引用符・ヒアドキュメント本文の中の文字列では発火しない。
 `git -C <path> add -A` のようにサブコマンドの前に挟まるグローバルオプションは吸収する。
 
-stdlib のみで動く（hook は system の python3 で実行されるため）。判定できない入力は通す。
+stdlib のみで動く（hook は `uv run --no-project` で起動され、プロジェクトの .venv に依存しない）。
+判定できない入力は通す。
 profile が読めない場合は安全側（両方のガードを有効）に倒す。
 """
 
@@ -39,6 +43,11 @@ SUBMIT_REASON = (
     "提出はユーザーの専管です（docs/competition-profile.yaml の workflow.submission_by）。"
     "notebook の commit と出力確認までで止めてください。"
 )
+PYTHON_REASON = (
+    "Python は必ず uv run 経由で実行してください"
+    "（例: uv run python -m src.exp001_xxx.train / uv run script.py / uv run --with ruff ruff check）。"
+)
+BARE_PYTHON = re.compile(r"^(python(\d+(\.\d+)?)?|pip\d*(\.\d+)?)$")
 SUBMIT_MCP = re.compile(
     r"^mcp__kaggle__(submit|start_competition_submission|create_.*submission)"
 )
@@ -157,6 +166,8 @@ def segments(command: str) -> list[list[str]]:
 
 def decide_bash(command: str, guard_git: bool, guard_submit: bool) -> str | None:
     for tokens in segments(command):
+        if BARE_PYTHON.match(Path(tokens[0]).name):
+            return PYTHON_REASON
         git = _git_args(tokens)
         if guard_git and git and dangerous_git(git):
             return GIT_REASON
